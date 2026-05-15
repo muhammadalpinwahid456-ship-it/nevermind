@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ALVIN Profile</title>
+    <link rel="stylesheet" href="profile.css">
+</head>
+<body>
+    <!-- AUTH CHECK -->
+    <div id="authCheck" class="auth-check">
+        <div class="auth-message">
+            <h2>⚠️ Silakan Login Terlebih Dahulu</h2>
+            <p>Anda harus login untuk mengakses halaman profile</p>
+            <button onclick="window.location.href='index.html'">Kembali ke Homepage</button>
+        </div>
+    </div>
+
+    <!-- PROFILE CONTAINER -->
+    <div id="profileContainer" class="profile-container" style="display: none;">
+        <!-- HEADER -->
+        <header class="profile-header">
+            <div class="header-left">
+                <h1 class="logo">👤 ALVIN Profile</h1>
+            </div>
+            <div class="header-right">
+                <a href="reels.html" class="btn-reels">🎬 Reels</a>
+                <a href="chat.html" class="btn-chat">💬 Chat</a>
+                <a href="index.html" class="btn-home">🏠 Home</a>
+                <button class="btn-logout-profile" onclick="logoutProfile()">Logout</button>
+            </div>
+        </header>
+
+        <!-- PROFILE SECTION -->
+        <div class="profile-content">
+            <!-- PROFILE HEADER -->
+            <div class="profile-header-section">
+                <div class="profile-pic-wrapper">
+                    <img id="profilePic" class="profile-pic" src="https://via.placeholder.com/150" alt="Profile">
+                    <button class="btn-edit-pic" onclick="openEditPhoto()">📷</button>
+                </div>
+                <input type="file" id="photoUpload" accept="image/*" style="display: none;">
+
+                <div class="profile-info">
+                    <h2 id="profileName">User Name</h2>
+                    <p id="profileDesc" class="profile-desc">Belum ada deskripsi</p>
+                    
+                    <div class="profile-stats">
+                        <div class="stat">
+                            <span class="stat-value" id="totalLikes">0</span>
+                            <span class="stat-label">Total Likes</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-value" id="totalReels">0</span>
+                            <span class="stat-label">Reels</span>
+                        </div>
+                    </div>
+
+                    <button class="btn-edit-profile" onclick="openEditModal()">Edit Profile</button>
+                </div>
+            </div>
+
+            <!-- GALLERY SECTION -->
+            <div class="gallery-section">
+                <h3>Reels Saya</h3>
+                <div class="gallery-grid" id="galleryGrid">
+                    <!-- Gallery items akan ditampilkan di sini -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- EDIT PROFILE MODAL -->
+    <div id="editModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeEditModal()">✕</button>
+            <h2>Edit Profile</h2>
+            
+            <form id="editForm">
+                <div class="form-group">
+                    <label for="editName">Nama Lengkap</label>
+                    <input 
+                        type="text" 
+                        id="editName" 
+                        placeholder="Masukkan nama Anda" 
+                        required 
+                        maxlength="100"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="editDesc">Deskripsi</label>
+                    <textarea 
+                        id="editDesc" 
+                        placeholder="Tulis deskripsi tentang Anda" 
+                        maxlength="150"
+                        rows="3"
+                    ></textarea>
+                    <span class="char-count"><span id="descCount">0</span>/150</span>
+                </div>
+
+                <button type="submit" class="btn-save">Simpan Perubahan</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- FIREBASE SCRIPTS -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import {
+            getAuth,
+            onAuthStateChanged,
+            signOut
+        } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import {
+            getDatabase,
+            ref,
+            onValue,
+            get,
+            update,
+            remove
+        } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDzDRaHEASBWO0dDKOIlvlku3lN01b89iw",
+            authDomain: "alvin-f573e.firebaseapp.com",
+            projectId: "alvin-f573e",
+            storageBucket: "alvin-f573e.firebasestorage.app",
+            messagingSenderId: "718704784181",
+            appId: "1:718704784181:web:db5fe912a3cb3b0675d27c",
+            measurementId: "G-NHLWBMV307",
+            databaseURL: "https://alvin-f573e-default-rtdb.asia-southeast1.firebasedatabase.app"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const database = getDatabase(app);
+
+        let currentUser = null;
+        let userReels = [];
+        let userProfileUnsubscribe = null;
+        let userReelsUnsubscribe = null;
+
+        // ===== AUTH CHECK =====
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                document.getElementById('authCheck').style.display = 'none';
+                document.getElementById('profileContainer').style.display = 'block';
+                loadUserProfile();
+                loadUserReels();
+            } else {
+                document.getElementById('authCheck').style.display = 'flex';
+                document.getElementById('profileContainer').style.display = 'none';
+                if (userProfileUnsubscribe) userProfileUnsubscribe();
+                if (userReelsUnsubscribe) userReelsUnsubscribe();
+            }
+        });
+
+        // Load user profile (DIPERBAIKI: Realtime listener)
+        function loadUserProfile() {
+            const userRef = ref(database, 'users/' + currentUser.uid);
+            
+            if (userProfileUnsubscribe) userProfileUnsubscribe();
+            
+            userProfileUnsubscribe = onValue(userRef, (snapshot) => {
+                if (snapshot.exists()) {
+                    const userData = snapshot.val();
+                    document.getElementById('profileName').textContent = userData.fullname || 'User';
+                    document.getElementById('profileDesc').textContent = userData.description || 'Belum ada deskripsi';
+                    
+                    if (userData.photoURL) {
+                        document.getElementById('profilePic').src = userData.photoURL;
+                    }
+
+                    document.getElementById('editName').value = userData.fullname || '';
+                    document.getElementById('editDesc').value = userData.description || '';
+                    document.getElementById('descCount').textContent = (userData.description || '').length;
+                    
+                    console.log('✅ Profile loaded:', userData.fullname);
+                }
+            }, (error) => {
+                console.error('❌ Error loading profile:', error);
+            });
+        }
+
+        // Load user reels (DIPERBAIKI: Realtime listener dengan filter)
+        function loadUserReels() {
+            const reelsRef = ref(database, 'reels');
+            
+            if (userReelsUnsubscribe) userReelsUnsubscribe();
+            
+            userReelsUnsubscribe = onValue(reelsRef, (snapshot) => {
+                userReels = [];
+                if (snapshot.exists()) {
+                    snapshot.forEach((childSnapshot) => {
+                        const reelData = childSnapshot.val();
+                        // Filter hanya reels milik user ini
+                        if (reelData.userId === currentUser.uid && reelData.mediaUrl) {
+                            userReels.push({
+                                id: childSnapshot.key,
+                                ...reelData
+                            });
+                        }
+                    });
+                    // Sort by timestamp (terbaru dulu)
+                    userReels.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+                    console.log('✅ User reels loaded:', userReels.length);
+                }
+                displayUserReels();
+                updateStats();
+            }, (error) => {
+                console.error('❌ Error loading reels:', error);
+            });
+        }
+
+        // Display user reels
+        function displayUserReels() {
+            const gallery = document.getElementById('galleryGrid');
+            gallery.innerHTML = '';
+
+            if (userReels.length === 0) {
+                gallery.innerHTML = '<p class="no-reels">Anda belum upload reels. <a href="reels.html">Upload sekarang!</a></p>';
+                return;
+            }
+
+            userReels.forEach(reel => {
+                const galleryItem = document.createElement('div');
+                galleryItem.className = 'gallery-item';
+                galleryItem.dataset.reelId = reel.id;
+
+                const mediaHtml = reel.mediaType === 'video'
+                    ? `<video src="${reel.mediaUrl}" controls preload="metadata" style="width: 100%; height: 100%; object-fit: cover;" onerror="handleVideoError(this)"></video>`
+                    : `<img src="${reel.mediaUrl}" alt="reel" style="width: 100%; height: 100%; object-fit: cover;" onerror="handleImageError(this)">`;
+
+                const likeCount = Object.keys(reel.likes || {}).length;
+                const commentCount = Object.keys(reel.comments || {}).length;
+
+                galleryItem.innerHTML = `
+                    <div class="gallery-media">
+                        ${mediaHtml}
+                        <div class="gallery-overlay">
+                            <div class="gallery-stats">
+                                <span>❤️ ${likeCount}</span>
+                                <span>💬 ${commentCount}</span>
+                            </div>
+                        </div>
+                        <button class="btn-delete-reel" title="Hapus Reel" onclick="confirmDeleteReel('${reel.id}', this)">🗑️</button>
+                    </div>
+                    <p class="gallery-caption">${escapeHtml(reel.caption)}</p>
+                `;
+
+                gallery.appendChild(galleryItem);
+            });
+        }
+
+        // Confirm & delete reel
+        window.confirmDeleteReel = async function(reelId, btnEl) {
+            if (!confirm('⚠️ Yakin ingin menghapus reel ini?\nReel yang dihapus tidak dapat dikembalikan.')) return;
+
+            btnEl.disabled = true;
+            btnEl.textContent = '⏳';
+
+            try {
+                const reelRef = ref(database, 'reels/' + reelId);
+                await remove(reelRef);
+
+                // Hapus card dari DOM langsung (tidak perlu tunggu listener)
+                const card = document.querySelector(`.gallery-item[data-reel-id="${reelId}"]`);
+                if (card) {
+                    card.style.transition = 'opacity 0.3s, transform 0.3s';
+                    card.style.opacity = '0';
+                    card.style.transform = 'scale(0.85)';
+                    setTimeout(() => card.remove(), 320);
+                }
+
+                console.log('✅ Reel dihapus:', reelId);
+            } catch (error) {
+                alert('❌ Gagal menghapus reel: ' + error.message);
+                btnEl.disabled = false;
+                btnEl.textContent = '🗑️';
+                console.error('Delete reel error:', error);
+            }
+        };
+
+        // Update stats
+        function updateStats() {
+            let totalLikes = 0;
+            userReels.forEach(reel => {
+                totalLikes += Object.keys(reel.likes || {}).length;
+            });
+
+            document.getElementById('totalLikes').textContent = totalLikes;
+            document.getElementById('totalReels').textContent = userReels.length;
+            
+            console.log('📊 Stats updated - Reels:', userReels.length, 'Likes:', totalLikes);
+        }
+
+        // Open edit photo
+        window.openEditPhoto = function() {
+            document.getElementById('photoUpload').click();
+        };
+
+        // Photo upload
+        document.getElementById('photoUpload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                if (file.size > 5 * 1024 * 1024) {
+                    alert('❌ File terlalu besar! Max 5MB');
+                    return;
+                }
+                
+                const reader = new FileReader();
+                reader.onload = async (event) => {
+                    try {
+                        const photoURL = event.target.result;
+                        const userRef = ref(database, 'users/' + currentUser.uid);
+                        await update(userRef, { photoURL: photoURL });
+                        document.getElementById('profilePic').src = photoURL;
+                        alert('✅ Foto profil berhasil diperbarui!');
+                        console.log('✅ Photo updated');
+                    } catch (error) {
+                        alert('❌ Error: ' + error.message);
+                        console.error('Photo upload error:', error);
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Open edit modal
+        window.openEditModal = function() {
+            document.getElementById('editModal').style.display = 'flex';
+        };
+
+        // Close edit modal
+        window.closeEditModal = function() {
+            document.getElementById('editModal').style.display = 'none';
+        };
+
+        // Description counter
+        document.getElementById('editDesc').addEventListener('input', function() {
+            document.getElementById('descCount').textContent = this.value.length;
+        });
+
+        // Edit form submit
+        document.getElementById('editForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const name = document.getElementById('editName').value.trim();
+            const description = document.getElementById('editDesc').value.trim();
+
+            if (!name) {
+                alert('❌ Nama tidak boleh kosong');
+                return;
+            }
+
+            try {
+                const userRef = ref(database, 'users/' + currentUser.uid);
+                await update(userRef, {
+                    fullname: name,
+                    description: description
+                });
+
+                alert('✅ Profile berhasil diperbarui!');
+                closeEditModal();
+                console.log('✅ Profile updated');
+            } catch (error) {
+                alert('❌ Error: ' + error.message);
+                console.error('Profile update error:', error);
+            }
+        });
+
+        // Logout
+        window.logoutProfile = function() {
+            if (confirm('Apakah Anda yakin ingin logout?')) {
+                if (userProfileUnsubscribe) userProfileUnsubscribe();
+                if (userReelsUnsubscribe) userReelsUnsubscribe();
+                signOut(auth).then(() => {
+                    window.location.href = 'index.html';
+                }).catch(err => {
+                    alert('❌ Error: ' + err.message);
+                    console.error('Logout error:', err);
+                });
+            }
+        };
+
+        // Escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Handle video error
+        window.handleVideoError = function(videoElement) {
+            console.error('Video failed to load:', videoElement.src);
+            videoElement.style.display = 'none';
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'media-error';
+            errorDiv.innerHTML = '❌ Video gagal dimuat';
+            videoElement.parentNode.appendChild(errorDiv);
+        };
+
+        // Handle image error
+        window.handleImageError = function(imgElement) {
+            console.error('Image failed to load:', imgElement.src);
+            imgElement.style.display = 'none';
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'media-error';
+            errorDiv.innerHTML = '❌ Gambar gagal dimuat';
+            imgElement.parentNode.appendChild(errorDiv);
+        };
+    </script>
+</body>
+</html>

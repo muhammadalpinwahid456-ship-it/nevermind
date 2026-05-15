@@ -1,0 +1,791 @@
+/* ===== INSTAGRAM-STYLE NOTES FEATURE ===== */
+
+/* Modal Wrapper - Narrow like Instagram */
+.note-viewer-modal-instagram {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.8) !important;
+}
+
+.note-viewer-instagram {
+    background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+    border: 1px solid #2d333b;
+    border-radius: 16px;
+    width: 100%;
+    max-width: 380px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    animation: slideUpInstagram 0.3s ease;
+    overflow: hidden;
+}
+
+@keyframes slideUpInstagram {
+    from {
+        transform: translateY(50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Header - User Info */
+.note-insta-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 16px;
+    border-bottom: 1px solid #1a1f2e;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.note-insta-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #3b82f6;
+    flex-shrink: 0;
+}
+
+.note-insta-user-info {
+    flex: 1;
+}
+
+.note-insta-username {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: #e0e6ed;
+    margin: 0;
+}
+
+.note-insta-time {
+    font-size: 0.75rem;
+    color: #8b949e;
+    margin: 2px 0 0 0;
+}
+
+.note-insta-close {
+    background: none;
+    border: none;
+    color: #8b949e;
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: color 0.2s;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.note-insta-close:hover {
+    color: #e0e6ed;
+}
+
+/* Main Content Area */
+.note-insta-content {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: 16px;
+}
+
+/* Music Info Card */
+.note-music-info-card {
+    background: linear-gradient(135deg, #1e2d4a 0%, #162136 100%);
+    border: 1px solid #2d4a6b;
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 16px;
+    flex-shrink: 0;
+}
+
+.music-song-title {
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: #60a5fa;
+    margin: 0 0 4px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.music-icon {
+    font-size: 1.3rem;
+    animation: rotateMusic 3s linear infinite;
+}
+
+@keyframes rotateMusic {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.music-artist {
+    font-size: 0.85rem;
+    color: #8b949e;
+    margin: 0 0 8px 0;
+}
+
+.music-duration-info {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    color: #6e7681;
+    margin-bottom: 8px;
+}
+
+/* Lyrics Display Area - Scrollable */
+.note-lyrics-container {
+    flex: 1;
+    overflow-y: auto;
+    background: linear-gradient(to bottom, 
+        rgba(13, 17, 23, 0.8) 0%,
+        rgba(22, 27, 34, 0.8) 50%,
+        rgba(13, 17, 23, 0.8) 100%);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+
+.lyrics-line {
+    font-size: 0.9rem;
+    color: #8b949e;
+    line-height: 1.8;
+    margin: 6px 0;
+    transition: all 0.3s ease;
+    cursor: default;
+}
+
+.lyrics-line.active {
+    color: #60a5fa;
+    font-weight: 600;
+    font-size: 1rem;
+    transform: scale(1.05);
+}
+
+.lyrics-line.past {
+    color: #4a5568;
+    font-size: 0.85rem;
+}
+
+.lyrics-line.upcoming {
+    color: #6e7681;
+    font-size: 0.85rem;
+}
+
+.no-lyrics-message {
+    color: #6e7681;
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+/* Music Clip Editor */
+.music-clip-editor {
+    background: #161b22;
+    border: 1px solid #2d333b;
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 14px;
+    flex-shrink: 0;
+}
+
+.clip-title {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #8b949e;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.clip-time-inputs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.clip-time-input {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.clip-time-label {
+    font-size: 0.7rem;
+    color: #6e7681;
+}
+
+.clip-time-input input {
+    background: #0d1117;
+    border: 1px solid #2d333b;
+    color: #60a5fa;
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    text-align: center;
+    font-weight: 600;
+}
+
+.clip-time-input input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 8px rgba(59, 130, 246, 0.2);
+}
+
+/* Timeline Slider */
+.clip-timeline {
+    margin-top: 10px;
+}
+
+.timeline-track {
+    width: 100%;
+    height: 4px;
+    background: #2d333b;
+    border-radius: 2px;
+    position: relative;
+    overflow: hidden;
+}
+
+.timeline-progress {
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6, #60a5fa);
+    width: 0%;
+    transition: width 0.1s linear;
+}
+
+.timeline-clip-range {
+    position: absolute;
+    top: -4px;
+    height: 12px;
+    background: rgba(59, 130, 246, 0.3);
+    border: 1px solid #3b82f6;
+}
+
+/* Control Buttons */
+.music-controls-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex-shrink: 0;
+}
+
+.music-control-btn {
+    flex: 1;
+    padding: 8px;
+    background: #161b22;
+    border: 1px solid #2d333b;
+    color: #8b949e;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+.music-control-btn:hover {
+    background: rgba(59, 130, 246, 0.1);
+    border-color: #3b82f6;
+    color: #60a5fa;
+}
+
+.music-control-btn.active {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    border-color: transparent;
+}
+
+.music-play-btn {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    flex: 2;
+}
+
+.music-play-btn:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+/* Action Buttons */
+.note-insta-actions {
+    display: flex;
+    gap: 10px;
+    padding: 12px;
+    border-top: 1px solid #1a1f2e;
+    flex-shrink: 0;
+    background: #0d1117;
+    border-radius: 0 0 16px 16px;
+}
+
+.note-action-btn-insta {
+    flex: 1;
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.85rem;
+    border: 1px solid #2d333b;
+    background: #161b22;
+    color: #8b949e;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.note-action-btn-insta:hover {
+    border-color: #3b82f6;
+    color: #3b82f6;
+    background: rgba(59, 130, 246, 0.08);
+}
+
+.note-action-btn-insta.liked {
+    border-color: #ef4444;
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.08);
+}
+
+/* Scrollbar Styling */
+.note-insta-content::-webkit-scrollbar,
+.note-lyrics-container::-webkit-scrollbar {
+    width: 4px;
+}
+
+.note-insta-content::-webkit-scrollbar-track,
+.note-lyrics-container::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.note-insta-content::-webkit-scrollbar-thumb,
+.note-lyrics-container::-webkit-scrollbar-thumb {
+    background: #2d333b;
+    border-radius: 2px;
+}
+
+.note-insta-content::-webkit-scrollbar-thumb:hover,
+.note-lyrics-container::-webkit-scrollbar-thumb:hover {
+    background: #3b82f6;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .note-viewer-instagram {
+        max-width: 100%;
+        max-height: 100%;
+        border-radius: 0;
+    }
+
+    .note-insta-content {
+        padding: 12px;
+    }
+
+    .music-song-title {
+        font-size: 1rem;
+    }
+
+    .lyrics-line {
+        font-size: 0.85rem;
+    }
+
+    .lyrics-line.active {
+        font-size: 0.95rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .note-viewer-instagram {
+        max-width: 100%;
+    }
+
+    .note-insta-header {
+        padding: 12px 14px;
+    }
+
+    .music-song-title {
+        font-size: 0.95rem;
+    }
+
+    .music-artist {
+        font-size: 0.8rem;
+    }
+
+    .clip-time-inputs {
+        gap: 6px;
+    }
+
+    .music-controls-row {
+        gap: 6px;
+    }
+
+    .note-insta-actions {
+        gap: 8px;
+    }
+
+    .note-action-btn-insta {
+        padding: 8px;
+        font-size: 0.8rem;
+    }
+}
+
+/* Hidden Iframe */
+.note-youtube-iframe-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* ===== NEW INSTAGRAM-STYLE MODAL ===== */
+.insta-note-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(0,0,0,0.82);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+
+.insta-note-card {
+    background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+    border: 1px solid #2d333b;
+    border-radius: 20px;
+    width: 100%;
+    max-width: 390px;
+    max-height: 88vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+    animation: instaSlideUp 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes instaSlideUp {
+    from { transform: translateY(60px) scale(0.95); opacity: 0; }
+    to   { transform: translateY(0) scale(1);       opacity: 1; }
+}
+
+/* Header */
+.insta-note-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 16px;
+    border-bottom: 1px solid #1a1f2e;
+    flex-shrink: 0;
+}
+
+.insta-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #3b82f6;
+    flex-shrink: 0;
+}
+
+.insta-user-info { flex: 1; min-width: 0; }
+.insta-username { font-weight: 700; font-size: 0.92rem; color: #e0e6ed; }
+.insta-time { font-size: 0.72rem; color: #8b949e; margin-top: 2px; }
+
+.insta-close-btn {
+    background: none;
+    border: none;
+    color: #8b949e;
+    font-size: 1.2rem;
+    cursor: pointer;
+    width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+    transition: background 0.2s, color 0.2s;
+}
+.insta-close-btn:hover { background: rgba(255,255,255,0.08); color: #fff; }
+
+/* Song Info */
+.insta-song-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px 10px;
+    flex-shrink: 0;
+}
+.insta-song-icon { font-size: 1.5rem; animation: spinNote 3s linear infinite; flex-shrink: 0; }
+@keyframes spinNote { to { transform: rotate(360deg); } }
+.insta-song-title { font-weight: 700; font-size: 0.95rem; color: #60a5fa; }
+.insta-song-artist { font-size: 0.78rem; color: #8b949e; margin-top: 2px; }
+
+/* Lyrics */
+.insta-lyrics-wrap {
+    flex: 1;
+    position: relative;
+    min-height: 0;
+    margin: 0 0 4px;
+}
+
+.insta-lyrics-container {
+    height: 200px;
+    overflow-y: auto;
+    padding: 12px 20px;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+}
+.insta-lyrics-container::-webkit-scrollbar { display: none; }
+
+.insta-lyrics-fade-top,
+.insta-lyrics-fade-bottom {
+    position: absolute;
+    left: 0; right: 0;
+    height: 36px;
+    pointer-events: none;
+    z-index: 2;
+}
+.insta-lyrics-fade-top {
+    top: 0;
+    background: linear-gradient(to bottom, #0d1117 0%, transparent 100%);
+}
+.insta-lyrics-fade-bottom {
+    bottom: 0;
+    background: linear-gradient(to top, #161b22 0%, transparent 100%);
+}
+
+.lyrics-line {
+    text-align: center;
+    padding: 6px 4px;
+    line-height: 1.7;
+    transition: all 0.35s ease;
+    cursor: default;
+    border-radius: 6px;
+}
+.lyrics-line.active {
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 1.05rem;
+    transform: scale(1.04);
+}
+.lyrics-line.past {
+    color: #4a5568;
+    font-size: 0.82rem;
+}
+.lyrics-line.upcoming {
+    color: #6b7280;
+    font-size: 0.88rem;
+}
+.no-lyrics-message {
+    color: #6e7681;
+    font-size: 0.88rem;
+    text-align: center;
+    padding: 30px 0;
+}
+
+/* Player */
+.insta-player-wrap {
+    padding: 8px 16px 12px;
+    flex-shrink: 0;
+    position: relative;
+}
+.insta-time-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.72rem;
+    color: #6e7681;
+    margin-bottom: 6px;
+}
+.insta-progress-bar {
+    width: 100%;
+    height: 4px;
+    background: #2d333b;
+    border-radius: 4px;
+    cursor: pointer;
+    position: relative;
+    margin-bottom: 12px;
+}
+.insta-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6, #60a5fa);
+    border-radius: 4px;
+    width: 0%;
+    transition: width 0.1s linear;
+    pointer-events: none;
+}
+.insta-controls {
+    display: flex;
+    justify-content: center;
+}
+.insta-play-btn {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    border: none;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 4px 16px rgba(59,130,246,0.4);
+}
+.insta-play-btn:hover { transform: scale(1.07); box-shadow: 0 6px 20px rgba(59,130,246,0.55); }
+.insta-play-btn:active { transform: scale(0.95); }
+
+/* Actions */
+.insta-note-actions {
+    display: flex;
+    gap: 10px;
+    padding: 10px 16px;
+    border-top: 1px solid #1a1f2e;
+    flex-shrink: 0;
+}
+.insta-action-btn {
+    flex: 1;
+    padding: 9px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.82rem;
+    border: 1px solid #2d333b;
+    background: #161b22;
+    color: #8b949e;
+    transition: all 0.2s;
+}
+.insta-action-btn:hover { border-color: #3b82f6; color: #3b82f6; background: rgba(59,130,246,0.08); }
+.insta-action-btn.liked { border-color: #ef4444; color: #ef4444; background: rgba(239,68,68,0.08); }
+
+/* Reply */
+.insta-reply-wrap {
+    display: flex;
+    gap: 8px;
+    padding: 10px 16px 14px;
+    flex-shrink: 0;
+}
+.insta-reply-input {
+    flex: 1;
+    background: #161b22;
+    border: 1px solid #2d333b;
+    color: #e0e6ed;
+    padding: 8px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+.insta-reply-input:focus { border-color: #3b82f6; }
+.insta-reply-input::placeholder { color: #4a5568; }
+.insta-reply-send {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 20px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+    flex-shrink: 0;
+}
+.insta-reply-send:hover { background: #2563eb; }
+
+/* ===== BALAS NOTE VIA DM ===== */
+
+/* Tombol DM di modal note Instagram */
+.insta-dm-btn {
+    background: linear-gradient(135deg, rgba(59,130,246,0.15), rgba(37,99,235,0.15)) !important;
+    border-color: #3b82f6 !important;
+    color: #60a5fa !important;
+    flex: 0 0 auto;
+    min-width: 60px;
+}
+.insta-dm-btn:hover {
+    background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+    color: #fff !important;
+    transform: scale(1.04);
+}
+
+/* Banner "Membalas catatan" di atas input area chat */
+.note-reply-banner {
+    background: linear-gradient(135deg, #1e2d4a 0%, #162136 100%);
+    border-top: 1px solid #2d4a6b;
+    border-left: 3px solid #3b82f6;
+    padding: 8px 14px;
+    animation: bannerSlideIn 0.22s ease;
+    flex-shrink: 0;
+}
+
+@keyframes bannerSlideIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.note-reply-banner-inner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.note-reply-banner-text {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.note-reply-banner-label {
+    font-size: 0.7rem;
+    color: #60a5fa;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.note-reply-banner-content {
+    font-size: 0.82rem;
+    color: #c9d6e3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.note-reply-banner-close {
+    background: none;
+    border: none;
+    color: #6e7681;
+    font-size: 1rem;
+    cursor: pointer;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.2s, color 0.2s;
+}
+.note-reply-banner-close:hover {
+    background: rgba(255,255,255,0.08);
+    color: #e0e6ed;
+}
+

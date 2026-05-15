@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ALVIN Reels</title>
+    <link rel="stylesheet" href="reels.css">
+</head>
+<body>
+    <!-- AUTH CHECK -->
+    <div id="authCheck" class="auth-check">
+        <div class="auth-message">
+            <h2>⚠️ Silakan Login Terlebih Dahulu</h2>
+            <p>Anda harus login untuk mengakses fitur reels</p>
+            <button onclick="window.location.href='index.html'">Kembali ke Homepage</button>
+        </div>
+    </div>
+
+    <!-- REELS CONTAINER -->
+    <div id="reelsContainer" class="reels-container" style="display: none;">
+        <!-- LEFT SIDEBAR NAVIGATION -->
+        <aside class="reels-sidebar-nav">
+            <div class="nav-logo">
+                <span style="font-size: 1.6rem;">🎬</span>
+                <h2>Reels</h2>
+            </div>
+            
+            <nav class="nav-buttons">
+                <button class="nav-btn" onclick="openUploadModal()" title="Upload">
+                    <span class="nav-icon">➕</span>
+                    <span>Upload</span>
+                </button>
+                <button class="nav-btn" onclick="window.location.href='profile.html'" title="Profile">
+                    <span class="nav-icon">👤</span>
+                    <span>Profile</span>
+                </button>
+                <button class="nav-btn" onclick="window.location.href='index.html'" title="Home">
+                    <span class="nav-icon">🏠</span>
+                    <span>Home</span>
+                </button>
+                <button class="nav-btn" onclick="window.location.href='chat.html'" title="Chat">
+                    <span class="nav-icon">💬</span>
+                    <span>Chat</span>
+                </button>
+            </nav>
+
+            <button class="nav-btn logout-btn" onclick="logoutReels()" title="Logout">
+                <span class="nav-icon">🚪</span>
+                <span>Logout</span>
+            </button>
+        </aside>
+
+        <!-- LOADING SPINNER -->
+        <div id="loadingSpinner" class="loading-spinner" style="display: none;">
+            <div class="spinner"></div>
+            <p>Loading reels...</p>
+        </div>
+
+        <!-- ERROR MESSAGE -->
+        <div id="errorMessage" class="error-message" style="display: none;">
+            <div class="error-content">
+                <h2>❌ Error</h2>
+                <p id="errorText"></p>
+                <button onclick="location.reload()">Coba Lagi</button>
+            </div>
+        </div>
+
+        <!-- MAIN REELS AREA -->
+        <div class="reels-main" id="reelsMain" style="display: none;">
+            <div class="reels-viewer">
+                <div id="reelsCarousel" class="reels-carousel">
+                    <!-- Reels akan ditampilkan di sini -->
+                </div>
+
+                <!-- RIGHT SIDEBAR ACTIONS -->
+                <div class="reels-actions-sidebar">
+                    <button class="action-btn like-btn" id="likeBtn" onclick="toggleLike(event)">
+                        <span class="icon">♡</span>
+                        <span class="count" id="likeCount">0</span>
+                    </button>
+                    <button class="action-btn comment-btn" onclick="toggleComments(event)">
+                        <span class="icon">💬</span>
+                        <span class="count" id="commentCount">0</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- COMMENTS PANEL (RIGHT) -->
+            <div id="commentsPanel" class="comments-panel" style="display: none;">
+                <div class="comments-header">
+                    <h3>Komentar</h3>
+                    <button class="close-comments" onclick="toggleComments(event)">✕</button>
+                </div>
+                <div class="comments-list" id="commentsList">
+                    <!-- Comments akan ditampilkan di sini -->
+                </div>
+                <div class="comment-input-area">
+                    <input 
+                        type="text" 
+                        id="commentInput" 
+                        placeholder="Tambahkan komentar..." 
+                        onkeypress="handleCommentKeyPress(event)"
+                        onclick="event.stopPropagation()"
+                    >
+                    <button onclick="sendComment(event)">Kirim</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- UPLOAD MODAL -->
+    <div id="uploadModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeUploadModal()">✕</button>
+            <h2>Upload Reels</h2>
+            
+            <form id="uploadForm" onsubmit="handleUploadSubmit(event)">
+                <div class="form-group">
+                    <label for="reelCaption">Caption</label>
+                    <textarea 
+                        id="reelCaption" 
+                        placeholder="Tulis caption untuk reels Anda..." 
+                        maxlength="300"
+                        rows="3"
+                    ></textarea>
+                    <span class="char-count"><span id="captionCount">0</span>/300</span>
+                </div>
+
+                <div class="form-group">
+                    <label>Upload Video atau Foto</label>
+                    <div class="file-input-wrapper">
+                        <input 
+                            type="file" 
+                            id="reelFile" 
+                            accept="image/*,video/*" 
+                            required
+                            onchange="previewMedia()"
+                        >
+                        <label for="reelFile" class="file-input-label">
+                            <span class="icon">📹</span>
+                            <span>Klik untuk memilih video atau foto</span>
+                        </label>
+                    </div>
+                    <div class="preview-area" id="previewArea"></div>
+                </div>
+
+                <!-- Progress Bar -->
+                <div id="uploadProgress" style="display: none; margin-bottom: 15px;">
+                    <div style="font-size: 0.85rem; color: #8b949e; margin-bottom: 8px;">
+                        <span id="progressText">Uploading...</span> <span id="progressPercent">0%</span>
+                    </div>
+                    <div style="width: 100%; height: 6px; background: #2d333b; border-radius: 3px; overflow: hidden;">
+                        <div id="progressBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #3b82f6, #2563eb); transition: width 0.3s;"></div>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-upload-submit" id="submitBtn">Upload</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- FIREBASE & CLOUDINARY SCRIPTS -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import {
+            getAuth,
+            onAuthStateChanged,
+            signOut
+        } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import {
+            getDatabase,
+            ref,
+            onValue,
+            push,
+            get,
+            set,
+            update,
+            remove
+        } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+        // ===== CLOUDINARY CONFIG =====
+        const CLOUDINARY_CLOUD_NAME = "djc9oemca";
+        const CLOUDINARY_UPLOAD_PRESET = "reels_upload";
+
+        // ===== FIREBASE CONFIG =====
+        const firebaseConfig = {
+            apiKey: "AIzaSyDzDRaHEASBWO0dDKOIlvlku3lN01b89iw",
+            authDomain: "alvin-f573e.firebaseapp.com",
+            projectId: "alvin-f573e",
+            storageBucket: "alvin-f573e.firebasestorage.app",
+            messagingSenderId: "718704784181",
+            appId: "1:718704784181:web:db5fe912a3cb3b0675d27c",
+            measurementId: "G-NHLWBMV307",
+            databaseURL: "https://alvin-f573e-default-rtdb.asia-southeast1.firebasedatabase.app"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const database = getDatabase(app);
+
+        let currentUser = null;
+        let allReels = [];
+        let currentReelIndex = 0;
+        let currentUserData = null;
+        let reelsUnsubscribe = null;
+        let commentsUnsubscribe = null;
+        let loadTimeout = null;
+        let currentVideoElement = null;
+
+        // TIMEOUT PROTECTION
+        const LOAD_TIMEOUT = 10000;
+
+        // ===== SHOW ERROR MESSAGE =====
+        function showError(message) {
+            console.error('❌ Error:', message);
+            document.getElementById('loadingSpinner').style.display = 'none';
+            document.getElementById('errorMessage').style.display = 'flex';
+            document.getElementById('errorText').textContent = message;
+        }
+
+        // ===== AUTH CHECK =====
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                console.log('✅ User logged in:', user.email);
+                document.getElementById('authCheck').style.display = 'none';
+                document.getElementById('reelsContainer').style.display = 'flex';
+                document.getElementById('loadingSpinner').style.display = 'flex';
+                
+                loadTimeout = setTimeout(() => {
+                    if (document.getElementById('loadingSpinner').style.display !== 'none') {
+                        showError('Timeout saat memuat reels. Periksa koneksi internet atau database rules.');
+                    }
+                }, LOAD_TIMEOUT);
+
+                loadCurrentUser();
+                loadAllReels();
+            } else {
+                console.log('❌ User not logged in');
+                document.getElementById('authCheck').style.display = 'flex';
+                document.getElementById('reelsContainer').style.display = 'none';
+                if (reelsUnsubscribe) reelsUnsubscribe();
+                if (commentsUnsubscribe) commentsUnsubscribe();
+            }
+        });
+
+        // Load current user data
+        function loadCurrentUser() {
+            const userRef = ref(database, 'users/' + currentUser.uid);
+            onValue(userRef, (snapshot) => {
+                if (snapshot.exists()) {
+                    currentUserData = snapshot.val();
+                    console.log('✅ Current user loaded:', currentUserData.fullname);
+                } else {
+                    currentUserData = {
+                        fullname: currentUser.displayName || currentUser.email.split('@')[0],
+                        photoURL: 'https://via.placeholder.com/40',
+                        email: currentUser.email
+                    };
+                    set(userRef, {
+                        fullname: currentUserData.fullname,
+                        photoURL: currentUserData.photoURL,
+                        email: currentUser.email,
+                        createdAt: new Date().toISOString()
+                    }).catch(err => console.error('Error saving user:', err));
+                }
+            }, (error) => {
+                console.error('❌ Error loading current user:', error);
+            });
+        }
+
+        // Load semua reels
+        function loadAllReels() {
+            const reelsRef = ref(database, 'reels');
+            
+            if (reelsUnsubscribe) {
+                reelsUnsubscribe();
+            }
+
+            console.log('📡 Fetching reels from database...');
+
+            reelsUnsubscribe = onValue(
+                reelsRef, 
+                (snapshot) => {
+                    if (loadTimeout) clearTimeout(loadTimeout);
+
+                    console.log('📊 Snapshot received');
+                    allReels = [];
+                    
+                    if (snapshot.exists()) {
+                        snapshot.forEach((childSnapshot) => {
+                            const reelId = childSnapshot.key;
+                            const reelData = childSnapshot.val();
+                            if (reelData && reelData.mediaUrl && reelData.mediaType) {
+                                allReels.push({
+                                    id: reelId,
+                                    ...reelData
+                                });
+                            }
+                        });
+                        allReels.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+                        console.log('✅ Total reels loaded:', allReels.length);
+                    } else {
+                        console.log('ℹ️ No reels found in database');
+                    }
+                    
+                    document.getElementById('loadingSpinner').style.display = 'none';
+                    document.getElementById('errorMessage').style.display = 'none';
+                    document.getElementById('reelsMain').style.display = 'flex';
+                    
+                    displayReels();
+                    
+                    if (allReels.length > 0) {
+                        setTimeout(() => playCurrentVideo(), 300);
+                    }
+                }, 
+                (error) => {
+                    if (loadTimeout) clearTimeout(loadTimeout);
+                    console.error('❌ Error loading reels:', error);
+                    showError(`Database Error: ${error.message}`);
+                }
+            );
+        }
+
+        // Display reels
+        function displayReels() {
+            const carousel = document.getElementById('reelsCarousel');
+            carousel.innerHTML = '';
+
+            if (allReels.length === 0) {
+                carousel.innerHTML = '<div class="no-reels">Belum ada reels. <a href="#uploadModal" onclick="openUploadModal()">Upload yang pertama!</a></div>';
+                return;
+            }
+
+            allReels.forEach((reel, index) => {
+                const reelElement = document.createElement('div');
+                reelElement.className = `reel-card ${index === currentReelIndex ? 'active' : ''}`;
+                
+                const videoId = `video-${reel.id}`;
+                const mediaHtml = reel.mediaType === 'video' 
+                    ? `<video 
+                        id="${videoId}" 
+                        src="${reel.mediaUrl}" 
+                        preload="metadata" 
+                        playsinline 
+                        muted
+                        style="width: 100%; height: 100%; object-fit: contain;" 
+                        onerror="handleVideoError(this)">
+                      </video>`
+                    : `<img src="${reel.mediaUrl}" alt="reel" style="width: 100%; height: 100%; object-fit: contain;" onerror="handleImageError(this)">`
+
+                reelElement.innerHTML = `
+                    <div class="reel-media">
+                        ${mediaHtml}
+                    </div>
+                    <div class="reel-info">
+                        <div class="reel-user">
+                            <img src="${reel.userPhoto || 'https://via.placeholder.com/40'}" alt="user" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
+                            <h4>${escapeHtml(reel.userName)}</h4>
+                        </div>
+                        <p class="reel-caption">${escapeHtml(reel.caption)}</p>
+                    </div>
+                `;
+                carousel.appendChild(reelElement);
+            });
+
+            setupCarouselScroll();
+            updateUI();
+        }
+
+        // Setup carousel scroll
+        function setupCarouselScroll() {
+            const carousel = document.getElementById('reelsCarousel');
+            carousel.removeEventListener('scroll', onCarouselScroll);
+            carousel.addEventListener('scroll', onCarouselScroll, { passive: true });
+        }
+
+        function onCarouselScroll(e) {
+            const carousel = e.target;
+            const cards = Array.from(carousel.getElementsByClassName('reel-card'));
+            let bestIdx = 0, bestVal = Infinity;
+            
+            cards.forEach((card, idx) => {
+                const rect = card.getBoundingClientRect();
+                const center = rect.top + rect.height / 2;
+                const dist = Math.abs(center - window.innerHeight / 2);
+                if (dist < bestVal) {
+                    bestVal = dist;
+                    bestIdx = idx;
+                }
+            });
+
+            if (bestIdx !== currentReelIndex && bestIdx < allReels.length) {
+                currentReelIndex = bestIdx;
+                updateUI();
+                playCurrentVideo();
+                loadComments();
+            }
+        }
+
+        // Play current video
+        function playCurrentVideo() {
+            if (allReels.length === 0) return;
+
+            const currentReel = allReels[currentReelIndex];
+            
+            document.querySelectorAll('video').forEach(video => {
+                video.pause();
+                video.currentTime = 0;
+                video.onended = null;
+            });
+
+            document.querySelectorAll('.reel-card').forEach((card, index) => {
+                card.classList.toggle('active', index === currentReelIndex);
+            });
+
+            const videoId = `video-${currentReel.id}`;
+            const videoElement = document.getElementById(videoId);
+            
+            if (videoElement && videoElement.tagName === 'VIDEO') {
+                currentVideoElement = videoElement;
+                
+                videoElement.onended = () => {
+                    videoElement.currentTime = 0;
+                    videoElement.play();
+                };
+
+                setTimeout(() => {
+                    videoElement.muted = false;
+                    videoElement.volume = 1;
+                    videoElement.play().catch(err => console.error('⚠️ Play error:', err));
+                }, 100);
+            }
+
+            loadComments();
+        }
+
+        // Update UI
+        function updateUI() {
+            const currentReel = allReels[currentReelIndex];
+            if (!currentReel) return;
+
+            const likes = currentReel.likes || {};
+            const isLiked = likes[currentUser.uid] === true;
+            
+            const likeBtn = document.getElementById('likeBtn');
+            likeBtn.classList.toggle('liked', isLiked);
+            document.getElementById('likeCount').textContent = Object.keys(likes).length;
+            document.getElementById('commentCount').textContent = Object.keys(currentReel.comments || {}).length;
+        }
+
+        // Load comments
+        function loadComments() {
+            const currentReel = allReels[currentReelIndex];
+            if (!currentReel) return;
+
+            if (commentsUnsubscribe) {
+                commentsUnsubscribe();
+            }
+
+            const commentsRef = ref(database, `reels/${currentReel.id}/comments`);
+            
+            commentsUnsubscribe = onValue(commentsRef, (snapshot) => {
+                const commentsList = document.getElementById('commentsList');
+                commentsList.innerHTML = '';
+
+                let commentsArray = [];
+                if (snapshot.exists()) {
+                    snapshot.forEach((childSnapshot) => {
+                        commentsArray.push({
+                            id: childSnapshot.key,
+                            ...childSnapshot.val()
+                        });
+                    });
+                }
+
+                commentsArray.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+                if (commentsArray.length === 0) {
+                    commentsList.innerHTML = '<p class="no-comments">Belum ada komentar</p>';
+                    return;
+                }
+
+                commentsArray.forEach(comment => {
+                    const commentElement = document.createElement('div');
+                    commentElement.className = 'comment-item';
+                    commentElement.innerHTML = `
+                        <div class="comment-user">
+                            <img src="${comment.userPhoto || 'https://via.placeholder.com/32'}" alt="user" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;">
+                            <div>
+                                <h5>${escapeHtml(comment.userName)}</h5>
+                                <p>${escapeHtml(comment.text)}</p>
+                            </div>
+                        </div>
+                    `;
+                    commentsList.appendChild(commentElement);
+                });
+
+                commentsList.scrollTop = commentsList.scrollHeight;
+            });
+        }
+
+        // Toggle like
+        window.toggleLike = function(event) {
+            event.stopPropagation();
+            const currentReel = allReels[currentReelIndex];
+            if (!currentReel) return;
+
+            const reelRef = ref(database, `reels/${currentReel.id}/likes/${currentUser.uid}`);
+            const likes = currentReel.likes || {};
+            const isLiked = likes[currentUser.uid] === true;
+
+            if (isLiked) {
+                remove(reelRef).catch(err => console.error('Error removing like:', err));
+            } else {
+                set(reelRef, true).catch(err => console.error('Error adding like:', err));
+            }
+        };
+
+        // Toggle comments
+        window.toggleComments = function(event) {
+            if (event) event.stopPropagation();
+            const panel = document.getElementById('commentsPanel');
+            panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
+        };
+
+        // Send comment
+        window.sendComment = function(event) {
+            if (event) event.stopPropagation();
+            
+            const currentReel = allReels[currentReelIndex];
+            if (!currentReel) {
+                alert('❌ Reel tidak ditemukan');
+                return;
+            }
+
+            const commentInput = document.getElementById('commentInput');
+            const text = commentInput.value.trim();
+
+            if (!text) {
+                alert('⚠️ Komentar tidak boleh kosong');
+                return;
+            }
+
+            if (!currentUserData) {
+                alert('❌ Data profil belum siap');
+                return;
+            }
+
+            const newCommentRef = push(ref(database, `reels/${currentReel.id}/comments`));
+            const commentData = {
+                userName: currentUserData.fullname || 'Unknown',
+                userPhoto: currentUserData.photoURL || 'https://via.placeholder.com/32',
+                text: text,
+                userId: currentUser.uid,
+                timestamp: Date.now()
+            };
+
+            set(newCommentRef, commentData)
+                .then(() => {
+                    console.log('✅ Komentar berhasil ditambahkan');
+                    commentInput.value = '';
+                    commentInput.focus();
+                })
+                .catch((error) => {
+                    console.error('❌ Error sending comment:', error);
+                    alert('❌ Gagal mengirim komentar: ' + error.message);
+                });
+        };
+
+        // Handle comment key press
+        window.handleCommentKeyPress = function(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendComment(event);
+            }
+        };
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (document.getElementById('uploadModal').style.display === 'flex') return;
+            
+            if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+                const carousel = document.getElementById('reelsCarousel');
+                if (carousel) {
+                    carousel.scrollBy({ top: -window.innerHeight, behavior: 'smooth' });
+                }
+            } else if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+                const carousel = document.getElementById('reelsCarousel');
+                if (carousel) {
+                    carousel.scrollBy({ top: window.innerHeight, behavior: 'smooth' });
+                }
+            }
+        });
+
+        // Open upload modal
+        window.openUploadModal = function() {
+            document.getElementById('uploadModal').style.display = 'flex';
+        };
+
+        // Close upload modal
+        window.closeUploadModal = function() {
+            document.getElementById('uploadModal').style.display = 'none';
+            document.getElementById('uploadForm').reset();
+            document.getElementById('previewArea').innerHTML = '';
+            document.getElementById('captionCount').textContent = '0';
+            document.getElementById('uploadProgress').style.display = 'none';
+        };
+
+        // Preview media
+        window.previewMedia = function() {
+            const file = document.getElementById('reelFile').files[0];
+            const previewArea = document.getElementById('previewArea');
+            previewArea.innerHTML = '';
+
+            if (file) {
+                const maxSize = file.type.startsWith('video/') ? 100 * 1024 * 1024 : 10 * 1024 * 1024;
+                if (file.size > maxSize) {
+                    alert(`❌ File terlalu besar! Max: ${file.type.startsWith('video/') ? '100MB' : '10MB'}`);
+                    document.getElementById('reelFile').value = '';
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    if (file.type.startsWith('image/')) {
+                        previewArea.innerHTML = `<img src="${e.target.result}" alt="preview" style="max-width: 100%; max-height: 300px;">`;
+                    } else if (file.type.startsWith('video/')) {
+                        previewArea.innerHTML = `<video src="${e.target.result}" controls style="max-width: 100%; max-height: 300px;"></video>`;
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+        };
+
+        // Caption counter
+        document.getElementById('reelCaption').addEventListener('input', function() {
+            document.getElementById('captionCount').textContent = this.value.length;
+        });
+
+        // Upload ke Cloudinary
+        async function uploadToCloudinary(file) {
+            return new Promise((resolve, reject) => {
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+                formData.append('cloud_name', CLOUDINARY_CLOUD_NAME);
+
+                const xhr = new XMLHttpRequest();
+
+                xhr.upload.addEventListener('progress', (e) => {
+                    if (e.lengthComputable) {
+                        const percentComplete = Math.round((e.loaded / e.total) * 100);
+                        document.getElementById('progressBar').style.width = percentComplete + '%';
+                        document.getElementById('progressPercent').textContent = percentComplete + '%';
+                    }
+                });
+
+                xhr.addEventListener('load', () => {
+                    if (xhr.status === 200) {
+                        const response = JSON.parse(xhr.responseText);
+                        resolve({
+                            url: response.secure_url,
+                            publicId: response.public_id,
+                            type: file.type.startsWith('video/') ? 'video' : 'image'
+                        });
+                    } else {
+                        reject(new Error('Upload failed'));
+                    }
+                });
+
+                xhr.addEventListener('error', () => {
+                    reject(new Error('Upload error'));
+                });
+
+                const uploadUrl = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`;
+                xhr.open('POST', uploadUrl);
+                xhr.send(formData);
+            });
+        }
+
+        // Handle upload submit
+        window.handleUploadSubmit = async function(e) {
+            e.preventDefault();
+
+            if (!currentUserData) {
+                alert('❌ Data profil belum siap');
+                return;
+            }
+
+            const caption = document.getElementById('reelCaption').value.trim();
+            const fileInput = document.getElementById('reelFile');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert('❌ Pilih file terlebih dahulu');
+                return;
+            }
+
+            try {
+                const submitBtn = document.getElementById('submitBtn');
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Processing...';
+                document.getElementById('uploadProgress').style.display = 'block';
+
+                const uploadResult = await uploadToCloudinary(file);
+
+                document.getElementById('progressText').textContent = 'Menyimpan data...';
+                document.getElementById('progressPercent').textContent = '95%';
+
+                const newReelRef = push(ref(database, 'reels'));
+                const reelData = {
+                    userId: currentUser.uid,
+                    userName: currentUserData.fullname || 'Unknown User',
+                    userPhoto: currentUserData.photoURL || 'https://via.placeholder.com/40',
+                    caption: caption || 'No caption',
+                    mediaUrl: uploadResult.url,
+                    mediaType: uploadResult.type,
+                    cloudinaryPublicId: uploadResult.publicId,
+                    timestamp: Date.now(),
+                    likes: {},
+                    comments: {}
+                };
+
+                await set(newReelRef, reelData);
+
+                document.getElementById('progressPercent').textContent = '100%';
+
+                setTimeout(() => {
+                    alert('✅ Reels berhasil diupload!');
+                    document.getElementById('uploadForm').reset();
+                    document.getElementById('previewArea').innerHTML = '';
+                    document.getElementById('uploadProgress').style.display = 'none';
+                    closeUploadModal();
+                }, 500);
+                
+            } catch (error) {
+                console.error('❌ Upload error:', error);
+                alert('❌ Error: ' + error.message);
+            } finally {
+                const submitBtn = document.getElementById('submitBtn');
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Upload';
+                document.getElementById('uploadProgress').style.display = 'none';
+            }
+        };
+
+        // Logout
+        window.logoutReels = function() {
+            if (confirm('Apakah Anda yakin ingin logout?')) {
+                if (reelsUnsubscribe) reelsUnsubscribe();
+                if (commentsUnsubscribe) commentsUnsubscribe();
+                if (currentVideoElement) {
+                    currentVideoElement.pause();
+                    currentVideoElement.onended = null;
+                }
+                signOut(auth).then(() => {
+                    window.location.href = 'index.html';
+                }).catch(err => alert('❌ Error: ' + err.message));
+            }
+        };
+
+        // Escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Handle video error
+        window.handleVideoError = function(videoElement) {
+            console.error('Video failed to load:', videoElement.src);
+            videoElement.style.display = 'none';
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'media-error';
+            errorDiv.innerHTML = '❌ Video gagal dimuat';
+            videoElement.parentNode.appendChild(errorDiv);
+        };
+
+        // Handle image error
+        window.handleImageError = function(imgElement) {
+            console.error('Image failed to load:', imgElement.src);
+            imgElement.style.display = 'none';
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'media-error';
+            errorDiv.innerHTML = '❌ Gambar gagal dimuat';
+            imgElement.parentNode.appendChild(errorDiv);
+        };
+    </script>
+</body>
+</html>
