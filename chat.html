@@ -249,6 +249,136 @@
             white-space: nowrap;
         }
 
+        /* ===== REPLY QUOTE FEATURE (WhatsApp-style) ===== */
+
+        /* Banner "Membalas pesan" di atas input */
+        .reply-banner {
+            background: linear-gradient(135deg, #1a2540 0%, #111827 100%);
+            border-top: 1px solid rgba(99,102,241,0.25);
+            border-left: 3px solid #6366f1;
+            padding: 8px 14px;
+            flex-shrink: 0;
+            animation: nrbSlideIn 0.18s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .reply-banner-body {
+            flex: 1;
+            min-width: 0;
+        }
+        .reply-banner-name {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #818cf8;
+            margin-bottom: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .reply-banner-text {
+            font-size: 0.82rem;
+            color: #94a3b8;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .reply-banner-media {
+            font-size: 0.82rem;
+            color: #94a3b8;
+        }
+        .reply-banner-close {
+            background: none;
+            border: none;
+            color: #475569;
+            font-size: 1rem;
+            cursor: pointer;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: background 0.15s, color 0.15s;
+        }
+        .reply-banner-close:hover {
+            background: rgba(255,255,255,0.08);
+            color: #e2e8f0;
+        }
+
+        /* Quote bubble di dalam bubble pesan */
+        .msg-reply-quote {
+            background: rgba(255,255,255,0.06);
+            border-left: 3px solid #6366f1;
+            border-radius: 6px;
+            padding: 6px 10px;
+            margin-bottom: 6px;
+            cursor: pointer;
+            transition: background 0.15s;
+            max-width: 100%;
+        }
+        .msg-reply-quote:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        .sent .msg-reply-quote {
+            border-left-color: #a5b4fc;
+            background: rgba(0,0,0,0.15);
+        }
+        .msg-reply-quote-name {
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: #818cf8;
+            margin-bottom: 2px;
+        }
+        .sent .msg-reply-quote-name {
+            color: #c4b5fd;
+        }
+        .msg-reply-quote-text {
+            font-size: 0.78rem;
+            color: #94a3b8;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .msg-reply-quote-media {
+            font-size: 0.78rem;
+            color: #94a3b8;
+        }
+
+        /* Tombol Reply muncul saat hover bubble */
+        .message-bubble-wrap {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .sent .message-bubble-wrap {
+            flex-direction: row-reverse;
+        }
+        .btn-reply-msg {
+            background: rgba(99,102,241,0.15);
+            border: none;
+            color: #818cf8;
+            font-size: 0.85rem;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.15s, background 0.15s;
+            flex-shrink: 0;
+        }
+        .message:hover .btn-reply-msg {
+            opacity: 1;
+        }
+        .btn-reply-msg:hover {
+            background: rgba(99,102,241,0.3);
+        }
+
         /* Tombol close */
         .nrb-close {
             background: none;
@@ -434,8 +564,9 @@
 
     <!-- MESSAGE OPTIONS MENU -->
     <div id="messageMenu" class="message-menu" style="display: none;">
+        <button class="menu-item" onclick="replyToSelectedMessage()">↩️ Balas</button>
         <button class="menu-item" onclick="deleteMessageForMe()">🗑️ Hapus untuk saya</button>
-        <button class="menu-item delete-for-all" onclick="unsendMessage()">↩️ Batalkan pengiriman</button>
+        <button class="menu-item delete-for-all" onclick="unsendMessage()">🚫 Batalkan pengiriman</button>
     </div>
 
     <!-- MODAL NEW CHAT -->
@@ -593,6 +724,7 @@
         let currentMediaType = null;
         let selectedMessageId = null;
         let selectedMessageElement = null;
+        let _replyContext = null; // { messageKey, senderName, text, mediaType }
 
         // ===== PRESENCE SYSTEM =====
         let presenceListeners = {};
@@ -726,6 +858,9 @@
             selectedMessageId = messageKey;
             selectedMessageElement = bubble;
 
+            // Simpan referensi bubble untuk reply
+            window._pendingReplyBubble = bubble;
+
             const menu = document.getElementById('messageMenu');
             menu.style.display = 'flex';
             menu.style.position = 'fixed';
@@ -752,6 +887,7 @@
             if (!bubble) return;
             longPressTimer = setTimeout(() => {
                 const messageKey = bubble.getAttribute('data-message-key');
+                window._pendingReplyBubble = bubble;
                 showMessageMenu(e, messageKey);
             }, 500);
         }, { passive: true });
@@ -833,6 +969,89 @@
             selectedMessageId = null;
             selectedMessageElement = null;
         }
+
+        // ===== REPLY TO MESSAGE (WhatsApp-style) =====
+        window.replyToSelectedMessage = function() {
+            closeMessageMenu();
+            if (!selectedMessageId && !window._pendingReplyBubble) return;
+
+            const bubble = window._pendingReplyBubble;
+            if (!bubble) return;
+
+            const messageKey = bubble.dataset.messageKey;
+            const senderId = bubble.dataset.senderId;
+            const senderName = senderId === currentUser.uid ? 'Kamu' : (document.getElementById('chatUserName').textContent || 'User');
+            const mediaType = bubble.dataset.mediaType || null;
+            const text = bubble.dataset.text || '';
+
+            _replyContext = { messageKey, senderName, text, mediaType };
+            showReplyBanner(_replyContext);
+            window._pendingReplyBubble = null;
+        };
+
+        // Tombol reply langsung pada hover bubble
+        window.quickReply = function(messageKey, senderId, senderName, text, mediaType) {
+            _replyContext = { messageKey, senderName, text, mediaType };
+            showReplyBanner(_replyContext);
+        };
+
+        function showReplyBanner(ctx) {
+            // Hapus banner lama
+            const old = document.getElementById('replyBanner');
+            if (old) old.remove();
+
+            let previewText = '';
+            if (ctx.mediaType === 'image') previewText = '📷 Foto';
+            else if (ctx.mediaType === 'video') previewText = '🎬 Video';
+            else previewText = ctx.text || '';
+
+            const banner = document.createElement('div');
+            banner.id = 'replyBanner';
+            banner.className = 'reply-banner';
+            banner.innerHTML = `
+                <div style="color:#818cf8; font-size:1rem; flex-shrink:0;">↩️</div>
+                <div class="reply-banner-body">
+                    <div class="reply-banner-name">${escapeHtml(ctx.senderName)}</div>
+                    <div class="reply-banner-text">${escapeHtml(previewText)}</div>
+                </div>
+                <button class="reply-banner-close" onclick="cancelReplyBanner()" title="Batal">✕</button>
+            `;
+
+            const inputArea = document.querySelector('.input-area');
+            if (inputArea) {
+                inputArea.parentNode.insertBefore(banner, inputArea);
+            }
+
+            const msgInput = document.getElementById('messageInput');
+            if (msgInput) {
+                msgInput.placeholder = `Balas ${ctx.senderName}...`;
+                msgInput.focus();
+            }
+        }
+
+        window.cancelReplyBanner = function() {
+            const banner = document.getElementById('replyBanner');
+            if (banner) banner.remove();
+            const msgInput = document.getElementById('messageInput');
+            if (msgInput) msgInput.placeholder = 'Ketik pesan...';
+            _replyContext = null;
+        };
+
+        // Scroll ke pesan yang di-reply (klik quote bubble)
+        window.scrollToMessage = function(messageKey) {
+            if (!messageKey) return;
+            const targetMsg = document.querySelector(`.message[data-message-id="${messageKey}"]`);
+            if (targetMsg) {
+                targetMsg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                // Flash highlight
+                const bubble = targetMsg.querySelector('.message-bubble');
+                if (bubble) {
+                    bubble.style.transition = 'background 0.2s';
+                    bubble.style.background = 'rgba(99,102,241,0.35)';
+                    setTimeout(() => { bubble.style.background = ''; }, 900);
+                }
+            }
+        };
 
         document.addEventListener('click', () => {
             closeMessageMenu();
@@ -1271,6 +1490,22 @@
                             }
                         }
 
+                        // Quote reply pesan (WhatsApp-style)
+                        if (msg.replyTo && !msg.isDeleted && !msg.isUnsent) {
+                            const rt = msg.replyTo;
+                            let replyPreview = '';
+                            if (rt.mediaType === 'image') replyPreview = '📷 Foto';
+                            else if (rt.mediaType === 'video') replyPreview = '🎬 Video';
+                            else replyPreview = rt.text || '';
+
+                            quoteHtml = `
+                                <div class="msg-reply-quote" onclick="scrollToMessage('${escapeHtml(rt.messageKey || '')}')">
+                                    <div class="msg-reply-quote-name">${escapeHtml(rt.senderName || 'User')}</div>
+                                    <div class="msg-reply-quote-text">${escapeHtml(replyPreview)}</div>
+                                </div>
+                            ` + quoteHtml;
+                        }
+
                         let contentHtml = '';
                         if (msg.isDeleted) {
                             contentHtml = '<p style="font-style: italic; color: #999;">🗑️ Pesan telah dihapus</p>';
@@ -1301,18 +1536,26 @@
                         contentHtml = quoteHtml + contentHtml;
                         
                         const isSentByMe = msg.senderId === currentUser.uid;
+                        const bubbleSenderName = isSentByMe ? 'Kamu' : (document.getElementById('chatUserName').textContent || 'User');
+                        const bubbleText = (msg.text || '').substring(0, 100);
+                        const bubbleMediaType = (msg.mediaType || '');
 
                         messageElement.innerHTML = `
-                            <div class="message-bubble"
-                                data-message-key="${msg.key}"
-                                data-sender-id="${msg.senderId}"
-                                data-is-unsent="${msg.isUnsent ? 'true' : 'false'}"
-                                oncontextmenu="showMessageMenu(event, '${msg.key}')">
-                                ${contentHtml}
-                                <span class="message-time">
-                                    ${timeStr}
-                                    ${isSentByMe ? `<span class="tick ${msg.isRead ? 'read' : ''}">✔✔</span>` : ''}
-                                </span>
+                            <div class="message-bubble-wrap">
+                                <button class="btn-reply-msg" onclick="quickReply('${msg.key}', '${escapeHtml(msg.senderId)}', '${escapeHtml(bubbleSenderName)}', '${escapeHtml(bubbleText).replace(/'/g,"\\'")}', '${escapeHtml(bubbleMediaType)}')" title="Balas">↩</button>
+                                <div class="message-bubble"
+                                    data-message-key="${msg.key}"
+                                    data-sender-id="${msg.senderId}"
+                                    data-is-unsent="${msg.isUnsent ? 'true' : 'false'}"
+                                    data-text="${escapeHtml(bubbleText)}"
+                                    data-media-type="${escapeHtml(bubbleMediaType)}"
+                                    oncontextmenu="showMessageMenu(event, '${msg.key}')">
+                                    ${contentHtml}
+                                    <span class="message-time">
+                                        ${timeStr}
+                                        ${isSentByMe ? `<span class="tick ${msg.isRead ? 'read' : ''}">✔✔</span>` : ''}
+                                    </span>
+                                </div>
                             </div>
                         `;
                         // tandai elemen agar bisa dicari nanti untuk read-receipt
@@ -1413,6 +1656,16 @@
                 };
             }
 
+            // Jika membalas pesan (reply quote WhatsApp-style)
+            if (_replyContext) {
+                messageData.replyTo = {
+                    messageKey: _replyContext.messageKey,
+                    senderName: _replyContext.senderName,
+                    text: _replyContext.text || '',
+                    mediaType: _replyContext.mediaType || null
+                };
+            }
+
             try {
                 if (selectedMediaFile) {
                     document.getElementById('uploadProgress').style.display = 'flex';
@@ -1433,6 +1686,7 @@
                 messageInput.focus();
                 cancelMediaPreview();
                 cancelNoteReplyBanner(); // hapus banner setelah kirim
+                cancelReplyBanner();     // hapus banner reply pesan
                 
             } catch (error) {
                 console.error('❌ Error sending message:', error);
@@ -1535,6 +1789,7 @@
                 messagesUnsubscribe = null;
             }
             cancelMediaPreview();
+            cancelReplyBanner();
             document.getElementById('chatWindow').style.display = 'none';
             document.getElementById('welcomeMessage').style.display = 'flex';
             document.getElementById('messageInput').value = '';
