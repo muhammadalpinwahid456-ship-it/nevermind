@@ -404,6 +404,28 @@
             color: #e2e8f0;
         }
 
+        /* ===== DATE SEPARATOR (WhatsApp-style) ===== */
+        .date-separator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 14px 0 8px;
+            position: relative;
+        }
+        .date-separator-label {
+            background: rgba(30, 35, 55, 0.88);
+            border: 1px solid rgba(255,255,255,0.09);
+            color: #94a3b8;
+            font-size: 0.72rem;
+            font-weight: 600;
+            padding: 4px 14px;
+            border-radius: 20px;
+            letter-spacing: 0.3px;
+            backdrop-filter: blur(6px);
+            white-space: nowrap;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+        }
+
         /* ===== VIEW ONCE FEATURE ===== */
         /* Toggle button di media preview */
         .view-once-toggle {
@@ -1040,6 +1062,41 @@
             return `${hours}:${minutes}`;
         }
 
+        // ===== FORMAT DATE SEPARATOR LABEL (WhatsApp-style) =====
+        function formatDateLabel(timestamp) {
+            const msgDate = new Date(timestamp);
+            const today = new Date();
+            const yesterday = new Date();
+            yesterday.setDate(today.getDate() - 1);
+
+            const isSameDay = (a, b) =>
+                a.getDate() === b.getDate() &&
+                a.getMonth() === b.getMonth() &&
+                a.getFullYear() === b.getFullYear();
+
+            if (isSameDay(msgDate, today)) return 'Hari ini';
+            if (isSameDay(msgDate, yesterday)) return 'Kemarin';
+
+            const days = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+            const months = ['Januari','Februari','Maret','April','Mei','Juni',
+                            'Juli','Agustus','September','Oktober','November','Desember'];
+
+            const diffDays = Math.floor((today.setHours(0,0,0,0) - new Date(timestamp).setHours(0,0,0,0)) / 86400000);
+
+            // Dalam minggu yang sama → tampilkan nama hari
+            if (diffDays < 7) {
+                return days[msgDate.getDay()];
+            }
+
+            // Lebih lama → tampilkan tanggal lengkap
+            return `${msgDate.getDate()} ${months[msgDate.getMonth()]} ${msgDate.getFullYear()}`;
+        }
+
+        function getDateKey(timestamp) {
+            const d = new Date(timestamp);
+            return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+        }
+
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;
@@ -1641,6 +1698,8 @@
                 if (messages.length === 0) {
                     messagesArea.innerHTML = '<p class="no-messages" style="text-align:center; color:#999; padding:2rem;">Belum ada pesan. Mulai percakapan!</p>';
                 } else {
+                    let lastDateKey = null;
+
                     messages.forEach(msg => {
                         if (msg.isDeleted && msg.senderId !== currentUser.uid) {
                             return;
@@ -1652,6 +1711,16 @@
 
                         if (msg.isUnsent && msg.senderId !== currentUser.uid) {
                             return;
+                        }
+
+                        // ===== DATE SEPARATOR =====
+                        const msgDateKey = getDateKey(msg.timestamp);
+                        if (msgDateKey !== lastDateKey) {
+                            lastDateKey = msgDateKey;
+                            const separator = document.createElement('div');
+                            separator.className = 'date-separator';
+                            separator.innerHTML = `<span class="date-separator-label">${formatDateLabel(msg.timestamp)}</span>`;
+                            messagesArea.appendChild(separator);
                         }
 
                         const messageElement = document.createElement('div');
