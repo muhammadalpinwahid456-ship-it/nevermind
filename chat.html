@@ -6,6 +6,7 @@
     <title>ALVIN Chat</title>
     <link rel="stylesheet" href="chat.style.css">
     <link rel="stylesheet" href="chat-notes.css">
+    <link rel="stylesheet" href="chat-streak.css">
     <style>
         /* Auto-delete 24 jam: badge sisa waktu */
         .note-expires {
@@ -1501,6 +1502,18 @@
                 loadAllUsers();
                 if (window.syncNoteGlobals) syncNoteGlobals();
 
+                // ===== STREAK SYSTEM INIT =====
+                // Tunggu script streak tersedia (loaded via <script src>)
+                const _initStreak = () => {
+                    if (window.StreakSystem) {
+                        window.StreakSystem.init(database, user.uid, { ref, get, set, onValue });
+                        window._myUid = user.uid;
+                    } else {
+                        setTimeout(_initStreak, 200);
+                    }
+                };
+                _initStreak();
+
                 // Cek dan hapus note expired saat login
                 checkAndDeleteExpiredNotes();
                 // Cek ulang setiap 1 menit
@@ -1637,6 +1650,8 @@
                 `;
                 usersList.appendChild(userElement);
                 listenUserPresence(user.uid);
+                // ===== STREAK: listen per user =====
+                if (window.StreakSystem) window.StreakSystem.listenStreak(user.uid);
             });
         }
 
@@ -1662,6 +1677,9 @@
             markAsRead(generateChatId(currentUser.uid, selectedUserId));
             updateUnreadCount(userId, 0);
             updateBrowserTitle();
+            // ===== STREAK: update header & global tracker =====
+            window._selectedUserId = userId;
+            if (window.StreakSystem) window.StreakSystem.renderHeaderStreak(userId);
         };
 
         // Load messages
@@ -2005,6 +2023,9 @@
                 }
 
                 await push(messagesRef, messageData);
+                
+                // ===== STREAK: catat pengiriman pesan =====
+                if (window.StreakSystem) window.StreakSystem.recordSend(selectedUserId);
                 
                 console.log('✅ Message sent successfully');
                 messageInput.value = '';
@@ -2921,5 +2942,6 @@
 
     </script>
     <script src="chat-notes.js"></script>
+    <script src="chat-streak.js"></script>
 </body>
 </html>
