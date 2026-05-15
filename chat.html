@@ -350,11 +350,15 @@
         .message-bubble-wrap {
             position: relative;
             display: inline-flex;
-            align-items: center;
+            align-items: flex-end;
             gap: 4px;
+            max-width: 55%;
         }
         .sent .message-bubble-wrap {
             flex-direction: row-reverse;
+        }
+        .received .message-bubble-wrap {
+            flex-direction: row;
         }
         .btn-reply-msg {
             background: rgba(99,102,241,0.15);
