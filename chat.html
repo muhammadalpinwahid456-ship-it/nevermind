@@ -403,6 +403,175 @@
             background: rgba(255,255,255,0.08);
             color: #e2e8f0;
         }
+
+        /* ===== VIEW ONCE FEATURE ===== */
+        /* Toggle button di media preview */
+        .view-once-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 8px 0 4px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .view-once-toggle input[type="checkbox"] {
+            display: none;
+        }
+        .view-once-pill {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 6px 14px 6px 10px;
+            border-radius: 20px;
+            background: rgba(255,255,255,0.07);
+            border: 1.5px solid rgba(255,255,255,0.15);
+            color: #94a3b8;
+            font-size: 0.82rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .view-once-pill .vo-icon {
+            font-size: 1rem;
+        }
+        .view-once-toggle input:checked + .view-once-pill {
+            background: rgba(99, 102, 241, 0.18);
+            border-color: rgba(99, 102, 241, 0.55);
+            color: #a5b4fc;
+        }
+
+        /* Bubble view once di chat */
+        .view-once-bubble {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 18px;
+            border-radius: 16px;
+            background: rgba(255,255,255,0.06);
+            border: 1.5px solid rgba(255,255,255,0.1);
+            cursor: pointer;
+            transition: background 0.18s, border-color 0.18s;
+            min-width: 170px;
+            max-width: 220px;
+        }
+        .view-once-bubble:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        .view-once-bubble.vo-opened {
+            opacity: 0.55;
+            cursor: default;
+            pointer-events: none;
+        }
+        .vo-circle {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            flex-shrink: 0;
+            position: relative;
+        }
+        .vo-circle-img {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        }
+        .vo-circle-vid {
+            background: linear-gradient(135deg, #0ea5e9, #6366f1);
+        }
+        /* Progress ring untuk video */
+        .vo-ring {
+            position: absolute;
+            top: -3px; left: -3px;
+            width: 50px; height: 50px;
+            border-radius: 50%;
+            border: 2.5px solid rgba(255,255,255,0.22);
+            border-top-color: #a5b4fc;
+        }
+        .vo-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .vo-label {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #e2e8f0;
+        }
+        .vo-sublabel {
+            font-size: 0.72rem;
+            color: #64748b;
+        }
+        /* Opened state */
+        .view-once-bubble.vo-opened .vo-circle {
+            background: rgba(255,255,255,0.06) !important;
+        }
+        .view-once-bubble.vo-opened .vo-label {
+            color: #475569;
+        }
+
+        /* View once fullscreen overlay */
+        #viewOnceModal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: #000;
+            z-index: 9999;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        #viewOnceModal.active {
+            display: flex;
+        }
+        .vo-modal-header {
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.7), transparent);
+        }
+        .vo-modal-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #fff;
+            font-size: 0.88rem;
+            font-weight: 600;
+        }
+        .vo-timer-bar-wrap {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 3px;
+            background: rgba(255,255,255,0.15);
+        }
+        .vo-timer-bar {
+            height: 100%;
+            background: #6366f1;
+            width: 100%;
+            transition: width linear;
+        }
+        #viewOnceImg {
+            max-width: 100vw;
+            max-height: 100vh;
+            object-fit: contain;
+        }
+        #viewOnceVideo {
+            max-width: 100vw;
+            max-height: 100vh;
+            object-fit: contain;
+        }
+        .vo-close-btn {
+            background: rgba(255,255,255,0.15);
+            border: none;
+            color: #fff;
+            width: 34px; height: 34px;
+            border-radius: 50%;
+            font-size: 1rem;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+        }
     </style>
 </head>
 <body>
@@ -540,6 +709,14 @@
                             <video id="previewVideo" style="display: none;" controls></video>
                             <button class="btn-cancel-media" onclick="cancelMediaPreview()">✕</button>
                         </div>
+                        <!-- VIEW ONCE TOGGLE -->
+                        <label class="view-once-toggle" id="viewOnceToggleLabel">
+                            <input type="checkbox" id="viewOnceCheckbox">
+                            <span class="view-once-pill">
+                                <span class="vo-icon">👁️</span>
+                                Lihat sekali (View Once)
+                            </span>
+                        </label>
                     </div>
 
                     <!-- UPLOAD PROGRESS -->
@@ -563,6 +740,22 @@
             <div class="modal-actions">
                 <button class="btn-download" onclick="downloadMedia()">⬇️ Download</button>
             </div>
+        </div>
+    </div>
+
+    <!-- VIEW ONCE MODAL -->
+    <div id="viewOnceModal">
+        <div class="vo-modal-header">
+            <div class="vo-modal-title">
+                <span>👁️</span>
+                <span id="voModalLabel">Foto sekali lihat</span>
+            </div>
+            <button class="vo-close-btn" onclick="closeViewOnceModal()">✕</button>
+        </div>
+        <img id="viewOnceImg" src="" alt="" style="display:none;">
+        <video id="viewOnceVideo" autoplay style="display:none;" playsinline></video>
+        <div class="vo-timer-bar-wrap">
+            <div class="vo-timer-bar" id="voTimerBar"></div>
         </div>
     </div>
 
@@ -1190,6 +1383,8 @@
             selectedMediaFile = null;
             document.getElementById('mediaPreview').style.display = 'none';
             document.getElementById('mediaInput').value = '';
+            const voCheckbox = document.getElementById('viewOnceCheckbox');
+            if (voCheckbox) voCheckbox.checked = false;
         };
 
         // ===== UPLOAD TO CLOUDINARY =====
@@ -1515,6 +1710,56 @@
                             contentHtml = '<p style="font-style: italic; color: #999;">🗑️ Pesan telah dihapus</p>';
                         } else if (msg.isUnsent) {
                             contentHtml = '<p style="font-style: italic; color: #aaa; font-size: 0.88rem;">↩️ Kamu membatalkan pengiriman pesan ini</p>';
+                        } else if (msg.viewOnce && msg.mediaUrl && msg.mediaType) {
+                            // ===== VIEW ONCE BUBBLE =====
+                            const isOpened = !!msg.viewOnceOpened;
+                            const isMine = msg.senderId === currentUser.uid;
+                            if (isMine) {
+                                // Pengirim: tampilkan sebagai teks keterangan saja
+                                const typeLabel = msg.mediaType === 'image' ? '📷 Foto' : '🎬 Video';
+                                const statusLabel = isOpened ? 'Sudah dibuka' : 'Belum dibuka';
+                                contentHtml = `
+                                    <div class="view-once-bubble vo-opened" style="cursor:default; pointer-events:none;">
+                                        <div class="vo-circle ${msg.mediaType === 'image' ? 'vo-circle-img' : 'vo-circle-vid'}">
+                                            ${msg.mediaType === 'image' ? '📷' : '🎬'}
+                                        </div>
+                                        <div class="vo-info">
+                                            <span class="vo-label">${typeLabel}</span>
+                                            <span class="vo-sublabel" style="color:${isOpened ? '#ef4444' : '#22c55e'};">${statusLabel}</span>
+                                        </div>
+                                    </div>
+                                `;
+                            } else {
+                                // Penerima: tampilkan tombol buka jika belum dibuka
+                                if (isOpened) {
+                                    const typeLabel = msg.mediaType === 'image' ? '📷 Foto' : '🎬 Video';
+                                    contentHtml = `
+                                        <div class="view-once-bubble vo-opened">
+                                            <div class="vo-circle ${msg.mediaType === 'image' ? 'vo-circle-img' : 'vo-circle-vid'}" style="background:rgba(255,255,255,0.06);">
+                                                ${msg.mediaType === 'image' ? '📷' : '🎬'}
+                                            </div>
+                                            <div class="vo-info">
+                                                <span class="vo-label" style="color:#475569;">${typeLabel}</span>
+                                                <span class="vo-sublabel">Sudah dibuka</span>
+                                            </div>
+                                        </div>
+                                    `;
+                                } else {
+                                    const typeLabel = msg.mediaType === 'image' ? 'Foto' : 'Video';
+                                    contentHtml = `
+                                        <div class="view-once-bubble" onclick="openViewOnce('${msg.key}', '${msg.mediaUrl}', '${msg.mediaType}')">
+                                            <div class="vo-circle ${msg.mediaType === 'image' ? 'vo-circle-img' : 'vo-circle-vid'}">
+                                                👁️
+                                                <div class="vo-ring"></div>
+                                            </div>
+                                            <div class="vo-info">
+                                                <span class="vo-label">${typeLabel} sekali lihat</span>
+                                                <span class="vo-sublabel">Ketuk untuk buka</span>
+                                            </div>
+                                        </div>
+                                    `;
+                                }
+                            }
                         } else if (msg.mediaUrl && msg.mediaType) {
                             if (msg.mediaType === 'image') {
                                 contentHtml = `
@@ -1648,6 +1893,13 @@
                 isRead: false,
                 isDeleted: false
             };
+
+            // ===== VIEW ONCE FLAG =====
+            const voCheckbox = document.getElementById('viewOnceCheckbox');
+            if (voCheckbox && voCheckbox.checked && selectedMediaFile) {
+                messageData.viewOnce = true;
+                messageData.viewOnceOpened = false;
+            }
 
             // Jika membalas note, simpan konteks note ke pesan
             if (_noteReplyContext) {
@@ -2301,6 +2553,79 @@
         window._database = database;
         window._dbRef = ref;
         window._dbGet = get;
+        // ===== VIEW ONCE FUNCTIONS =====
+        let _voTimer = null;
+
+        window.openViewOnce = async function(messageKey, mediaUrl, mediaType) {
+            if (!currentUser || !selectedUserId) return;
+
+            // Tandai sudah dibuka di Firebase SEBELUM tampilkan
+            const chatId = generateChatId(currentUser.uid, selectedUserId);
+            const msgRef = ref(database, `chats/${chatId}/messages/${messageKey}`);
+
+            try {
+                await update(msgRef, { viewOnceOpened: true });
+            } catch(e) {
+                console.error('Failed to mark view once opened:', e);
+                return;
+            }
+
+            // Tampilkan modal
+            const modal = document.getElementById('viewOnceModal');
+            const img = document.getElementById('viewOnceImg');
+            const video = document.getElementById('viewOnceVideo');
+            const label = document.getElementById('voModalLabel');
+            const bar = document.getElementById('voTimerBar');
+
+            img.style.display = 'none';
+            video.style.display = 'none';
+            video.src = '';
+
+            if (mediaType === 'image') {
+                img.src = mediaUrl;
+                img.style.display = 'block';
+                label.textContent = 'Foto sekali lihat';
+                modal.classList.add('active');
+
+                // Auto close setelah 10 detik untuk foto
+                bar.style.transition = 'none';
+                bar.style.width = '100%';
+                requestAnimationFrame(() => {
+                    bar.style.transition = 'width 10s linear';
+                    bar.style.width = '0%';
+                });
+                _voTimer = setTimeout(() => closeViewOnceModal(), 10000);
+
+            } else if (mediaType === 'video') {
+                video.src = mediaUrl;
+                video.style.display = 'block';
+                label.textContent = 'Video sekali lihat';
+                modal.classList.add('active');
+                video.play().catch(() => {});
+
+                // Auto close saat video selesai
+                bar.style.transition = 'none';
+                bar.style.width = '100%';
+                video.onloadedmetadata = () => {
+                    const dur = video.duration || 30;
+                    bar.style.transition = `width ${dur}s linear`;
+                    bar.style.width = '0%';
+                };
+                video.onended = () => closeViewOnceModal();
+            }
+        };
+
+        window.closeViewOnceModal = function() {
+            const modal = document.getElementById('viewOnceModal');
+            modal.classList.remove('active');
+            const img = document.getElementById('viewOnceImg');
+            const video = document.getElementById('viewOnceVideo');
+            img.src = '';
+            video.pause();
+            video.src = '';
+            if (_voTimer) { clearTimeout(_voTimer); _voTimer = null; }
+        };
+
         window._dbSet = set;
         window._dbPush = push;
         window._formatTimeAgo = formatTimeAgo;
