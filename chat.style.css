@@ -411,18 +411,38 @@ body {
 }
 
 .message-bubble {
-    max-width: 55%;
     min-width: 0;
-    width: fit-content;
     padding: 10px 14px;
     border-radius: 12px;
     position: relative;
     font-size: 0.95rem;
     word-wrap: break-word;
+    overflow-wrap: break-word;
     display: inline-flex;
     flex-direction: column;
     gap: 4px;
     cursor: context-menu;
+}
+
+/* Bubble yang berisi media */
+.message-bubble:has(.media-message) {
+    padding: 8px 8px 10px 8px;
+}
+
+/* Wrapper yang membatasi lebar total (bubble + tombol reply) */
+.message-bubble-wrap {
+    max-width: 55%;
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 4px;
+}
+
+.message.sent .message-bubble-wrap {
+    flex-direction: row-reverse;
+}
+
+.message.received .message-bubble-wrap {
+    flex-direction: row;
 }
 
 .message.sent .message-bubble {
@@ -444,13 +464,17 @@ body {
 
 /* Media Message */
 .media-message {
-    margin: 8px 0;
+    margin: 2px 0;
 }
 
 .media-message img,
 .media-message video {
     display: block;
     border-radius: 8px;
+    max-width: 240px;
+    width: auto;
+    height: auto;
+    cursor: pointer;
 }
 
 .message-time {
