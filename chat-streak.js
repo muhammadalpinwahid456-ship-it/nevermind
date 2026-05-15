@@ -86,11 +86,9 @@ const StreakSystem = (() => {
     function _badgeHtml(streakData) {
         const count = (streakData && streakData.count) || 0;
 
+        // Jika streak 0, tidak tampilkan badge sama sekali
         if (count === 0) {
-            return `<span class="streak-badge streak-zero">
-                        <span class="streak-icon">🔥</span>
-                        <span class="streak-count">0</span>
-                    </span>`;
+            return '';
         }
 
         const warn    = _isWarning(streakData);
@@ -112,10 +110,11 @@ const StreakSystem = (() => {
         const old = el.querySelector('.streak-badge');
         if (old) old.remove();
 
-        // Inject ke user-item-info (bawah nama)
+        // Inject ke user-item-info (bawah nama) — hanya jika ada badge
         const info = el.querySelector('.user-item-info');
-        if (info) {
-            info.insertAdjacentHTML('beforeend', _badgeHtml(streakData));
+        const html = _badgeHtml(streakData);
+        if (info && html) {
+            info.insertAdjacentHTML('beforeend', html);
         }
     }
 
