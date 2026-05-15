@@ -27,7 +27,7 @@ class InstagramNoteViewer {
         return div.innerHTML;
     }
 
-    // ===== FETCH LYRICS via Cloudflare Worker (lyrics.ovh) =====
+    // ===== FETCH LYRICS via Cloudflare Worker → lrclib (HTTP bypass SSL) =====
     async fetchLyrics(songTitle, artistName, videoId) {
         const WORKER_URL = 'https://delicate-boat-b40d.alpinwahid516.workers.dev';
 
@@ -41,35 +41,43 @@ class InstagramNoteViewer {
             return [];
         }
 
-        // Coba beberapa kombinasi artist/title
-        const attempts = [];
-        if (songTitle && artistName) attempts.push({ artist: artistName, title: songTitle });
-        if (songTitle) attempts.push({ artist: songTitle, title: artistName || '' });
-
-        for (const { artist, title } of attempts) {
-            try {
-                console.log('Fetching lyrics:', artist, '-', title);
-                const res = await fetch(
-                    `${WORKER_URL}/?artist=${encodeURIComponent(artist)}&title=${encodeURIComponent(title)}`
-                );
-                if (!res.ok) continue;
-
-                const data = await res.json();
-                // lyrics.ovh returns { lyrics: "..." }
-                if (!data.lyrics) continue;
-
-                const parsed = this.parsePlainLyrics(data.lyrics);
-                if (parsed.length > 0) {
-                    this._lyricsCache[cacheKey] = parsed;
-                    return parsed;
-                }
-            } catch (err) {
-                console.warn('Lyrics fetch error:', err.message);
+        try {
+            console.log('Fetching lyrics:', artistName, '-', songTitle);
+            const res = await fetch(
+                `${WORKER_URL}/?artist=${encodeURIComponent(artistName || '')}&title=${encodeURIComponent(songTitle || '')}`
+            );
+            if (!res.ok) {
+                this._lyricsCache[cacheKey] = [];
+                return [];
             }
-        }
 
-        this._lyricsCache[cacheKey] = [];
-        return [];
+            const results = await res.json();
+            if (!results || results.length === 0) {
+                this._lyricsCache[cacheKey] = [];
+                return [];
+            }
+
+            // Prioritaskan synced lyrics
+            const chosen = results.find(r => r.syncedLyrics) || results.find(r => r.plainLyrics) || results[0];
+            if (!chosen) {
+                this._lyricsCache[cacheKey] = [];
+                return [];
+            }
+
+            let parsed = [];
+            if (chosen.syncedLyrics) {
+                parsed = this.parseSyncedLyrics(chosen.syncedLyrics);
+            } else if (chosen.plainLyrics) {
+                parsed = this.parsePlainLyrics(chosen.plainLyrics);
+            }
+
+            this._lyricsCache[cacheKey] = parsed;
+            return parsed;
+        } catch (err) {
+            console.warn('Lyrics fetch error:', err.message);
+            this._lyricsCache[cacheKey] = [];
+            return [];
+        }
     }
 
     parseSyncedLyrics(raw) {
