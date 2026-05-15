@@ -412,12 +412,14 @@ body {
 
 .message-bubble {
     max-width: 55%;
+    min-width: 0;
+    width: fit-content;
     padding: 10px 14px;
     border-radius: 12px;
     position: relative;
     font-size: 0.95rem;
     word-wrap: break-word;
-    display: flex;
+    display: inline-flex;
     flex-direction: column;
     gap: 4px;
     cursor: context-menu;
@@ -457,6 +459,9 @@ body {
     display: flex;
     align-items: center;
     gap: 4px;
+    align-self: flex-end;
+    white-space: nowrap;
+    margin-top: 2px;
 }
 
 .message.sent .message-time {
