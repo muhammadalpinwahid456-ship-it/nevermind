@@ -65,6 +65,38 @@ const DoodleSystem = (() => {
             || document.querySelector('.chat-window');
     }
 
+    // ── POSISIKAN OVERLAY TEPAT DI ATAS CHATWINDOW (FIXED) ───
+    // Overlay dipasang di body dengan position:fixed sehingga 100%
+    // tidak ikut scroll apapun. Ukuran & posisinya disamakan persis
+    // dengan bounding rect #chatWindow setiap kali diperlukan.
+    let _rafPositionId = null;
+    function _positionOverlay() {
+        if (!_overlay) return;
+        const chatWin = _getChatWindow();
+        if (!chatWin) return;
+        const r = chatWin.getBoundingClientRect();
+        _overlay.style.top    = r.top    + 'px';
+        _overlay.style.left   = r.left   + 'px';
+        _overlay.style.width  = r.width  + 'px';
+        _overlay.style.height = r.height + 'px';
+    }
+
+    // Loop RAF agar overlay selalu mengikuti layout berubah
+    function _startPositionLoop() {
+        if (_rafPositionId) return;
+        function _loop() {
+            _positionOverlay();
+            _rafPositionId = requestAnimationFrame(_loop);
+        }
+        _rafPositionId = requestAnimationFrame(_loop);
+    }
+    function _stopPositionLoop() {
+        if (_rafPositionId) {
+            cancelAnimationFrame(_rafPositionId);
+            _rafPositionId = null;
+        }
+    }
+
     // ── BUILD OVERLAY ─────────────────────────────────────────
     function _buildOverlay() {
         const old = document.getElementById('doodleOverlay');
@@ -72,11 +104,6 @@ const DoodleSystem = (() => {
 
         const chatWin = _getChatWindow();
         if (!chatWin) return;
-
-        // KRITIS: position:relative agar overlay inset:0 mengacu ke chatWindow
-        // overflow:hidden agar overlay tidak melebihi batas chatWindow
-        chatWin.style.position = 'relative';
-        chatWin.style.overflow = 'hidden';
 
         _overlay = document.createElement('div');
         _overlay.id = 'doodleOverlay';
@@ -107,24 +134,24 @@ const DoodleSystem = (() => {
             </div>
         `;
 
-        chatWin.appendChild(_overlay);
+        // Pasang di body — BUKAN di chatWindow — agar tidak ikut scroll
+        document.body.appendChild(_overlay);
 
         _myCanvas      = document.getElementById('doodleMyCanvas');
         _myCtx         = _myCanvas.getContext('2d');
         _partnerCanvas = document.getElementById('doodlePartnerCanvas');
         _partnerCtx    = _partnerCanvas.getContext('2d');
 
+        _positionOverlay();
         _resizeCanvases();
         _buildColorSwatches();
         _bindEvents();
 
-        // Pakai ResizeObserver untuk respons resize yang akurat
-        if (window.ResizeObserver) {
-            const ro = new ResizeObserver(() => _resizeCanvasesKeepContent());
-            ro.observe(chatWin);
-        } else {
-            window.addEventListener('resize', _resizeCanvasesKeepContent);
-        }
+        // Update posisi & ukuran canvas saat window resize
+        window.addEventListener('resize', () => {
+            _positionOverlay();
+            _resizeCanvasesKeepContent();
+        });
 
         // Fullscreen viewer
         if (!document.getElementById('doodleViewer')) {
@@ -141,8 +168,9 @@ const DoodleSystem = (() => {
     function _resizeCanvases() {
         if (!_overlay) return;
         const chatWin = _getChatWindow();
-        const w = (chatWin ? chatWin.offsetWidth  : 400) || 400;
-        const h = (chatWin ? chatWin.offsetHeight : 600) || 600;
+        const r = chatWin ? chatWin.getBoundingClientRect() : null;
+        const w = (r && r.width  > 0 ? r.width  : 400);
+        const h = (r && r.height > 0 ? r.height : 600);
         [_myCanvas, _partnerCanvas].forEach(c => {
             if (!c) return;
             c.width  = w;
@@ -153,8 +181,9 @@ const DoodleSystem = (() => {
     function _resizeCanvasesKeepContent() {
         if (!_overlay) return;
         const chatWin = _getChatWindow();
-        const w = (chatWin ? chatWin.offsetWidth  : 400) || 400;
-        const h = (chatWin ? chatWin.offsetHeight : 600) || 600;
+        const r = chatWin ? chatWin.getBoundingClientRect() : null;
+        const w = (r && r.width  > 0 ? r.width  : 400);
+        const h = (r && r.height > 0 ? r.height : 600);
 
         [
             { canvas: _myCanvas,      ctx: _myCtx      },
@@ -430,31 +459,20 @@ const DoodleSystem = (() => {
         }, 50);
     }
 
-    // ── PASTIKAN OVERLAY DI CHAT-WINDOW YANG BENAR ────────────
+    // ── PASTIKAN OVERLAY SUDAH ADA DAN POSISINYA BENAR ──────────
+    // Overlay selalu menempel di body (position:fixed), cukup
+    // pastikan sudah ter-build dan diposisikan ulang.
     function _ensureOverlayInChatWindow() {
-        const chatWin = _getChatWindow();
-        if (!chatWin) return;
-
-        chatWin.style.position = 'relative';
-        chatWin.style.overflow = 'hidden';
-
         const existing = document.getElementById('doodleOverlay');
         if (!existing) {
             _buildOverlay();
-        } else if (existing.parentElement !== chatWin) {
-            // Overlay ada tapi di parent yang salah → pindahkan ke chatWin
-            chatWin.appendChild(existing);
-            _overlay = existing;
-            _myCanvas      = document.getElementById('doodleMyCanvas');
-            _myCtx         = _myCanvas?.getContext('2d');
-            _partnerCanvas = document.getElementById('doodlePartnerCanvas');
-            _partnerCtx    = _partnerCanvas?.getContext('2d');
         } else {
             _overlay       = existing;
             _myCanvas      = document.getElementById('doodleMyCanvas');
             _myCtx         = _myCanvas?.getContext('2d');
             _partnerCanvas = document.getElementById('doodlePartnerCanvas');
             _partnerCtx    = _partnerCanvas?.getContext('2d');
+            _positionOverlay();
         }
     }
 
@@ -463,6 +481,7 @@ const DoodleSystem = (() => {
         if (!_partnerId) { alert('Pilih chat terlebih dahulu!'); return; }
 
         _ensureOverlayInChatWindow();
+        _startPositionLoop(); // terus update posisi overlay agar tidak ikut scroll
 
         _overlay.classList.add('doodle-active');
         _overlay.classList.remove('doodle-view-only');
@@ -508,6 +527,7 @@ const DoodleSystem = (() => {
     // ── DISMISS ───────────────────────────────────────────────
     function _dismissDoodle() {
         if (!_overlay) return;
+        _stopPositionLoop();
         _overlay.classList.remove('doodle-active', 'doodle-view-only');
         document.getElementById('doodleToggleBtn')?.classList.remove('active');
         _hidePartnerIndicator();
@@ -537,6 +557,7 @@ const DoodleSystem = (() => {
     // ── CLOSE (batal sebelum selesai) ─────────────────────────
     function closeDoodle() {
         if (!_overlay) return;
+        _stopPositionLoop();
         const wasActive = _overlay.classList.contains('doodle-active');
         _overlay.classList.remove('doodle-active', 'doodle-view-only');
         document.getElementById('doodleToggleBtn')?.classList.remove('active');
@@ -587,6 +608,7 @@ const DoodleSystem = (() => {
                 _hidePartnerIndicator();
                 if (!_overlay?.classList.contains('doodle-active')) {
                     _overlay?.classList.add('doodle-view-only');
+                    _startPositionLoop();
                     _showPublishToast();
                 }
             } else {
@@ -742,13 +764,7 @@ const DoodleSystem = (() => {
             });
         }
 
-        const chatWin = _getChatWindow();
-        if (chatWin) {
-            chatWin.style.position = 'relative';
-            chatWin.style.overflow = 'hidden';
-        }
-
-        console.log('[DoodleSystem v8] ✅ Init — scroll-fix + state-persist aktif');
+        console.log('[DoodleSystem v9] ✅ Init — fixed overlay, no scroll, state-persist aktif');
     }
 
     // ── PUBLIC API ────────────────────────────────────────────

@@ -40,8 +40,8 @@
    pointer-events: none saat tidak aktif agar chat tetap bisa dipakai
 */
 #doodleOverlay {
-    position: absolute;
-    inset: 0;
+    position: fixed;   /* fixed ke viewport — tidak ikut scroll apapun */
+    /* top/left/width/height diset dinamis via JS berdasarkan getBoundingClientRect(#chatWindow) */
     z-index: 100;
     display: none;
     pointer-events: none;
