@@ -1,13 +1,17 @@
 /* =====================================================
-   CHAT DOODLE v7 - Instagram Style
-   Overlay = position:absolute di dalam .chat-window
-   TIDAK ikut scroll, tetap di area chat, kedua user lihat hasil
+   CHAT DOODLE v10 - Overlay di dalam messages-area
+   Overlay = position:absolute di dalam .messages-area
+   (bukan .chat-window), sehingga:
+   - Ikut scroll bersama riwayat pesan (gambar bergerak saat scroll)
+   - Tidak menutupi header maupun input-area
+   - Canvas mencakup seluruh scrollHeight messages-area
+   Toolbar, close button, dan label pakai position:fixed
+   agar tetap terlihat di viewport saat user scroll.
    ===================================================== */
 
-/* ── .chat-window HARUS position:relative + overflow:hidden ──
-   Sudah ditambahkan di chat_style.css dan juga via JS saat init.
-   overflow:hidden pada .chat-window memastikan overlay tidak
-   ikut scrolling .messages-area yang ada di dalamnya. */
+/* ── .messages-area HARUS position:relative ──
+   Sudah ada di chat_style.css. JS juga set via getComputedStyle
+   guard di _ensureOverlayInChatWindow() sebagai fallback. */
 
 /* ── Doodle Toggle Button ── */
 #doodleToggleBtn {
@@ -33,23 +37,23 @@
 }
 
 /* ── OVERLAY UTAMA ──
-   position: absolute → menempel di dalam .chat-window
-   inset: 0 → menutupi seluruh .chat-window (header + messages + input)
-   Karena .chat-window punya overflow:hidden, overlay tidak akan
-   terbawa scroll .messages-area.
-   pointer-events: none saat tidak aktif agar chat tetap bisa dipakai
+   position:absolute di dalam .messages-area (position:relative).
+   inset:0 → left:0, top:0, right:0, bottom:0
+   width/height dihitung dari scrollWidth/scrollHeight via JS (_resizeCanvases).
+   Dengan ini overlay IKUT SCROLL bersama isi messages-area.
+   pointer-events:none saat tidak aktif agar chat tetap bisa dipakai.
 */
 #doodleOverlay {
-    position: absolute; /* menempel di dalam .chat-window (position:relative) */
-    inset: 0;           /* otomatis cover seluruh chat-window, tidak perlu JS positioning */
+    position: absolute;
+    top: 0;
+    left: 0;
+    /* width & height diset via JS ke scrollWidth/scrollHeight container */
+    width: 100%;
+    min-height: 100%;
     z-index: 100;
     display: none;
     pointer-events: none;
-    overflow: hidden;
-    /* Tidak perlu top/left/width/height — inset:0 sudah cukup karena
-       .chat-window adalah containing block (position:relative + overflow:hidden).
-       Overlay tidak akan ikut scroll .messages-area karena .messages-area
-       adalah child terpisah, bukan parent dari overlay ini. */
+    /* TIDAK overflow:hidden — agar seluruh scroll content tertutup */
 }
 
 /* Mode aktif (user sedang menggambar) — tampil, blokir interaksi ke bawah */
@@ -68,7 +72,10 @@
 #doodleOverlay.doodle-active::before {
     content: '';
     position: absolute;
-    inset: 0;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
     background: rgba(0, 0, 0, 0.45);
     z-index: 0;
     backdrop-filter: blur(1px);
@@ -80,9 +87,9 @@
 /* Canvas partner: paling bawah, hanya tampil, tidak interaktif */
 #doodlePartnerCanvas {
     position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
+    top: 0;
+    left: 0;
+    /* width & height diset via JS */
     pointer-events: none;
     z-index: 1;
 }
@@ -90,9 +97,9 @@
 /* Canvas milik sendiri: di atas, interaktif saat mode aktif */
 #doodleMyCanvas {
     position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
+    top: 0;
+    left: 0;
+    /* width & height diset via JS */
     pointer-events: none;
     z-index: 2;
     cursor: crosshair;
@@ -104,11 +111,14 @@
     cursor: cell;
 }
 
-/* ── Close Button (kanan atas) ── */
+/* ── Close Button ──
+   position:fixed agar tetap terlihat di viewport saat scroll.
+   Toolbar, label, dan indicator juga fixed.
+*/
 #doodleCloseBtn {
-    position: absolute;
-    top: 12px;
-    right: 12px;
+    position: fixed;
+    top: 16px;
+    right: 16px;
     width: 34px;
     height: 34px;
     border-radius: 50%;
@@ -120,7 +130,7 @@
     display: none;
     align-items: center;
     justify-content: center;
-    z-index: 10;
+    z-index: 9100;
     pointer-events: all;
     backdrop-filter: blur(8px);
     transition: background 0.15s, transform 0.12s;
@@ -134,11 +144,12 @@
     transform: scale(1.08);
 }
 
-/* ── Label "Menggambar..." (kiri atas) ── */
+/* ── Label "Menggambar..." (kiri atas, fixed) ── */
 #doodleLabel {
-    position: absolute;
-    top: 12px;
-    left: 12px;
+    position: fixed;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
     background: rgba(0,0,0,0.5);
     color: rgba(255,255,255,0.9);
     font-size: 0.73rem;
@@ -146,7 +157,7 @@
     padding: 4px 12px;
     border-radius: 20px;
     pointer-events: none;
-    z-index: 10;
+    z-index: 9100;
     display: none;
     backdrop-filter: blur(6px);
     letter-spacing: 0.04em;
@@ -155,10 +166,10 @@
     display: block;
 }
 
-/* ── Partner "sedang menggambar" indicator ── */
+/* ── Partner "sedang menggambar" indicator (fixed) ── */
 #doodlePartnerIndicator {
-    position: absolute;
-    top: 12px;
+    position: fixed;
+    top: 16px;
     left: 50%;
     transform: translateX(-50%);
     background: rgba(167,139,250,0.18);
@@ -169,7 +180,7 @@
     padding: 5px 16px;
     border-radius: 20px;
     pointer-events: none;
-    z-index: 10;
+    z-index: 9100;
     display: none;
     backdrop-filter: blur(8px);
     white-space: nowrap;
@@ -183,12 +194,13 @@
     50% { opacity: 0.55; }
 }
 
-/* ── Toolbar (tengah bawah, di atas input-area) ──
-   bottom: 76px agar tepat di atas .input-area (~64px) + margin.
-   Nilai ini perlu disesuaikan dengan tinggi input-area di chat_style.css. */
+/* ── Toolbar (fixed di bawah viewport, di atas input-area) ──
+   position:fixed agar selalu terlihat di viewport saat user scroll.
+   bottom dihitung agar tepat di atas input-area (~68px tinggi).
+*/
 #doodleToolbar {
-    position: absolute;
-    bottom: 76px;
+    position: fixed;
+    bottom: 80px;
     left: 50%;
     transform: translateX(-50%);
     display: none;
@@ -196,15 +208,15 @@
     gap: 7px;
     padding: 9px 15px;
     border-radius: 36px;
-    background: rgba(10, 10, 20, 0.82);
+    background: rgba(10, 10, 20, 0.92);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border: 1px solid rgba(255,255,255,0.12);
     box-shadow: 0 6px 28px rgba(0,0,0,0.6);
-    z-index: 10;
+    z-index: 9100;
     pointer-events: all;
     white-space: nowrap;
-    max-width: calc(100% - 24px);
+    max-width: calc(100% - 32px);
 }
 #doodleOverlay.doodle-active #doodleToolbar {
     display: flex;
@@ -356,6 +368,9 @@
     cursor: pointer;
     transition: transform 0.15s;
     border: 1px solid rgba(255,255,255,0.08);
+    /* Pastikan bubble muncul di atas overlay saat view-only */
+    position: relative;
+    z-index: 101;
 }
 .doodle-bubble:hover { transform: scale(1.02); }
 .doodle-bubble img {
@@ -406,10 +421,14 @@
     #doodleToolbar {
         gap: 5px;
         padding: 7px 10px;
-        bottom: 68px;
+        bottom: 70px;
     }
     .doodle-color-swatch { width: 16px; height: 16px; }
     #doodleSizeSlider { width: 46px; }
     #doodleColorPicker { width: 16px; height: 16px; }
+    #doodleCloseBtn {
+        top: 12px;
+        right: 12px;
+    }
 }
 

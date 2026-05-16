@@ -1926,6 +1926,9 @@
 
                     messagesArea.scrollTop = messagesArea.scrollHeight;
 
+                    // Resize canvas doodle setelah messages render (scrollHeight berubah)
+                    if (window.DoodleSystem) window.DoodleSystem.onMessagesRendered();
+
                     // ===== INSTAGRAM-STYLE READ RECEIPT =====
                     renderReadReceipt(messages);
                 }

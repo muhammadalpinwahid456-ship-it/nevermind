@@ -66,16 +66,23 @@ const DoodleSystem = (() => {
         return `doodles/${_chatId(_myUid, _partnerId)}/draw_${uid}`;
     }
 
-    // ── AMBIL CHAT-WINDOW (container utama, BUKAN scroll area) ──
+    // ── AMBIL MESSAGES-AREA (scroll container tempat overlay dipasang) ──
+    // Overlay dipasang di dalam .messages-area agar:
+    // (1) ikut scroll bersama isi chat  → gambar doodle di riwayat terlihat on-canvas
+    // (2) tidak menutupi header & input-area
+    // .messages-area HARUS position:relative (ditambahkan via JS saat _buildOverlay)
     function _getChatWindow() {
-        return document.getElementById('chatWindow')
+        // Utamakan messages-area sebagai containing block overlay
+        return document.getElementById('messagesArea')
+            || document.querySelector('.messages-area')
+            || document.getElementById('chatWindow')
             || document.querySelector('.chat-window');
     }
 
     // ── POSISI OVERLAY ────────────────────────────────────────
-    // Overlay adalah position:absolute di dalam .chat-window (position:relative).
-    // Tidak perlu RAF loop atau JS positioning — CSS inset:0 sudah menangani.
-    // Fungsi-fungsi ini dijadikan no-op agar tidak ada error dari kode lain.
+    // Overlay adalah position:absolute di dalam .messages-area (position:relative).
+    // Ukuran canvas = scrollWidth/scrollHeight messages-area agar mencakup
+    // seluruh area scroll (bukan hanya viewport).
     function _positionOverlay() { /* no-op: CSS position:absolute + inset:0 */ }
     function _startPositionLoop() { /* no-op */ }
     function _stopPositionLoop() { /* no-op */ }
@@ -85,8 +92,13 @@ const DoodleSystem = (() => {
         const old = document.getElementById('doodleOverlay');
         if (old) old.remove();
 
-        const chatWin = _getChatWindow();
-        if (!chatWin) return;
+        const scrollContainer = _getChatWindow();
+        if (!scrollContainer) return;
+
+        // messages-area harus position:relative agar overlay (position:absolute)
+        // menempel di dalamnya — set via JS jika belum ada di CSS
+        const curPos = getComputedStyle(scrollContainer).position;
+        if (curPos === 'static') scrollContainer.style.position = 'relative';
 
         _overlay = document.createElement('div');
         _overlay.id = 'doodleOverlay';
@@ -117,10 +129,11 @@ const DoodleSystem = (() => {
             </div>
         `;
 
-        // Pasang di dalam chatWindow — bukan di body — agar tidak ikut scroll halaman.
-        // Karena .chat-window punya position:relative + overflow:hidden,
-        // overlay (position:absolute + inset:0) akan menempel tepat di dalamnya.
-        chatWin.appendChild(_overlay);
+        // Pasang di dalam messages-area — bukan chat-window — agar:
+        // 1. Ikut scroll bersama riwayat pesan (overlay bergerak saat scroll)
+        // 2. Tidak menutupi header & input-area
+        // 3. position:absolute + inset:0 otomatis cover seluruh scroll content
+        scrollContainer.appendChild(_overlay);
 
         _myCanvas      = document.getElementById('doodleMyCanvas');
         _myCtx         = _myCanvas.getContext('2d');
@@ -131,10 +144,10 @@ const DoodleSystem = (() => {
         _buildColorSwatches();
         _bindEvents();
 
-        // Auto-resize canvas saat ukuran chatWindow berubah (resize window, orientasi, dsb)
+        // Auto-resize canvas saat ukuran messages-area berubah
         if (window.ResizeObserver) {
             const ro = new ResizeObserver(() => _resizeCanvasesKeepContent());
-            ro.observe(chatWin);
+            ro.observe(scrollContainer);
         } else {
             window.addEventListener('resize', _resizeCanvasesKeepContent);
         }
@@ -151,13 +164,16 @@ const DoodleSystem = (() => {
     }
 
     // ── CANVAS RESIZE ─────────────────────────────────────────
-    // Ukuran canvas = ukuran chatWindow (containing block overlay).
-    // openDoodle() dipanggil setelah chatWindow visible, jadi offsetWidth/Height valid.
+    // Ukuran canvas = scrollWidth/scrollHeight messages-area (containing block overlay).
+    // Menggunakan scrollWidth/scrollHeight agar canvas mencakup seluruh area scroll,
+    // bukan hanya viewport. Ini yang memungkinkan overlay ikut scroll.
     function _resizeCanvases() {
         if (!_overlay) return;
-        const chatWin = _getChatWindow();
-        const w = chatWin?.offsetWidth  || 400;
-        const h = chatWin?.offsetHeight || 600;
+        const container = _getChatWindow();
+        // scrollWidth/scrollHeight mencakup konten di luar viewport (sudah di-scroll)
+        // offsetWidth/offsetHeight hanya viewport yang terlihat
+        const w = (container?.scrollWidth  > 0 ? container.scrollWidth  : container?.offsetWidth)  || 400;
+        const h = (container?.scrollHeight > 0 ? container.scrollHeight : container?.offsetHeight) || 600;
         [_myCanvas, _partnerCanvas].forEach(c => {
             if (!c) return;
             c.width  = w;
@@ -167,9 +183,9 @@ const DoodleSystem = (() => {
 
     function _resizeCanvasesKeepContent() {
         if (!_overlay) return;
-        const chatWin = _getChatWindow();
-        const w = (chatWin?.offsetWidth  > 0 ? chatWin.offsetWidth  : (_overlay.offsetWidth  || 400));
-        const h = (chatWin?.offsetHeight > 0 ? chatWin.offsetHeight : (_overlay.offsetHeight || 600));
+        const container = _getChatWindow();
+        const w = (container?.scrollWidth  > 0 ? container.scrollWidth  : (_overlay.scrollWidth  || 400));
+        const h = (container?.scrollHeight > 0 ? container.scrollHeight : (_overlay.scrollHeight || 600));
 
         [
             { canvas: _myCanvas,      ctx: _myCtx      },
@@ -266,10 +282,17 @@ const DoodleSystem = (() => {
 
     // ── DRAW ──────────────────────────────────────────────────
     function _getPos(e) {
-        const rect = _myCanvas.getBoundingClientRect();
+        const rect      = _myCanvas.getBoundingClientRect();
+        const container = _getChatWindow();
+        // getBoundingClientRect() sudah memperhitungkan scroll viewport,
+        // tapi karena canvas berada di dalam scroll container (messages-area),
+        // kita perlu tambahkan scrollTop & scrollLeft container untuk mendapat
+        // koordinat yang akurat relatif terhadap canvas (bukan viewport).
+        const scrollTop  = container ? container.scrollTop  : 0;
+        const scrollLeft = container ? container.scrollLeft : 0;
         return {
-            x: (e.clientX - rect.left) * (_myCanvas.width / rect.width),
-            y: (e.clientY - rect.top)  * (_myCanvas.height / rect.height),
+            x: (e.clientX - rect.left + scrollLeft) * (_myCanvas.width  / _myCanvas.offsetWidth),
+            y: (e.clientY - rect.top  + scrollTop)  * (_myCanvas.height / _myCanvas.offsetHeight),
         };
     }
 
@@ -445,20 +468,25 @@ const DoodleSystem = (() => {
         }, 50);
     }
 
-    // ── PASTIKAN OVERLAY ADA DI DALAM CHATWINDOW ─────────────
-    // Overlay (position:absolute) harus menjadi child dari .chat-window
-    // (position:relative) agar tidak ikut scroll halaman.
+    // ── PASTIKAN OVERLAY ADA DI DALAM MESSAGES-AREA ──────────
+    // Overlay (position:absolute) harus menjadi child dari .messages-area
+    // (position:relative) agar ikut scroll bersama isi chat dan tidak menutupi
+    // header maupun input-area.
     function _ensureOverlayInChatWindow() {
-        const chatWin = _getChatWindow();
-        if (!chatWin) return;
+        const scrollContainer = _getChatWindow();
+        if (!scrollContainer) return;
+
+        // Pastikan containing block punya position:relative
+        const curPos = getComputedStyle(scrollContainer).position;
+        if (curPos === 'static') scrollContainer.style.position = 'relative';
 
         let existing = document.getElementById('doodleOverlay');
         if (!existing) {
             _buildOverlay();
         } else {
-            // Pindahkan ke chatWindow jika belum di sana
-            if (existing.parentElement !== chatWin) {
-                chatWin.appendChild(existing);
+            // Pindahkan ke scrollContainer jika belum di sana
+            if (existing.parentElement !== scrollContainer) {
+                scrollContainer.appendChild(existing);
             }
             _overlay       = existing;
             _myCanvas      = document.getElementById('doodleMyCanvas');
@@ -475,13 +503,13 @@ const DoodleSystem = (() => {
         _ensureOverlayInChatWindow();
 
         // Tambahkan class active DULU agar overlay display:block,
-        // baru resize canvas — karena offsetWidth/Height = 0 saat display:none
+        // baru resize canvas — karena scrollWidth/Height tidak akurat saat display:none
         _overlay.classList.add('doodle-active');
         _overlay.classList.remove('doodle-view-only');
         document.getElementById('doodleToggleBtn')?.classList.add('active');
 
         _hasPublished = false;
-        // Resize setelah overlay visible
+        // Resize setelah overlay visible, pakai scroll dimensions
         _resizeCanvases();
 
         _myCtx?.clearRect(0, 0, _myCanvas?.width || 0, _myCanvas?.height || 0);
@@ -491,6 +519,10 @@ const DoodleSystem = (() => {
 
         const btn = document.getElementById('doodleFinishBtn');
         if (btn) { btn.textContent = 'Selesai ✓'; btn.disabled = false; btn.style.background = ''; }
+
+        // Scroll messages-area ke atas agar user langsung melihat canvas menggambar
+        const container = _getChatWindow();
+        if (container) container.scrollTop = 0;
 
         _listenPartnerNode();
     }
@@ -768,6 +800,17 @@ const DoodleSystem = (() => {
         openDoodle,
         closeDoodle,
         openViewer,
+        /**
+         * Panggil ini setelah messages selesai dirender ke DOM,
+         * agar canvas di-resize sesuai scrollHeight messages-area yang baru.
+         * Contoh: DoodleSystem.onMessagesRendered() di akhir loadMessages().
+         */
+        onMessagesRendered() {
+            if (_overlay && (_overlay.classList.contains('doodle-active') ||
+                             _overlay.classList.contains('doodle-view-only'))) {
+                _resizeCanvasesKeepContent();
+            }
+        },
     };
 
 })();
