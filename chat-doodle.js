@@ -1,23 +1,30 @@
 /**
  * ============================================================
- *  CHAT DOODLE SYSTEM v8 - Perbaikan Bug
+ *  CHAT DOODLE SYSTEM v9 - Fix Scroll Bug
  *  File: chat-doodle.js
  *
- *  PERBAIKAN v8:
+ *  PERBAIKAN v9:
  *  ──────────────────────────────────────────────────────────
- *  FIX 1: OVERLAY TIDAK IKUT SCROLL
- *    - Overlay dipasang di #chatWindow dengan position:absolute
- *    - #chatWindow diberi position:relative + overflow:hidden
- *    - Yang scroll hanya .messages-area (child), bukan #chatWindow
- *    - Setiap selectUser, overlay di-reattach ke #chatWindow
- *      yang benar agar tidak terdislokasi
+ *  FIX UTAMA: OVERLAY TIDAK IKUT SCROLL
+ *    ROOT CAUSE v8: overlay pakai position:fixed di body +
+ *    RAF loop untuk update top/left. Saat halaman/window
+ *    di-scroll, getBoundingClientRect() ikut berubah, tapi
+ *    update RAF tidak sinkron sehingga overlay terlihat
+ *    "ngikut scroll" dengan glitch.
  *
- *  FIX 2: DOODLE TIDAK HILANG SAAT PINDAH CHAT
- *    - State doodle (canvas image, mode) disimpan ke Map _chatStates
- *      SEBELUM pindah partner
- *    - Saat kembali ke partner yang sama, state dipulihkan
- *      (gambar canvas + mode overlay active/view-only)
- *    - Firebase listener diperbarui sesuai partner baru
+ *    SOLUSI v9: overlay dipasang sebagai child langsung dari
+ *    .chat-window (position:relative + overflow:hidden) dengan
+ *    position:absolute + inset:0. Hasilnya:
+ *    - Overlay otomatis cover seluruh chat-window tanpa JS
+ *    - Overlay tidak ikut scroll apapun (baik scroll halaman
+ *      maupun scroll .messages-area), karena .chat-window
+ *      adalah containing block-nya
+ *    - RAF positioning loop dihapus sepenuhnya
+ *    - Tidak ada dependency ke getBoundingClientRect()
+ *
+ *  CATATAN:
+ *    .chat-window HARUS punya position:relative + overflow:hidden
+ *    (sudah ada di chat_style.css — tidak perlu diubah)
  * ============================================================
  */
 
@@ -65,37 +72,13 @@ const DoodleSystem = (() => {
             || document.querySelector('.chat-window');
     }
 
-    // ── POSISIKAN OVERLAY TEPAT DI ATAS CHATWINDOW (FIXED) ───
-    // Overlay dipasang di body dengan position:fixed sehingga 100%
-    // tidak ikut scroll apapun. Ukuran & posisinya disamakan persis
-    // dengan bounding rect #chatWindow setiap kali diperlukan.
-    let _rafPositionId = null;
-    function _positionOverlay() {
-        if (!_overlay) return;
-        const chatWin = _getChatWindow();
-        if (!chatWin) return;
-        const r = chatWin.getBoundingClientRect();
-        _overlay.style.top    = r.top    + 'px';
-        _overlay.style.left   = r.left   + 'px';
-        _overlay.style.width  = r.width  + 'px';
-        _overlay.style.height = r.height + 'px';
-    }
-
-    // Loop RAF agar overlay selalu mengikuti layout berubah
-    function _startPositionLoop() {
-        if (_rafPositionId) return;
-        function _loop() {
-            _positionOverlay();
-            _rafPositionId = requestAnimationFrame(_loop);
-        }
-        _rafPositionId = requestAnimationFrame(_loop);
-    }
-    function _stopPositionLoop() {
-        if (_rafPositionId) {
-            cancelAnimationFrame(_rafPositionId);
-            _rafPositionId = null;
-        }
-    }
+    // ── POSISI OVERLAY ────────────────────────────────────────
+    // Overlay adalah position:absolute di dalam .chat-window (position:relative).
+    // Tidak perlu RAF loop atau JS positioning — CSS inset:0 sudah menangani.
+    // Fungsi-fungsi ini dijadikan no-op agar tidak ada error dari kode lain.
+    function _positionOverlay() { /* no-op: CSS position:absolute + inset:0 */ }
+    function _startPositionLoop() { /* no-op */ }
+    function _stopPositionLoop() { /* no-op */ }
 
     // ── BUILD OVERLAY ─────────────────────────────────────────
     function _buildOverlay() {
@@ -134,24 +117,22 @@ const DoodleSystem = (() => {
             </div>
         `;
 
-        // Pasang di body — BUKAN di chatWindow — agar tidak ikut scroll
-        document.body.appendChild(_overlay);
+        // Pasang di dalam chatWindow — bukan di body — agar tidak ikut scroll halaman.
+        // Karena .chat-window punya position:relative + overflow:hidden,
+        // overlay (position:absolute + inset:0) akan menempel tepat di dalamnya.
+        chatWin.appendChild(_overlay);
 
         _myCanvas      = document.getElementById('doodleMyCanvas');
         _myCtx         = _myCanvas.getContext('2d');
         _partnerCanvas = document.getElementById('doodlePartnerCanvas');
         _partnerCtx    = _partnerCanvas.getContext('2d');
 
-        _positionOverlay();
         _resizeCanvases();
         _buildColorSwatches();
         _bindEvents();
 
-        // Update posisi & ukuran canvas saat window resize
-        window.addEventListener('resize', () => {
-            _positionOverlay();
-            _resizeCanvasesKeepContent();
-        });
+        // Update ukuran canvas saat window resize
+        window.addEventListener('resize', _resizeCanvasesKeepContent);
 
         // Fullscreen viewer
         if (!document.getElementById('doodleViewer')) {
@@ -168,9 +149,8 @@ const DoodleSystem = (() => {
     function _resizeCanvases() {
         if (!_overlay) return;
         const chatWin = _getChatWindow();
-        const r = chatWin ? chatWin.getBoundingClientRect() : null;
-        const w = (r && r.width  > 0 ? r.width  : 400);
-        const h = (r && r.height > 0 ? r.height : 600);
+        const w = (chatWin?.offsetWidth  > 0 ? chatWin.offsetWidth  : 400);
+        const h = (chatWin?.offsetHeight > 0 ? chatWin.offsetHeight : 600);
         [_myCanvas, _partnerCanvas].forEach(c => {
             if (!c) return;
             c.width  = w;
@@ -181,9 +161,8 @@ const DoodleSystem = (() => {
     function _resizeCanvasesKeepContent() {
         if (!_overlay) return;
         const chatWin = _getChatWindow();
-        const r = chatWin ? chatWin.getBoundingClientRect() : null;
-        const w = (r && r.width  > 0 ? r.width  : 400);
-        const h = (r && r.height > 0 ? r.height : 600);
+        const w = (chatWin?.offsetWidth  > 0 ? chatWin.offsetWidth  : 400);
+        const h = (chatWin?.offsetHeight > 0 ? chatWin.offsetHeight : 600);
 
         [
             { canvas: _myCanvas,      ctx: _myCtx      },
@@ -459,20 +438,26 @@ const DoodleSystem = (() => {
         }, 50);
     }
 
-    // ── PASTIKAN OVERLAY SUDAH ADA DAN POSISINYA BENAR ──────────
-    // Overlay selalu menempel di body (position:fixed), cukup
-    // pastikan sudah ter-build dan diposisikan ulang.
+    // ── PASTIKAN OVERLAY ADA DI DALAM CHATWINDOW ─────────────
+    // Overlay (position:absolute) harus menjadi child dari .chat-window
+    // (position:relative) agar tidak ikut scroll halaman.
     function _ensureOverlayInChatWindow() {
-        const existing = document.getElementById('doodleOverlay');
+        const chatWin = _getChatWindow();
+        if (!chatWin) return;
+
+        let existing = document.getElementById('doodleOverlay');
         if (!existing) {
             _buildOverlay();
         } else {
+            // Pindahkan ke chatWindow jika belum di sana
+            if (existing.parentElement !== chatWin) {
+                chatWin.appendChild(existing);
+            }
             _overlay       = existing;
             _myCanvas      = document.getElementById('doodleMyCanvas');
             _myCtx         = _myCanvas?.getContext('2d');
             _partnerCanvas = document.getElementById('doodlePartnerCanvas');
             _partnerCtx    = _partnerCanvas?.getContext('2d');
-            _positionOverlay();
         }
     }
 
@@ -764,7 +749,7 @@ const DoodleSystem = (() => {
             });
         }
 
-        console.log('[DoodleSystem v9] ✅ Init — fixed overlay, no scroll, state-persist aktif');
+        console.log('[DoodleSystem v9] ✅ Init — overlay:absolute in chatWindow, no RAF loop, no scroll bug');
     }
 
     // ── PUBLIC API ────────────────────────────────────────────

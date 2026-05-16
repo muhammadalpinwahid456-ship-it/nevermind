@@ -40,12 +40,16 @@
    pointer-events: none saat tidak aktif agar chat tetap bisa dipakai
 */
 #doodleOverlay {
-    position: fixed;   /* fixed ke viewport — tidak ikut scroll apapun */
-    /* top/left/width/height diset dinamis via JS berdasarkan getBoundingClientRect(#chatWindow) */
+    position: absolute; /* menempel di dalam .chat-window (position:relative) */
+    inset: 0;           /* otomatis cover seluruh chat-window, tidak perlu JS positioning */
     z-index: 100;
     display: none;
     pointer-events: none;
     overflow: hidden;
+    /* Tidak perlu top/left/width/height — inset:0 sudah cukup karena
+       .chat-window adalah containing block (position:relative + overflow:hidden).
+       Overlay tidak akan ikut scroll .messages-area karena .messages-area
+       adalah child terpisah, bukan parent dari overlay ini. */
 }
 
 /* Mode aktif (user sedang menggambar) — tampil, blokir interaksi ke bawah */
