@@ -1,5 +1,5 @@
 /* =====================================================
-   CHAT DOODLE v4 - Instagram DM Overlay Style
+   CHAT DOODLE v6 - Fixed Overlay (tidak ikut scroll)
    ===================================================== */
 
 /* ── Doodle Toggle Button ── */
@@ -26,24 +26,28 @@
 }
 
 /* ── OVERLAY UTAMA ──
-   Menutup seluruh chat-window (header + messages + input area)
-   tapi pointer-events hanya pada canvas (tidak block input asli)
+   position: fixed → menempel di viewport, TIDAK ikut scroll pesan.
+   Posisi & ukurannya di-set JS mengikuti bounding rect .chat-window.
+   Saat tidak aktif (hidden): display:none.
 */
 #doodleOverlay {
-    position: absolute;
-    inset: 0;
+    position: fixed;
     z-index: 150;
     display: none;
-    pointer-events: none;   /* default: tidak block chat di bawah */
+    pointer-events: none;
+    /* posisi di-set dinamis oleh JS: left, top, width, height */
+    overflow: hidden;
+    /* Kliping agar coretan tidak keluar area chat */
+    border-radius: inherit;
 }
 
 /* Mode aktif (user sedang menggambar) */
 #doodleOverlay.doodle-active {
     display: block;
-    pointer-events: none;   /* toolbar & canvas handle sendiri */
+    pointer-events: none;
 }
 
-/* Mode view-only (melihat coretan partner saja) */
+/* Mode view-only (melihat coretan partner / hasil frozen) */
 #doodleOverlay.doodle-view-only {
     display: block;
     pointer-events: none;
@@ -67,12 +71,12 @@
     inset: 0;
     width: 100%;
     height: 100%;
-    pointer-events: none;   /* non-aktif: tidak block */
+    pointer-events: none;
     z-index: 152;
     cursor: crosshair;
 }
 #doodleOverlay.doodle-active #doodleMyCanvas {
-    pointer-events: all;    /* aktif: bisa digambar */
+    pointer-events: all;
 }
 #doodleMyCanvas.eraser-mode {
     cursor: cell;
@@ -156,10 +160,10 @@
     50% { opacity: 0.6; }
 }
 
-/* ── Toolbar (bawah, di atas input area) ── */
+/* ── Toolbar (bawah tengah, di atas input area) ── */
 #doodleToolbar {
     position: absolute;
-    bottom: 72px;           /* di atas input area */
+    bottom: 72px;
     left: 50%;
     transform: translateX(-50%);
     display: none;
@@ -203,7 +207,6 @@
     box-shadow: 0 0 0 1px rgba(0,0,0,0.4);
 }
 
-/* Color picker input */
 #doodleColorPicker {
     width: 20px;
     height: 20px;
@@ -221,7 +224,6 @@
 #doodleColorPicker::-webkit-color-swatch { border: none; border-radius: 50%; }
 #doodleColorPicker:hover { transform: scale(1.2); }
 
-/* Divider */
 .doodle-divider {
     width: 1px;
     height: 20px;
@@ -229,7 +231,6 @@
     flex-shrink: 0;
 }
 
-/* Brush size */
 .doodle-size-wrap {
     display: flex;
     align-items: center;
@@ -262,7 +263,6 @@
     border: none;
 }
 
-/* Tool buttons */
 .doodle-tool-btn {
     width: 30px;
     height: 30px;
@@ -290,6 +290,40 @@
     opacity: 0.3;
     cursor: default;
     transform: none;
+}
+
+/* ── Tombol Selesai ── */
+#doodleFinishBtn {
+    padding: 6px 16px;
+    border-radius: 20px;
+    border: none;
+    background: linear-gradient(135deg, #34c759, #30a14e);
+    color: #fff;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.15s, opacity 0.15s, background 0.3s;
+    white-space: nowrap;
+    flex-shrink: 0;
+    pointer-events: all;
+    box-shadow: 0 2px 10px rgba(52, 199, 89, 0.4);
+}
+#doodleFinishBtn:hover {
+    transform: scale(1.06);
+    box-shadow: 0 4px 16px rgba(52, 199, 89, 0.55);
+}
+#doodleFinishBtn:active { opacity: 0.85; }
+#doodleFinishBtn:disabled {
+    cursor: default;
+    transform: none;
+}
+
+/* Partner indicator — state "published" */
+#doodlePartnerIndicator.published {
+    background: rgba(52, 199, 89, 0.18);
+    border-color: rgba(52, 199, 89, 0.45);
+    color: #6ee7a0;
+    animation: none;
 }
 
 /* ── Doodle Bubble (legacy: pesan doodle lama di chat) ── */
@@ -355,38 +389,4 @@
     .doodle-color-swatch { width: 16px; height: 16px; }
     #doodleSizeSlider { width: 46px; }
     #doodleColorPicker { width: 16px; height: 16px; }
-}
-
-/* ── Tombol Selesai ── */
-#doodleFinishBtn {
-    padding: 6px 16px;
-    border-radius: 20px;
-    border: none;
-    background: linear-gradient(135deg, #34c759, #30a14e);
-    color: #fff;
-    font-size: 0.78rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: transform 0.15s, opacity 0.15s, background 0.3s;
-    white-space: nowrap;
-    flex-shrink: 0;
-    pointer-events: all;
-    box-shadow: 0 2px 10px rgba(52, 199, 89, 0.4);
-}
-#doodleFinishBtn:hover {
-    transform: scale(1.06);
-    box-shadow: 0 4px 16px rgba(52, 199, 89, 0.55);
-}
-#doodleFinishBtn:active { opacity: 0.85; }
-#doodleFinishBtn:disabled {
-    cursor: default;
-    transform: none;
-}
-
-/* Partner indicator — state "published" (doodle terkirim) */
-#doodlePartnerIndicator.published {
-    background: rgba(52, 199, 89, 0.18);
-    border-color: rgba(52, 199, 89, 0.45);
-    color: #6ee7a0;
-    animation: none;
 }
