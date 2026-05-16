@@ -4,8 +4,10 @@
    TIDAK ikut scroll, tetap di area chat, kedua user lihat hasil
    ===================================================== */
 
-/* ── .chat-window HARUS position:relative ──
-   Ditambahkan via JS saat init, atau bisa ditambah manual di chat_style.css */
+/* ── .chat-window HARUS position:relative + overflow:hidden ──
+   Sudah ditambahkan di chat_style.css dan juga via JS saat init.
+   overflow:hidden pada .chat-window memastikan overlay tidak
+   ikut scrolling .messages-area yang ada di dalamnya. */
 
 /* ── Doodle Toggle Button ── */
 #doodleToggleBtn {
@@ -32,7 +34,9 @@
 
 /* ── OVERLAY UTAMA ──
    position: absolute → menempel di dalam .chat-window
-   Menutupi messages-area + header + input-area
+   inset: 0 → menutupi seluruh .chat-window (header + messages + input)
+   Karena .chat-window punya overflow:hidden, overlay tidak akan
+   terbawa scroll .messages-area.
    pointer-events: none saat tidak aktif agar chat tetap bisa dipakai
 */
 #doodleOverlay {
@@ -42,7 +46,6 @@
     display: none;
     pointer-events: none;
     overflow: hidden;
-    /* Tidak perlu border-radius; mengikuti parent */
 }
 
 /* Mode aktif (user sedang menggambar) — tampil, blokir interaksi ke bawah */
@@ -118,7 +121,8 @@
     backdrop-filter: blur(8px);
     transition: background 0.15s, transform 0.12s;
 }
-#doodleOverlay.doodle-active #doodleCloseBtn {
+#doodleOverlay.doodle-active #doodleCloseBtn,
+#doodleOverlay.doodle-view-only #doodleCloseBtn {
     display: flex;
 }
 #doodleCloseBtn:hover {
@@ -175,10 +179,12 @@
     50% { opacity: 0.55; }
 }
 
-/* ── Toolbar (tengah bawah, di atas input area) ── */
+/* ── Toolbar (tengah bawah, di atas input-area) ──
+   bottom: 76px agar tepat di atas .input-area (~64px) + margin.
+   Nilai ini perlu disesuaikan dengan tinggi input-area di chat_style.css. */
 #doodleToolbar {
     position: absolute;
-    bottom: 76px;   /* tepat di atas input-area (~64px) + margin */
+    bottom: 76px;
     left: 50%;
     transform: translateX(-50%);
     display: none;
@@ -402,3 +408,4 @@
     #doodleSizeSlider { width: 46px; }
     #doodleColorPicker { width: 16px; height: 16px; }
 }
+

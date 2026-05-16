@@ -78,9 +78,13 @@ const DoodleSystem = (() => {
     function _buildOverlay() {
         if (document.getElementById('doodleOverlay')) return;
 
-        // Pastikan .chat-window punya position:relative
+        // Pastikan .chat-window punya position:relative DAN overflow:hidden
+        // supaya overlay tidak ikut scroll bersama .messages-area
         const chatWin = _getChatWindow();
-        if (chatWin) chatWin.style.position = 'relative';
+        if (chatWin) {
+            chatWin.style.position = 'relative';
+            chatWin.style.overflow = 'hidden';
+        }
 
         _overlay = document.createElement('div');
         _overlay.id = 'doodleOverlay';
@@ -142,16 +146,21 @@ const DoodleSystem = (() => {
     }
 
     function _getChatWindow() {
+        // Overlay HARUS dipasang di .chat-window (bukan .messages-area).
+        // .chat-window punya position:relative + overflow:hidden → overlay
+        // tidak ikut scroll karena yang scroll hanya .messages-area (child-nya).
         return document.getElementById('chatWindow')
-            || document.querySelector('.chat-window')
-            || document.querySelector('.chat-area');
+            || document.querySelector('.chat-window');
     }
 
     // ── CANVAS RESIZE ─────────────────────────────────────────
     function _resizeCanvases() {
         if (!_overlay) return;
-        const w = _overlay.offsetWidth  || 400;
-        const h = _overlay.offsetHeight || 600;
+        // Ukur dari .chat-window (parent), bukan dari overlay itu sendiri.
+        // Saat overlay display:none, offsetWidth/Height-nya 0 — hasilnya canvas kosong.
+        const chatWin = _getChatWindow();
+        const w = (chatWin ? chatWin.offsetWidth  : _overlay.offsetWidth)  || 400;
+        const h = (chatWin ? chatWin.offsetHeight : _overlay.offsetHeight) || 600;
 
         [_myCanvas, _partnerCanvas].forEach(c => {
             if (!c) return;
@@ -572,8 +581,11 @@ const DoodleSystem = (() => {
 
         if (!existingOverlay) _buildOverlay();
 
-        // Pastikan chat-window punya position:relative
-        if (chatWin) chatWin.style.position = 'relative';
+        // Pastikan chat-window punya position:relative + overflow:hidden
+        if (chatWin) {
+            chatWin.style.position = 'relative';
+            chatWin.style.overflow = 'hidden';
+        }
 
         _overlay.classList.add('doodle-active');
         _overlay.classList.remove('doodle-view-only');
@@ -668,9 +680,12 @@ const DoodleSystem = (() => {
             });
         }
 
-        // Pastikan chat-window punya position:relative
+        // Pastikan chat-window punya position:relative + overflow:hidden
         const chatWin = _getChatWindow();
-        if (chatWin) chatWin.style.position = 'relative';
+        if (chatWin) {
+            chatWin.style.position = 'relative';
+            chatWin.style.overflow = 'hidden';
+        }
 
         console.log('[DoodleSystem v7] ✅ Init — overlay absolute, pengirim lihat hasil sendiri');
     }

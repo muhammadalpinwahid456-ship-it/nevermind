@@ -326,6 +326,8 @@ body {
     flex-direction: column;
     background: #0d1117;
     min-height: 0;
+    position: relative;  /* wajib: supaya doodleOverlay (position:absolute) menempel di sini */
+    overflow: hidden;    /* wajib: supaya overlay tidak melebihi batas chat-window saat scroll */
 }
 
 .chat-window-header {
