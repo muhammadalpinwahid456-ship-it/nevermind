@@ -7,6 +7,14 @@
         ".read": "auth != null",
         ".write": "auth != null"
       }
+    },
+    "doodles": {
+      "$chatId": {
+        "$drawNode": {
+          ".read": "auth != null",
+          ".write": "auth != null && ($drawNode === ('draw_' + auth.uid) || root.child('doodles').child($chatId).child($drawNode).child('from').val() === auth.uid)"
+        }
+      }
     }
   }
 }

@@ -1,22 +1,41 @@
 /**
  * ============================================================
- *  CHAT DOODLE SYSTEM v6 - Instagram Draw Style (FIXED OVERLAY)
+ *  CHAT DOODLE SYSTEM v7 - Instagram Draw Style
  *  File: chat-doodle.js
  *
- *  PERUBAHAN v6 vs v5:
- *  - Overlay dipasang di <body> dengan position:fixed, dikunci ke
- *    bounding rect .chat-window → TIDAK ikut scroll pesan
- *  - Kedua user (A & B) melihat hasil akhir yang sama setelah publish
- *  - Cara kerja tetap sama: live draw → publish → freeze di kedua layar
+ *  PERUBAHAN UTAMA v7:
+ *  ──────────────────────────────────────────────────────────
+ *  1. OVERLAY = position:absolute di dalam .chat-window
+ *     → Tidak ikut scroll, tidak perlu RAF loop, tidak geser
+ *     → .chat-window diberi position:relative otomatis saat init
  *
- *  STRUKTUR FIREBASE  →  doodles/{chatId}/live
+ *  2. PENGIRIM JUGA BISA LIHAT HASIL SENDIRI
+ *     → Setelah "Selesai", overlay tetap muncul dalam mode view-only
+ *     → Pengirim melihat gambarnya di atas chat
+ *     → Penerima juga melihat gambar pengirim
+ *     → Kedua user bisa dismiss dengan klik X
+ *
+ *  3. FIREBASE - 2 NODE TERPISAH PER USER
+ *     doodles/{chatId}/draw_{uidA}  ← coretan user A
+ *     doodles/{chatId}/draw_{uidB}  ← coretan user B
+ *     → Masing-masing listen ke node partner
+ *     → Tidak bentrok saat keduanya menggambar bersamaan
+ *
+ *  STRUKTUR DATA FIREBASE → doodles/{chatId}/draw_{uid}
  *  {
- *    image     : base64 PNG,
- *    from      : uid,
- *    ts        : timestamp,
- *    cleared   : boolean,
- *    published : boolean   ← coretan sudah "selesai" / frozen
+ *    image    : base64 PNG | null,
+ *    from     : uid,
+ *    ts       : timestamp,
+ *    cleared  : boolean,
+ *    published: boolean,   // true = sudah "Selesai" / frozen
+ *    viewedBy : { [uid]: true }  // siapa saja yang sudah dismiss
  *  }
+ *
+ *  INTEGRASI (sama seperti v6):
+ *  1. <link rel="stylesheet" href="chat-doodle.css">
+ *  2. DoodleSystem.init(database, { ref, get, set, onValue })
+ *  3. DoodleSystem.onSelectUser(userId) saat buka chat
+ *  4. Tombol doodleToggleBtn otomatis terhubung
  * ============================================================
  */
 
@@ -26,20 +45,20 @@ const DoodleSystem = (() => {
     let _fb        = null;
     let _myUid     = null;
     let _partnerId = null;
-    let _isDrawing = false;
-    let _eraser    = false;
-    let _color     = '#ff3b30';
-    let _lineWidth = 6;
-    let _history   = [];
-    let _redoStack = [];
-    let _listener  = null;
-    let _syncTimeout = null;
+
+    let _isDrawing    = false;
+    let _eraser       = false;
+    let _color        = '#ff3b30';
+    let _lineWidth    = 6;
+    let _history      = [];
+    let _redoStack    = [];
+    let _syncTimeout  = null;
     let _hasPublished = false;
 
     let _overlay, _myCanvas, _myCtx;
     let _partnerCanvas, _partnerCtx;
-    let _resizeObserver = null;
-    let _rafId = null;
+    let _listenerPartner = null;  // listen node partner
+    let _listenerSelf    = null;  // listen node sendiri (agar pengirim juga lihat)
 
     const PRESET_COLORS = [
         '#ffffff', '#ff3b30', '#ff9500',
@@ -49,42 +68,19 @@ const DoodleSystem = (() => {
 
     // ── UTIL ─────────────────────────────────────────────────
     function _chatId(a, b) { return [a, b].sort().join('_'); }
-    function _livePath()   { return `doodles/${_chatId(_myUid, _partnerId)}/live`; }
 
-    // ── POSISI OVERLAY (fixed mengikuti chat-window) ──────────
-    function _getChatWindow() {
-        return document.getElementById('chatWindow')
-            || document.querySelector('.chat-window')
-            || document.querySelector('.chat-area');
+    /** Path node coretan milik uid tertentu */
+    function _drawPath(uid) {
+        return `doodles/${_chatId(_myUid, _partnerId)}/draw_${uid}`;
     }
 
-    function _syncOverlayPosition() {
-        if (!_overlay) return;
-        const chatWin = _getChatWindow();
-        if (!chatWin) return;
-        const rect = chatWin.getBoundingClientRect();
-        _overlay.style.left   = rect.left   + 'px';
-        _overlay.style.top    = rect.top    + 'px';
-        _overlay.style.width  = rect.width  + 'px';
-        _overlay.style.height = rect.height + 'px';
-    }
-
-    function _startPositionLoop() {
-        if (_rafId) return;
-        const loop = () => {
-            _syncOverlayPosition();
-            _rafId = requestAnimationFrame(loop);
-        };
-        _rafId = requestAnimationFrame(loop);
-    }
-
-    function _stopPositionLoop() {
-        if (_rafId) { cancelAnimationFrame(_rafId); _rafId = null; }
-    }
-
-    // ── BUILD OVERLAY ────────────────────────────────────────
+    // ── BUILD OVERLAY (di dalam .chat-window) ─────────────────
     function _buildOverlay() {
         if (document.getElementById('doodleOverlay')) return;
+
+        // Pastikan .chat-window punya position:relative
+        const chatWin = _getChatWindow();
+        if (chatWin) chatWin.style.position = 'relative';
 
         _overlay = document.createElement('div');
         _overlay.id = 'doodleOverlay';
@@ -115,26 +111,26 @@ const DoodleSystem = (() => {
             </div>
         `;
 
-        document.body.appendChild(_overlay);
+        // Pasang di dalam chat-window, bukan di body
+        if (chatWin) {
+            chatWin.appendChild(_overlay);
+        } else {
+            document.body.appendChild(_overlay);
+        }
 
         _myCanvas      = document.getElementById('doodleMyCanvas');
         _myCtx         = _myCanvas.getContext('2d');
         _partnerCanvas = document.getElementById('doodlePartnerCanvas');
         _partnerCtx    = _partnerCanvas.getContext('2d');
 
-        _syncOverlayPosition();
         _resizeCanvases();
         _buildColorSwatches();
         _bindEvents();
 
-        _resizeObserver = new ResizeObserver(() => {
-            _syncOverlayPosition();
-            _resizeCanvases();
-        });
-        const chatWin = _getChatWindow();
-        if (chatWin) _resizeObserver.observe(chatWin);
-        _resizeObserver.observe(document.documentElement);
+        // Resize canvas saat window resize
+        window.addEventListener('resize', _resizeCanvases);
 
+        // Viewer fullscreen
         if (!document.getElementById('doodleViewer')) {
             const viewer = document.createElement('div');
             viewer.id = 'doodleViewer';
@@ -145,29 +141,40 @@ const DoodleSystem = (() => {
         }
     }
 
-    // ── CANVAS RESIZE ────────────────────────────────────────
+    function _getChatWindow() {
+        return document.getElementById('chatWindow')
+            || document.querySelector('.chat-window')
+            || document.querySelector('.chat-area');
+    }
+
+    // ── CANVAS RESIZE ─────────────────────────────────────────
     function _resizeCanvases() {
         if (!_overlay) return;
         const w = _overlay.offsetWidth  || 400;
         const h = _overlay.offsetHeight || 600;
+
         [_myCanvas, _partnerCanvas].forEach(c => {
             if (!c) return;
+            // Simpan gambar lama sebelum resize
             let saved = null;
             if (c.width > 0 && c.height > 0) {
                 try {
                     const tmp = document.createElement('canvas');
-                    tmp.width = c.width; tmp.height = c.height;
+                    tmp.width  = c.width;
+                    tmp.height = c.height;
                     tmp.getContext('2d').drawImage(c, 0, 0);
                     saved = tmp;
                 } catch(e) {}
             }
             c.width  = w;
             c.height = h;
-            if (saved) { try { c.getContext('2d').drawImage(saved, 0, 0, w, h); } catch(e) {} }
+            if (saved) {
+                try { c.getContext('2d').drawImage(saved, 0, 0, w, h); } catch(e) {}
+            }
         });
     }
 
-    // ── COLOR SWATCHES ───────────────────────────────────────
+    // ── COLOR SWATCHES ────────────────────────────────────────
     function _buildColorSwatches() {
         const wrap = document.getElementById('doodleColorSwatches');
         if (!wrap) return;
@@ -193,9 +200,9 @@ const DoodleSystem = (() => {
         if (picker) picker.value = c;
     }
 
-    // ── BIND EVENTS ──────────────────────────────────────────
+    // ── BIND EVENTS ───────────────────────────────────────────
     function _bindEvents() {
-        document.getElementById('doodleCloseBtn').addEventListener('click', closeDoodle);
+        document.getElementById('doodleCloseBtn').addEventListener('click', _dismissDoodle);
         document.getElementById('doodleFinishBtn').addEventListener('click', finishDoodle);
 
         document.getElementById('doodleEraserBtn').addEventListener('click', () => {
@@ -210,7 +217,7 @@ const DoodleSystem = (() => {
         document.getElementById('doodleClearBtn').addEventListener('click', () => {
             _saveHistory();
             _myCtx.clearRect(0, 0, _myCanvas.width, _myCanvas.height);
-            _syncCanvas(false);
+            _syncMyCanvas(false);
         });
 
         document.getElementById('doodleSizeSlider').addEventListener('input', e => {
@@ -225,20 +232,20 @@ const DoodleSystem = (() => {
             document.querySelectorAll('.doodle-color-swatch').forEach(s => s.classList.remove('selected'));
         });
 
+        // Mouse events
         _myCanvas.addEventListener('mousedown',  _startDraw);
         _myCanvas.addEventListener('mousemove',  _draw);
         _myCanvas.addEventListener('mouseup',    _endDraw);
         _myCanvas.addEventListener('mouseleave', _endDraw);
 
+        // Touch events
         _myCanvas.addEventListener('touchstart',  _touchStart,  { passive: false });
         _myCanvas.addEventListener('touchmove',   _touchMove,   { passive: false });
         _myCanvas.addEventListener('touchend',    _endDraw);
         _myCanvas.addEventListener('touchcancel', _endDraw);
-
-        window.addEventListener('resize', () => { _syncOverlayPosition(); _resizeCanvases(); });
     }
 
-    // ── DRAW ─────────────────────────────────────────────────
+    // ── DRAW ──────────────────────────────────────────────────
     function _getPos(e) {
         const rect = _myCanvas.getBoundingClientRect();
         return {
@@ -266,7 +273,7 @@ const DoodleSystem = (() => {
         _redoStack.push(_myCtx.getImageData(0, 0, _myCanvas.width, _myCanvas.height));
         _myCtx.putImageData(_history.pop(), 0, 0);
         _refreshUndoRedo();
-        _syncCanvas(false);
+        _syncMyCanvas(false);
     }
 
     function _redo() {
@@ -274,7 +281,7 @@ const DoodleSystem = (() => {
         _history.push(_myCtx.getImageData(0, 0, _myCanvas.width, _myCanvas.height));
         _myCtx.putImageData(_redoStack.pop(), 0, 0);
         _refreshUndoRedo();
-        _syncCanvas(false);
+        _syncMyCanvas(false);
     }
 
     function _applyStyle() {
@@ -313,7 +320,7 @@ const DoodleSystem = (() => {
         if (!_isDrawing) return;
         _isDrawing = false;
         _myCtx.closePath();
-        _syncCanvas(false);
+        _syncMyCanvas(false);
     }
 
     function _touchStart(e) {
@@ -327,8 +334,8 @@ const DoodleSystem = (() => {
         _draw({ clientX: t.clientX, clientY: t.clientY, preventDefault: ()=>{} });
     }
 
-    // ── FIREBASE SYNC ─────────────────────────────────────────
-    function _syncCanvas(published) {
+    // ── FIREBASE SYNC (node sendiri) ──────────────────────────
+    function _syncMyCanvas(published) {
         clearTimeout(_syncTimeout);
         _syncTimeout = setTimeout(() => {
             if (!_db || !_myUid || !_partnerId) return;
@@ -336,69 +343,128 @@ const DoodleSystem = (() => {
             const imageData = _myCtx.getImageData(0, 0, _myCanvas.width, _myCanvas.height);
             const isBlank   = !imageData.data.some(v => v !== 0);
 
-            set(ref(_db, _livePath()), {
+            set(ref(_db, _drawPath(_myUid)), {
                 image    : isBlank ? null : _myCanvas.toDataURL('image/png', 0.82),
                 from     : _myUid,
                 ts       : Date.now(),
                 cleared  : isBlank,
                 published: published === true,
+                viewedBy : {},
             }).catch(err => console.error('[Doodle] sync err:', err));
         }, published ? 0 : 200);
     }
 
-    // ── FINISH ───────────────────────────────────────────────
+    // ── FINISH: publish lalu switch ke view-only ───────────────
     function finishDoodle() {
         const imageData = _myCtx.getImageData(0, 0, _myCanvas.width, _myCanvas.height);
         const isBlank   = !imageData.data.some(v => v !== 0);
-        if (isBlank) { alert('Canvas kosong, gambar sesuatu dulu!'); return; }
+        if (isBlank) {
+            alert('Canvas kosong, gambar sesuatu dulu!');
+            return;
+        }
 
         _hasPublished = true;
-        _syncCanvas(true);
+        _syncMyCanvas(true);   // published = true
 
         const btn = document.getElementById('doodleFinishBtn');
         if (btn) {
-            btn.textContent = 'Terkirim!';
-            btn.disabled = true;
-            btn.style.background = 'rgba(52,199,89,0.35)';
-            setTimeout(() => {
-                if (btn) { btn.textContent = 'Selesai'; btn.disabled = false; btn.style.background = ''; }
-            }, 2000);
+            btn.textContent = '✓ Terkirim!';
+            btn.disabled    = true;
         }
 
-        setTimeout(_closeOverlayKeepCanvas, 800);
+        // Setelah 600ms: matikan mode aktif, TETAPI overlay tetap tampil
+        // dalam mode view-only agar PENGIRIM bisa lihat hasil sendiri
+        setTimeout(() => {
+            _overlay?.classList.remove('doodle-active');
+            _overlay?.classList.add('doodle-view-only');
+            document.getElementById('doodleToggleBtn')?.classList.remove('active');
+
+            // Tampilkan gambar sendiri di partnerCanvas (lapisan bawah) agar
+            // terlihat di view-only (myCanvas tidak interaktif di mode ini)
+            // Salin myCanvas ke partnerCanvas area agar dua layer merge
+            // Sebenarnya myCanvas tetap tampil karena masih ada di DOM
+            // → overlay view-only sudah cukup tampilkan myCanvas (pointer-events:none)
+
+            if (btn) { btn.textContent = 'Selesai ✓'; btn.disabled = false; }
+
+            // Mulai listen node sendiri juga, agar jika ada update dari Firebase konsisten
+            _listenSelfNode();
+        }, 600);
     }
 
-    function _closeOverlayKeepCanvas() {
-        _overlay?.classList.remove('doodle-active');
+    // ── DISMISS: tutup view-only, tandai sudah dilihat ─────────
+    function _dismissDoodle() {
+        if (!_overlay) return;
+        _overlay.classList.remove('doodle-active', 'doodle-view-only');
         document.getElementById('doodleToggleBtn')?.classList.remove('active');
+        _hidePartnerIndicator();
+
+        // Bersihkan canvas
+        _myCtx?.clearRect(0, 0, _myCanvas?.width || 0, _myCanvas?.height || 0);
+        _partnerCtx?.clearRect(0, 0, _partnerCanvas?.width || 0, _partnerCanvas?.height || 0);
+
         _history   = [];
         _redoStack = [];
         _refreshUndoRedo();
-        if (_listener) { _listener(); _listener = null; }
-        _listenLive();
-        // Tetap jalankan position loop karena overlay masih tampil (view-only)
+        _hasPublished = false;
+
+        // Hapus node sendiri dari Firebase (clear)
+        if (_db && _myUid && _partnerId) {
+            const { ref, set } = _fb;
+            set(ref(_db, _drawPath(_myUid)), {
+                image: null, from: _myUid, ts: Date.now(),
+                cleared: true, published: false, viewedBy: {},
+            }).catch(() => {});
+        }
+
+        // Re-listen tanpa overlay aktif
+        _listenPartnerNode();
     }
 
-    // ── LISTEN REALTIME ──────────────────────────────────────
-    function _listenLive() {
+    // ── CLOSE saat user batal sebelum finish ──────────────────
+    function closeDoodle() {
+        if (!_overlay) return;
+        const wasActive = _overlay.classList.contains('doodle-active');
+        _overlay.classList.remove('doodle-active', 'doodle-view-only');
+        document.getElementById('doodleToggleBtn')?.classList.remove('active');
+
+        if (wasActive && !_hasPublished) {
+            // Batal menggambar → hapus canvas & node Firebase
+            _myCtx?.clearRect(0, 0, _myCanvas?.width || 0, _myCanvas?.height || 0);
+            _syncMyCanvas(false);
+        }
+
+        _history   = [];
+        _redoStack = [];
+        _refreshUndoRedo();
+    }
+
+    // ── LISTEN: node PARTNER (melihat coretan partner) ─────────
+    function _listenPartnerNode() {
         if (!_db || !_myUid || !_partnerId) return;
-        if (_listener) { _listener(); _listener = null; }
+        if (_listenerPartner) { _listenerPartner(); _listenerPartner = null; }
 
         const { ref, onValue } = _fb;
-        _listener = onValue(ref(_db, _livePath()), snap => {
+
+        _listenerPartner = onValue(ref(_db, _drawPath(_partnerId)), snap => {
             if (!snap.exists()) {
                 _clearPartnerCanvas();
                 return;
             }
             const data = snap.val();
-            if (!data || data.from === _myUid) return;
+            if (!data) { _clearPartnerCanvas(); return; }
 
             if (data.cleared || !data.image) {
                 _clearPartnerCanvas();
                 _hidePartnerIndicator();
+                // Jika overlay hanya view-only dari partner dan sudah clear → sembunyikan
+                if (!_overlay?.classList.contains('doodle-active') && !_hasPublished) {
+                    _overlay?.classList.remove('doodle-view-only');
+                }
                 return;
             }
 
+            // Render gambar partner ke partnerCanvas
             if (!_overlay) _buildOverlay();
 
             const img = new Image();
@@ -410,118 +476,151 @@ const DoodleSystem = (() => {
             img.src = data.image;
 
             if (data.published) {
+                // Partner sudah selesai → tampilkan view-only untuk kita
                 _hidePartnerIndicator();
                 if (!_overlay?.classList.contains('doodle-active')) {
                     _overlay?.classList.add('doodle-view-only');
-                    _startPositionLoop();
                     _showPublishToast();
                 }
             } else {
+                // Partner sedang menggambar live
                 if (!_overlay?.classList.contains('doodle-active')) {
                     _showPartnerIndicator();
                     _overlay?.classList.add('doodle-view-only');
-                    _startPositionLoop();
                 }
             }
         });
     }
 
+    // ── LISTEN: node SENDIRI (agar pengirim lihat hasil di view-only) ──
+    function _listenSelfNode() {
+        if (!_db || !_myUid || !_partnerId) return;
+        if (_listenerSelf) { _listenerSelf(); _listenerSelf = null; }
+
+        const { ref, onValue } = _fb;
+
+        _listenerSelf = onValue(ref(_db, _drawPath(_myUid)), snap => {
+            if (!snap.exists()) return;
+            const data = snap.val();
+            if (!data || !data.image || !data.published) return;
+            // Pastikan myCanvas menampilkan gambar terbaru (dari Firebase)
+            // Ini berguna jika terjadi reload atau multi-device
+            if (data.from !== _myUid) return;  // harusnya selalu dari sendiri
+            // Overlay view-only sudah menampilkan myCanvas yang terakhir digambar
+            // Tidak perlu render ulang kecuali canvas kosong (misal reload)
+            const imageData = _myCtx?.getImageData(0, 0, _myCanvas?.width || 1, _myCanvas?.height || 1);
+            const isBlank   = !imageData?.data.some(v => v !== 0);
+            if (isBlank && data.image) {
+                const img = new Image();
+                img.onload = () => {
+                    _myCtx.clearRect(0, 0, _myCanvas.width, _myCanvas.height);
+                    _myCtx.drawImage(img, 0, 0, _myCanvas.width, _myCanvas.height);
+                    _overlay?.classList.add('doodle-view-only');
+                };
+                img.src = data.image;
+            }
+        });
+    }
+
+    // ── HELPER ────────────────────────────────────────────────
     function _clearPartnerCanvas() {
         if (_partnerCtx && _partnerCanvas) {
             _partnerCtx.clearRect(0, 0, _partnerCanvas.width, _partnerCanvas.height);
-        }
-        if (!_overlay?.classList.contains('doodle-active')) {
-            _overlay?.classList.remove('doodle-view-only');
         }
     }
 
     function _showPartnerIndicator() {
         const ind = document.getElementById('doodlePartnerIndicator');
-        if (ind) { ind.classList.add('visible'); ind.classList.remove('published'); }
-        const nameEl = document.getElementById('doodlePartnerName');
-        if (nameEl) {
-            const u = window.allUsers?.find(u => u.uid === _partnerId);
-            nameEl.textContent = u?.name || 'Partner';
+        if (ind) {
+            ind.innerHTML = `&#127912; <span id="doodlePartnerName">${_getPartnerName()}</span> sedang menggambar...`;
+            ind.classList.add('visible');
+            ind.classList.remove('published');
         }
     }
 
     function _hidePartnerIndicator() {
-        const ind = document.getElementById('doodlePartnerIndicator');
-        if (ind) ind.classList.remove('visible', 'published');
+        document.getElementById('doodlePartnerIndicator')?.classList.remove('visible', 'published');
     }
 
     function _showPublishToast() {
         const ind = document.getElementById('doodlePartnerIndicator');
         if (ind) {
-            const u = window.allUsers?.find(u => u.uid === _partnerId);
-            const name = u?.name || 'Partner';
-            ind.innerHTML = '<span id="doodlePartnerName">' + name + '</span> mengirim doodle!';
+            ind.innerHTML = `<span>${_getPartnerName()}</span> mengirim doodle! 🎨`;
             ind.classList.add('visible', 'published');
-            setTimeout(() => _hidePartnerIndicator(), 3500);
+            setTimeout(() => _hidePartnerIndicator(), 4000);
         }
     }
 
-    // ── OPEN / CLOSE ─────────────────────────────────────────
+    function _getPartnerName() {
+        const u = window.allUsers?.find(u => u.uid === _partnerId);
+        return u?.name || u?.displayName || 'Partner';
+    }
+
+    // ── OPEN DOODLE (mode menggambar) ─────────────────────────
     function openDoodle() {
         if (!_partnerId) { alert('Pilih chat terlebih dahulu!'); return; }
-        if (!document.getElementById('doodleOverlay')) _buildOverlay();
 
-        _syncOverlayPosition();
-        _resizeCanvases();
+        // Pastikan overlay ada di dalam chat-window yang aktif
+        const chatWin = _getChatWindow();
+        let existingOverlay = document.getElementById('doodleOverlay');
+
+        // Jika overlay ada tapi di parent yang salah (pindah chat), rebuild
+        if (existingOverlay && chatWin && existingOverlay.parentElement !== chatWin) {
+            existingOverlay.remove();
+            existingOverlay = null;
+        }
+
+        if (!existingOverlay) _buildOverlay();
+
+        // Pastikan chat-window punya position:relative
+        if (chatWin) chatWin.style.position = 'relative';
 
         _overlay.classList.add('doodle-active');
         _overlay.classList.remove('doodle-view-only');
         document.getElementById('doodleToggleBtn')?.classList.add('active');
-        _hasPublished = false;
-        _startPositionLoop();
 
+        _hasPublished = false;
+        _resizeCanvases();
+
+        // Reset canvas sendiri
         _myCtx?.clearRect(0, 0, _myCanvas?.width || 0, _myCanvas?.height || 0);
         _history   = [];
         _redoStack = [];
         _refreshUndoRedo();
-        _listenLive();
+
+        const btn = document.getElementById('doodleFinishBtn');
+        if (btn) { btn.textContent = 'Selesai ✓'; btn.disabled = false; btn.style.background = ''; }
+
+        _listenPartnerNode();
     }
 
-    function closeDoodle() {
-        if (!_overlay) return;
-        _overlay.classList.remove('doodle-active');
-        document.getElementById('doodleToggleBtn')?.classList.remove('active');
-
-        if (!_hasPublished) {
-            _myCtx?.clearRect(0, 0, _myCanvas?.width || 0, _myCanvas?.height || 0);
-            _syncCanvas(false);
-        }
-
-        _history   = [];
-        _redoStack = [];
-        _refreshUndoRedo();
-        if (_listener) { _listener(); _listener = null; }
-
-        if (!_overlay.classList.contains('doodle-view-only')) _stopPositionLoop();
-        _listenLive();
-    }
-
+    // ── ON SELECT USER (ganti chat) ───────────────────────────
     function onSelectUser(userId) {
         const prev = _partnerId;
         _partnerId = userId;
         _hasPublished = false;
 
         if (prev !== userId) {
+            // Bersihkan state dari chat sebelumnya
+            if (_listenerPartner) { _listenerPartner(); _listenerPartner = null; }
+            if (_listenerSelf)    { _listenerSelf();    _listenerSelf    = null; }
+
             _myCtx?.clearRect(0, 0, _myCanvas?.width || 0, _myCanvas?.height || 0);
             _clearPartnerCanvas();
             _history   = [];
             _redoStack = [];
+
             if (_overlay) {
                 _overlay.classList.remove('doodle-active', 'doodle-view-only');
                 document.getElementById('doodleToggleBtn')?.classList.remove('active');
             }
-            if (_listener) { _listener(); _listener = null; }
-            _stopPositionLoop();
         }
 
-        _listenLive();
+        // Mulai listen node partner baru
+        _listenPartnerNode();
     }
 
+    // ── VIEWER ────────────────────────────────────────────────
     function openViewer(src) {
         const viewer = document.getElementById('doodleViewer');
         const img    = document.getElementById('doodleViewerImg');
@@ -534,33 +633,57 @@ const DoodleSystem = (() => {
         const wrap = document.createElement('div');
         wrap.className = 'message-bubble ' + (isMine ? 'sent' : 'received');
         wrap.innerHTML =
-            '<div class="doodle-bubble" onclick="DoodleSystem.openViewer(\'' + msg.image + '\')">' +
-            '<img src="' + msg.image + '" alt="Doodle" loading="lazy"></div>' +
-            '<div class="doodle-bubble-label">Doodle</div>';
+            `<div class="doodle-bubble" onclick="DoodleSystem.openViewer('${msg.image}')">` +
+            `<img src="${msg.image}" alt="Doodle" loading="lazy"></div>` +
+            `<div class="doodle-bubble-label">🎨 Doodle</div>`;
         return wrap;
     }
 
+    // ── INIT ──────────────────────────────────────────────────
     function init(db, firebaseModules) {
-        _db    = db;
-        _fb    = firebaseModules;
+        _db  = db;
+        _fb  = firebaseModules;
         _myUid = window._myUid || null;
 
-        const _waitUid = setInterval(() => {
-            if (window._myUid) { _myUid = window._myUid; clearInterval(_waitUid); }
-        }, 300);
+        // Tunggu uid tersedia jika belum login
+        if (!_myUid) {
+            const _waitUid = setInterval(() => {
+                if (window._myUid) {
+                    _myUid = window._myUid;
+                    clearInterval(_waitUid);
+                    console.log('[DoodleSystem v7] UID resolved:', _myUid);
+                }
+            }, 300);
+        }
 
+        // Pasang listener toggle button
         const toggleBtn = document.getElementById('doodleToggleBtn');
         if (toggleBtn) {
             toggleBtn.addEventListener('click', () => {
-                if (_overlay?.classList.contains('doodle-active')) closeDoodle();
-                else openDoodle();
+                if (_overlay?.classList.contains('doodle-active')) {
+                    closeDoodle();
+                } else {
+                    openDoodle();
+                }
             });
         }
 
-        console.log('[DoodleSystem v6] Initialized — fixed overlay, tidak ikut scroll');
+        // Pastikan chat-window punya position:relative
+        const chatWin = _getChatWindow();
+        if (chatWin) chatWin.style.position = 'relative';
+
+        console.log('[DoodleSystem v7] ✅ Init — overlay absolute, pengirim lihat hasil sendiri');
     }
 
-    return { init, onSelectUser, openDoodle, closeDoodle, openViewer, renderDoodleBubble };
+    // ── PUBLIC API ────────────────────────────────────────────
+    return {
+        init,
+        onSelectUser,
+        openDoodle,
+        closeDoodle,
+        openViewer,
+        renderDoodleBubble,
+    };
 
 })();
 
