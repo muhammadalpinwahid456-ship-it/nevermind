@@ -1,70 +1,74 @@
 /**
  * ============================================================
- *  CHAT STREAK SYSTEM - Snapchat Style  [FIXED v2]
+ *  CHAT STREAK SYSTEM - Per Hari Kalender  [v3]
  *  File: chat-streak.js
  *
- *  CARA INTEGRASI (sama seperti sebelumnya):
- *  1. <link rel="stylesheet" href="chat-streak.css"> di <head>
- *  2. StreakSystem.init(database, user.uid, { ref, get, set, onValue })
- *     dipanggil setelah auth berhasil
- *  3. StreakSystem.listenStreak(user.uid) di loop displayUsers()
- *  4. StreakSystem.recordSend(selectedUserId) setelah push pesan
- *  5. StreakSystem.renderHeaderStreak(userId) di selectUser()
- * ============================================================
+ *  LOGIKA:
+ *  - Streak dihitung per HARI KALENDER (00:00 – 23:59 waktu lokal).
+ *  - Streak +1 jika kedua user saling chat di hari yang SAMA
+ *    dan hari itu adalah hari BERIKUTNYA dari streak sebelumnya.
+ *  - Contoh: chat Senin → streak 1, Selasa → streak 2,
+ *    Rabu → streak 3, Kamis → streak 4.
+ *  - Jika satu hari terlewat tanpa saling chat → streak reset ke 0.
+ *  - Banyaknya pesan per hari tidak berpengaruh (1 pesan sudah cukup).
  *
- *  STRUKTUR DATA DI FIREBASE  →  streaks/{chatId}
+ *  STRUKTUR DATA FIREBASE  →  streaks/{chatId}
  *  {
- *    count        : number,   // jumlah hari streak saat ini
- *    lastStreakAt : number,   // timestamp saat streak terakhir dihitung
- *    deadline     : number,   // timestamp batas 24 jam (deadline kirim balik)
- *    senderA      : string,   // uid pemain pertama
- *    senderB      : string,   // uid pemain kedua
- *    sentA        : boolean,  // apakah A sudah kirim dalam window saat ini
- *    sentB        : boolean   // apakah B sudah kirim dalam window saat ini
+ *    count    : number,   // streak hari ini
+ *    lastDay  : string,   // "YYYY-MM-DD" hari terakhir streak dihitung
+ *    senderA  : string,   // uid (sorted[0])
+ *    senderB  : string,   // uid (sorted[1])
+ *    sentDayA : string,   // "YYYY-MM-DD" hari terakhir A kirim pesan
+ *    sentDayB : string,   // "YYYY-MM-DD" hari terakhir B kirim pesan
  *  }
  *
- *  LOGIKA STREAK (diperbaiki):
- *  - Setiap "window" adalah slot 24 jam yang dimulai saat streak dihitung.
- *  - Streak +1 ketika KEDUA pihak telah mengirim pesan dalam window yang sama.
- *  - Setelah streak naik, window baru dimulai (deadline diperbarui +24 jam).
- *  - Jika deadline terlewat sebelum keduanya kirim → streak reset ke 0.
+ *  CARA INTEGRASI (sama seperti versi sebelumnya, tidak ada perubahan):
+ *  1. <link rel="stylesheet" href="chat-streak.css"> di <head>
+ *  2. StreakSystem.init(database, user.uid, { ref, get, set, onValue })
+ *  3. StreakSystem.listenStreak(partnerId) di loop displayUsers()
+ *  4. StreakSystem.recordSend(selectedUserId) setelah push pesan
+ *  5. StreakSystem.renderHeaderStreak(userId) di selectUser()
  * ============================================================
  */
 
 const StreakSystem = (() => {
 
-    // ── CONFIG ──────────────────────────────────────────────
-    const STREAK_WINDOW_MS  = 24 * 60 * 60 * 1000;   // 24 jam
-    const WARN_THRESHOLD_MS =  2 * 60 * 60 * 1000;   // 2 jam → tampilkan ⌛
-    const MILESTONE_DAYS    = [3, 7, 14, 30, 50, 100, 365];
-    const HEADER_WRAP_ID    = 'chatStreakHeaderWrap';
-    // ────────────────────────────────────────────────────────
+    // ── CONFIG ────────────────────────────────────────────────
+    const WARN_HOUR      = 22;   // mulai tampilkan ⌛ setelah jam 22:00
+    const MILESTONE_DAYS = [3, 7, 14, 30, 50, 100, 365];
+    const HEADER_WRAP_ID = 'chatStreakHeaderWrap';
+    // ─────────────────────────────────────────────────────────
 
     let _db          = null;
     let _myUid       = null;
-    let _streakCache = {};   // { [partnerId]: streakData }
+    let _streakCache = {};   // { [partnerId]: data }
     let _listeners   = {};   // { [partnerId]: unsubscribeFn }
 
-    // ── UTIL ─────────────────────────────────────────────────
-    function _chatId(a, b)   { return [a, b].sort().join('_'); }
-    function _path(a, b)     { return `streaks/${_chatId(a, b)}`; }
-    function _now()          { return Date.now(); }
+    // ── UTIL TANGGAL ──────────────────────────────────────────
 
-    /** Apakah streak masih hidup (deadline belum lewat)? */
-    function _isAlive(d) {
-        if (!d || !d.deadline) return false;
-        return _now() < d.deadline;
+    /** String "YYYY-MM-DD" berdasarkan waktu lokal device */
+    function _today() {
+        const d  = new Date();
+        const y  = d.getFullYear();
+        const m  = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${dd}`;
     }
 
-    /** Sisa waktu dalam ms */
-    function _timeLeft(d) {
-        if (!d || !d.deadline) return 0;
-        return Math.max(0, d.deadline - _now());
+    /** Selisih hari: berapa hari dari a ke b (positif = b lebih baru) */
+    function _dayDiff(a, b) {
+        if (!a || !b) return Infinity;
+        const msA = new Date(a + 'T00:00:00').getTime();
+        const msB = new Date(b + 'T00:00:00').getTime();
+        return Math.round((msB - msA) / 86400000);
     }
 
-    function _isWarning(d) {
-        const left = _timeLeft(d);
-        return left > 0 && left < WARN_THRESHOLD_MS;
+    /** Sisa waktu hingga tengah malam (ms) */
+    function _msUntilMidnight() {
+        const now      = new Date();
+        const midnight = new Date();
+        midnight.setHours(24, 0, 0, 0);
+        return Math.max(0, midnight - now);
     }
 
     function _fmt(ms) {
@@ -73,13 +77,31 @@ const StreakSystem = (() => {
         return h > 0 ? `${h}j ${m}m` : `${m} menit`;
     }
 
-    // ── KEY PEMAIN ────────────────────────────────────────────
-    /** 'sentA' atau 'sentB' milik uid tertentu dalam data streak */
+    // ── KEY HELPER ────────────────────────────────────────────
+    function _chatId(a, b) { return [a, b].sort().join('_'); }
+    function _path(a, b)   { return `streaks/${_chatId(a, b)}`; }
+
     function _myKey(d, uid) {
-        return d.senderA === uid ? 'sentA' : 'sentB';
+        return d.senderA === uid ? 'sentDayA' : 'sentDayB';
     }
     function _partnerKey(d, uid) {
-        return d.senderA === uid ? 'sentB' : 'sentA';
+        return d.senderA === uid ? 'sentDayB' : 'sentDayA';
+    }
+
+    // ── WARNING CHECK ─────────────────────────────────────────
+    /** Tampilkan ⌛ jika streak aktif, hari ini belum selesai, dan jam >= WARN_HOUR */
+    function _isWarning(d) {
+        if (!d || d.count === 0) return false;
+        const today = _today();
+        // Jika lastDay bukan kemarin atau hari ini, streak sudah mati anyway
+        const diff = _dayDiff(d.lastDay, today);
+        if (diff > 1) return false;
+        // Cek apakah hari ini sudah keduanya kirim
+        const myKey      = _myKey(d, _myUid);
+        const partnerKey = _partnerKey(d, _myUid);
+        if (d[myKey] === today && d[partnerKey] === today) return false;
+        // Warning aktif jika jam sudah >= WARN_HOUR
+        return new Date().getHours() >= WARN_HOUR;
     }
 
     // ── BADGE HTML ────────────────────────────────────────────
@@ -125,26 +147,45 @@ const StreakSystem = (() => {
 
         if (!d || d.count === 0) { wrap.innerHTML = ''; return; }
 
-        const warn    = _isWarning(d);
-        const icon    = warn ? '⌛' : '🔥';
-        const warnCls = warn ? 'streak-warn-header' : '';
-        const left    = _timeLeft(d);
-        const tooltip = warn
-            ? `⚠️ Streak habis dalam ${_fmt(left)}! Kirim pesan sekarang!`
-            : `${d.count} hari streak berturut-turut 🔥\nSisa waktu: ${_fmt(left)}`;
+        const warn       = _isWarning(d);
+        const icon       = warn ? '⌛' : '🔥';
+        const warnCls    = warn ? 'streak-warn-header' : '';
+        const today      = _today();
+        const myKey      = _myKey(d, _myUid);
+        const partnerKey = _partnerKey(d, _myUid);
+        const meDone     = d[myKey]      === today;
+        const partnerDone= d[partnerKey] === today;
+        const left       = _msUntilMidnight();
+
+        let statusLine;
+        if (meDone && partnerDone) {
+            statusLine = '✅ Streak hari ini selesai!';
+        } else if (meDone) {
+            statusLine = `⏳ Menunggu balasan · sisa ${_fmt(left)}`;
+        } else if (partnerDone) {
+            statusLine = `⚠️ Balas sekarang! Sisa ${_fmt(left)}`;
+        } else {
+            statusLine = `Belum chat hari ini · sisa ${_fmt(left)}`;
+        }
 
         wrap.innerHTML = `
             <div id="chatStreakHeader" class="${warnCls}">
                 <span>${icon}</span>
                 <span>${d.count}</span>
-                <div class="streak-tooltip">${tooltip.replace(/\n/g, '<br>')}</div>
+                <div class="streak-tooltip">
+                    ${d.count} hari streak berturut-turut 🔥<br>${statusLine}
+                </div>
             </div>`;
     }
 
     // ── TOAST ─────────────────────────────────────────────────
     function _showToast(msg) {
         let t = document.getElementById('streakToast');
-        if (!t) { t = document.createElement('div'); t.id = 'streakToast'; document.body.appendChild(t); }
+        if (!t) {
+            t = document.createElement('div');
+            t.id = 'streakToast';
+            document.body.appendChild(t);
+        }
         t.textContent = msg;
         t.classList.add('toast-show');
         setTimeout(() => t.classList.remove('toast-show'), 3500);
@@ -156,19 +197,22 @@ const StreakSystem = (() => {
         if (_listeners[partnerId]) _listeners[partnerId]();
 
         const { ref, onValue, set } = window._firebaseDB;
+        const path = _path(_myUid, partnerId);
 
-        const unsubscribe = onValue(ref(_db, _path(_myUid, partnerId)), (snap) => {
+        const unsubscribe = onValue(ref(_db, path), (snap) => {
             let d = snap.exists() ? snap.val() : null;
 
-            // Auto-reset jika deadline sudah lewat
-            if (d && d.count > 0 && !_isAlive(d)) {
-                d = { count: 0, deadline: 0, senderA: d.senderA, senderB: d.senderB, sentA: false, sentB: false };
-                set(ref(_db, _path(_myUid, partnerId)), d).catch(() => {});
+            if (d && d.count > 0) {
+                // Jika lastDay lebih dari 1 hari lalu → streak sudah mati
+                const diff = _dayDiff(d.lastDay, _today());
+                if (diff > 1) {
+                    d = { ...d, count: 0, lastDay: '', sentDayA: '', sentDayB: '' };
+                    set(ref(_db, path), d).catch(() => {});
+                }
             }
 
             _streakCache[partnerId] = d || { count: 0 };
             _updateSidebarBadge(partnerId, _streakCache[partnerId]);
-
             if (window._selectedUserId === partnerId) _renderHeader(partnerId);
         });
 
@@ -177,94 +221,67 @@ const StreakSystem = (() => {
 
     // ── RECORD SEND ───────────────────────────────────────────
     /**
-     * Dipanggil setiap kali currentUser mengirim pesan ke partnerId.
+     * Dipanggil setiap kali user mengirim pesan.
      *
-     * Alur logika baru (benar):
-     * 1. Baca data streak saat ini.
-     * 2. Pastikan field senderA/senderB sudah berisi kedua uid.
-     * 3. Tandai bahwa AKU sudah kirim dalam window ini (sentA atau sentB = true).
-     * 4. Jika PARTNER juga sudah kirim (partnerKey = true) DAN streak belum
-     *    dihitung dalam window ini → streak +1, buka window baru (reset sent flags,
-     *    deadline +24 jam dari sekarang).
-     * 5. Jika window sudah habis (deadline lewat) dan streak belum bertambah
-     *    → streak reset ke 0, mulai window baru dengan hanya aku yang sudah kirim.
-     * 6. Tulis kembali ke Firebase.
+     * ALUR:
+     * 1. Tandai sentDayA/B = hari ini.
+     * 2. Jika partner juga sudah kirim hari ini (sentDayX = today):
+     *    - Hitung diff antara lastDay dan hari ini.
+     *    - diff == 1  → streak berturut-turut → count++
+     *    - diff == 0  → sudah dihitung hari ini → skip
+     *    - diff > 1 atau lastDay kosong → streak baru / terputus → count = 1
+     *    - Simpan lastDay = today.
      */
     async function recordSend(partnerId) {
         if (!_db || !_myUid || !partnerId) return;
 
         const { ref, get, set } = window._firebaseDB;
-        const path = _path(_myUid, partnerId);
+        const path  = _path(_myUid, partnerId);
+        const today = _today();
 
         try {
             const snap = await get(ref(_db, path));
             let d = snap.exists() ? snap.val() : null;
-            const now = _now();
 
-            // ── Inisialisasi data jika belum ada ─────────────
-            if (!d) {
-                // Percakapan pertama: tentukan siapa A dan B
+            // Inisialisasi data baru
+            if (!d || !d.senderA) {
                 const [a, b] = [_myUid, partnerId].sort();
                 d = {
-                    count       : 0,
-                    lastStreakAt: 0,
-                    deadline    : now + STREAK_WINDOW_MS,
-                    senderA     : a,
-                    senderB     : b,
-                    sentA       : false,
-                    sentB       : false,
+                    count    : 0,
+                    lastDay  : '',
+                    senderA  : a,
+                    senderB  : b,
+                    sentDayA : '',
+                    sentDayB : '',
                 };
             }
 
-            // Pastikan senderA/senderB terisi (data lama mungkin tidak punya)
-            if (!d.senderA || !d.senderB) {
-                const [a, b] = [_myUid, partnerId].sort();
-                d.senderA = a;
-                d.senderB = b;
-            }
-
-            // Key milik saya dan partner
             const myKey      = _myKey(d, _myUid);
             const partnerKey = _partnerKey(d, _myUid);
 
-            // ── Cek apakah window 24 jam masih aktif ─────────
-            const windowAlive = d.deadline && now < d.deadline;
+            // Tandai saya sudah kirim hari ini
+            d[myKey] = today;
 
-            if (!windowAlive) {
-                // Window habis → cek apakah streak mati
-                if (d.count > 0) {
-                    // Partner tidak balas dalam 24 jam → streak hilang
-                    d.count        = 0;
-                    d.lastStreakAt = 0;
+            // Cek apakah partner juga sudah kirim hari ini
+            const partnerSentToday = d[partnerKey] === today;
+
+            if (partnerSentToday && d.lastDay !== today) {
+                // Keduanya sudah chat hari ini, dan hari ini belum dihitung
+                const diff = _dayDiff(d.lastDay, today);
+
+                if (diff === 1) {
+                    // Hari berturut-turut → streak naik
+                    d.count = (d.count || 0) + 1;
+                } else {
+                    // Baru mulai atau ada hari yang terputus → mulai dari 1
+                    d.count = 1;
                 }
-                // Mulai window baru, hanya aku yang sudah kirim
-                d.sentA    = false;
-                d.sentB    = false;
-                d[myKey]   = true;
-                d.deadline = now + STREAK_WINDOW_MS;
 
-            } else {
-                // Window masih aktif
-                d[myKey] = true; // tandai aku sudah kirim
+                d.lastDay = today;
 
-                if (d[partnerKey] === true) {
-                    // ✅ Keduanya sudah kirim dalam window ini → streak +1
-                    const oldCount = d.count || 0;
-                    d.count        = oldCount + 1;
-                    d.lastStreakAt = now;
-
-                    // Reset flags untuk window BERIKUTNYA
-                    d.sentA    = false;
-                    d.sentB    = false;
-                    d[myKey]   = true;            // aku sudah "kirim" di window baru (sudah kirim barusan)
-                    d.deadline = now + STREAK_WINDOW_MS; // buka window baru
-
-                    // Milestone notification
-                    if (MILESTONE_DAYS.includes(d.count)) {
-                        _showToast(`🔥 Streak ${d.count} hari! Luar biasa!`);
-                    }
+                if (MILESTONE_DAYS.includes(d.count)) {
+                    _showToast(`🔥 Streak ${d.count} hari! Luar biasa!`);
                 }
-                // else: partner belum kirim, tetap tunggu dalam window yang sama
             }
 
             await set(ref(_db, path), d);
@@ -278,7 +295,7 @@ const StreakSystem = (() => {
     function init(db, myUid, firebaseModules) {
         _db    = db;
         _myUid = myUid;
-        window._firebaseDB     = firebaseModules; // { ref, get, set, onValue }
+        window._firebaseDB     = firebaseModules;
         window._selectedUserId = window._selectedUserId || null;
 
         if (!document.getElementById('streakToast')) {
@@ -287,7 +304,7 @@ const StreakSystem = (() => {
             document.body.appendChild(t);
         }
 
-        // Refresh countdown setiap menit (untuk warning live di sidebar & header)
+        // Refresh badge & header setiap menit
         setInterval(() => {
             Object.keys(_streakCache).forEach(pid => {
                 _updateSidebarBadge(pid, _streakCache[pid]);
@@ -296,7 +313,7 @@ const StreakSystem = (() => {
             if (openId) _renderHeader(openId);
         }, 60 * 1000);
 
-        console.log('[StreakSystem] ✅ Initialized for', myUid);
+        console.log('[StreakSystem] ✅ Initialized (per-calendar-day) for', myUid);
     }
 
     // ── PUBLIC API ────────────────────────────────────────────
