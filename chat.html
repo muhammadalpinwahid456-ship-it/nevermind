@@ -708,7 +708,7 @@
                     </div>
 
                     <!-- MESSAGES AREA -->
-                    <div class="messages-area" id="messagesArea">
+                    <div class="messages-area" id="messagesArea" style="position:relative;overflow:hidden;">
                         <!-- Messages akan ditampilkan di sini -->
                     </div>
 
@@ -716,7 +716,7 @@
                     <div class="input-area">
                         <input type="file" id="mediaInput" accept="image/*,video/*" style="display: none;">
                         <button class="btn-attachment" onclick="document.getElementById('mediaInput').click()" title="Attach Media">📎</button>
-                        <button id="doodleToggleBtn" title="Draw / Doodle">✏️</button>
+                        <button id="doodleToggleBtn" title="Draw / Coret-coret">✏️</button>
                         <input 
                             type="text" 
                             id="messageInput" 
@@ -1813,8 +1813,7 @@
                                 <div class="doodle-bubble" onclick="DoodleSystem.openViewer('${msg.image}')">
                                     <img src="${msg.image}" alt="Doodle" loading="lazy">
                                 </div>
-                                <div class="doodle-bubble-label">🎨 Doodle</div>
-                            `;
+                                <div class="doodle-bubble-lbl">🎨 Doodle</div>`;
                         } else if (msg.isDeleted) {
                             contentHtml = '<p style="font-style: italic; color: #999;">🗑️ Pesan telah dihapus</p>';
                         } else if (msg.isUnsent) {
