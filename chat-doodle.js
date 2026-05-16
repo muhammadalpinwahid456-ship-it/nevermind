@@ -1,30 +1,27 @@
 /**
  * ============================================================
- *  CHAT DOODLE SYSTEM v9 - Fix Scroll Bug
+ *  CHAT DOODLE SYSTEM v10 - Fixed: User Bisa Pilih Area Bebas
  *  File: chat-doodle.js
  *
- *  PERBAIKAN v9:
+ *  ROOT CAUSE FIX v10:
  *  ──────────────────────────────────────────────────────────
- *  FIX UTAMA: OVERLAY TIDAK IKUT SCROLL
- *    ROOT CAUSE v8: overlay pakai position:fixed di body +
- *    RAF loop untuk update top/left. Saat halaman/window
- *    di-scroll, getBoundingClientRect() ikut berubah, tapi
- *    update RAF tidak sinkron sehingga overlay terlihat
- *    "ngikut scroll" dengan glitch.
+ *  Problem v9: Overlay (position:absolute) di-append ke dalam
+ *  .messages-area yang juga merupakan scroll container.
+ *  Akibatnya canvas hanya bisa digambar di top:0 karena
+ *  getBoundingClientRect canvas bergerak saat scroll, tapi
+ *  koordinat drawing tetap dihitung dari ujung atas canvas.
  *
- *    SOLUSI v9: overlay dipasang sebagai child langsung dari
- *    .chat-window (position:relative + overflow:hidden) dengan
- *    position:absolute + inset:0. Hasilnya:
- *    - Overlay otomatis cover seluruh chat-window tanpa JS
- *    - Overlay tidak ikut scroll apapun (baik scroll halaman
- *      maupun scroll .messages-area), karena .chat-window
- *      adalah containing block-nya
- *    - RAF positioning loop dihapus sepenuhnya
- *    - Tidak ada dependency ke getBoundingClientRect()
- *
- *  CATATAN:
- *    .chat-window HARUS punya position:relative + overflow:hidden
- *    (sudah ada di chat_style.css — tidak perlu diubah)
+ *  SOLUSI v10:
+ *  - Overlay pakai position:FIXED, ukuran = rect messages-area
+ *  - Canvas HANYA selebar/setinggi viewport messages-area (bukan scrollHeight)
+ *  - Koordinat gambar = posisi mouse di viewport langsung (clientX/Y)
+ *    dikurangi bounding rect canvas — tidak perlu scroll offset
+ *  - Drawing data disimpan sebagai list of strokes dengan koordinat
+ *    ABSOLUT (scrollTop + clientY) agar doodle tetap menempel
+ *    di posisi yang benar saat di-publish ke Firebase
+ *  - User bebas scroll dulu, lalu mulai menggambar di posisi manapun
+ *  - Canvas re-render setiap scroll untuk menampilkan strokes
+ *    yang berada di viewport saat itu
  * ============================================================
  */
 
@@ -35,22 +32,33 @@ const DoodleSystem = (() => {
     let _myUid     = null;
     let _partnerId = null;
 
-    let _isDrawing    = false;
-    let _eraser       = false;
-    let _color        = '#ff3b30';
-    let _lineWidth    = 6;
-    let _history      = [];
-    let _redoStack    = [];
-    let _syncTimeout  = null;
+    let _isDrawing   = false;
+    let _eraser      = false;
+    let _color       = '#ff3b30';
+    let _lineWidth   = 6;
     let _hasPublished = false;
 
-    let _overlay, _myCanvas, _myCtx;
-    let _partnerCanvas, _partnerCtx;
+    // Strokes disimpan sebagai array of path points dengan koordinat ABSOLUT
+    // (relatif ke top messages-area sebelum di-scroll)
+    // Setiap stroke: { color, lineWidth, eraser, points: [{x, y}] }
+    let _myStrokes      = [];   // strokes milik saya
+    let _partnerStrokes = [];   // strokes partner (dari Firebase)
+    let _currentStroke  = null;
+    let _undoStack      = [];   // snapshot _myStrokes sebelum stroke terakhir
+    let _redoStack      = [];
+
+    let _overlay       = null;
+    let _myCanvas      = null;
+    let _myCtx         = null;
+    let _partnerCanvas = null;
+    let _partnerCtx    = null;
+
     let _listenerPartner = null;
     let _listenerSelf    = null;
+    let _syncTimeout     = null;
+    let _scrollRAF       = null;
 
-    // Map untuk menyimpan state doodle per partner
-    // Key: partnerId, Value: { mode, myImageSrc, partnerImgSrc, hasPublished }
+    // Simpan state per partner (mode, strokes, dll)
     const _chatStates = new Map();
 
     const PRESET_COLORS = [
@@ -61,44 +69,32 @@ const DoodleSystem = (() => {
 
     // ── UTIL ─────────────────────────────────────────────────
     function _chatId(a, b) { return [a, b].sort().join('_'); }
-
     function _drawPath(uid) {
         return `doodles/${_chatId(_myUid, _partnerId)}/draw_${uid}`;
     }
 
-    // ── AMBIL MESSAGES-AREA (scroll container tempat overlay dipasang) ──
-    // Overlay dipasang di dalam .messages-area agar:
-    // (1) ikut scroll bersama isi chat  → gambar doodle di riwayat terlihat on-canvas
-    // (2) tidak menutupi header & input-area
-    // .messages-area HARUS position:relative (ditambahkan via JS saat _buildOverlay)
-    function _getChatWindow() {
-        // Utamakan messages-area sebagai containing block overlay
+    function _getMessagesArea() {
         return document.getElementById('messagesArea')
-            || document.querySelector('.messages-area')
-            || document.getElementById('chatWindow')
+            || document.querySelector('.messages-area');
+    }
+
+    function _getChatWindow() {
+        return document.getElementById('chatWindow')
             || document.querySelector('.chat-window');
     }
 
-    // ── POSISI OVERLAY ────────────────────────────────────────
-    // Overlay adalah position:absolute di dalam .messages-area (position:relative).
-    // Ukuran canvas = scrollWidth/scrollHeight messages-area agar mencakup
-    // seluruh area scroll (bukan hanya viewport).
-    function _positionOverlay() { /* no-op: CSS position:absolute + inset:0 */ }
-    function _startPositionLoop() { /* no-op */ }
-    function _stopPositionLoop() { /* no-op */ }
+    // ── HITUNG RECT MESSAGES-AREA DI VIEWPORT ────────────────
+    function _getMessagesRect() {
+        const el = _getMessagesArea();
+        if (!el) return { left: 0, top: 0, width: 400, height: 600 };
+        return el.getBoundingClientRect();
+    }
 
     // ── BUILD OVERLAY ─────────────────────────────────────────
+    // Overlay position:fixed, persis di atas messages-area
     function _buildOverlay() {
         const old = document.getElementById('doodleOverlay');
         if (old) old.remove();
-
-        const scrollContainer = _getChatWindow();
-        if (!scrollContainer) return;
-
-        // messages-area harus position:relative agar overlay (position:absolute)
-        // menempel di dalamnya — set via JS jika belum ada di CSS
-        const curPos = getComputedStyle(scrollContainer).position;
-        if (curPos === 'static') scrollContainer.style.position = 'relative';
 
         _overlay = document.createElement('div');
         _overlay.id = 'doodleOverlay';
@@ -107,7 +103,7 @@ const DoodleSystem = (() => {
             <canvas id="doodleMyCanvas"></canvas>
             <button id="doodleCloseBtn" title="Tutup">&#10005;</button>
             <div id="doodleLabel">&#9998;&#65039; Menggambar...
-                <span id="doodleLabelSub">Scroll dulu ke area yang ingin digambar</span>
+                <span id="doodleLabelSub">Scroll ke area yang ingin digambar, lalu coret!</span>
             </div>
             <div id="doodlePartnerIndicator">
                 &#127912; <span id="doodlePartnerName">Partner</span> sedang menggambar...
@@ -122,9 +118,6 @@ const DoodleSystem = (() => {
                     <span class="doodle-size-icon big">&#9679;</span>
                 </div>
                 <div class="doodle-divider"></div>
-                <button class="doodle-tool-btn" id="doodleScrollUpBtn" title="Scroll ke atas">&#8679;</button>
-                <button class="doodle-tool-btn" id="doodleScrollDownBtn" title="Scroll ke bawah">&#8681;</button>
-                <div class="doodle-divider"></div>
                 <button class="doodle-tool-btn" id="doodleEraserBtn" title="Eraser">&#129529;</button>
                 <button class="doodle-tool-btn" id="doodleUndoBtn" title="Undo" disabled>&#8617;</button>
                 <button class="doodle-tool-btn" id="doodleRedoBtn" title="Redo" disabled>&#8618;</button>
@@ -134,28 +127,21 @@ const DoodleSystem = (() => {
             </div>
         `;
 
-        // Pasang di dalam messages-area — bukan chat-window — agar:
-        // 1. Ikut scroll bersama riwayat pesan (overlay bergerak saat scroll)
-        // 2. Tidak menutupi header & input-area
-        // 3. position:absolute + inset:0 otomatis cover seluruh scroll content
-        scrollContainer.appendChild(_overlay);
+        // Append ke body agar position:fixed bekerja bebas dari parent
+        document.body.appendChild(_overlay);
 
         _myCanvas      = document.getElementById('doodleMyCanvas');
         _myCtx         = _myCanvas.getContext('2d');
         _partnerCanvas = document.getElementById('doodlePartnerCanvas');
         _partnerCtx    = _partnerCanvas.getContext('2d');
 
+        _positionOverlay();
         _resizeCanvases();
         _buildColorSwatches();
         _bindEvents();
 
-        // Auto-resize canvas saat ukuran messages-area berubah
-        if (window.ResizeObserver) {
-            const ro = new ResizeObserver(() => _resizeCanvasesKeepContent());
-            ro.observe(scrollContainer);
-        } else {
-            window.addEventListener('resize', _resizeCanvasesKeepContent);
-        }
+        // Re-posisi overlay saat window resize
+        window.addEventListener('resize', _onResize);
 
         // Fullscreen viewer
         if (!document.getElementById('doodleViewer')) {
@@ -168,17 +154,29 @@ const DoodleSystem = (() => {
         }
     }
 
-    // ── CANVAS RESIZE ─────────────────────────────────────────
-    // Ukuran canvas = scrollWidth/scrollHeight messages-area (containing block overlay).
-    // Menggunakan scrollWidth/scrollHeight agar canvas mencakup seluruh area scroll,
-    // bukan hanya viewport. Ini yang memungkinkan overlay ikut scroll.
+    function _onResize() {
+        _positionOverlay();
+        _resizeCanvases();
+        _renderMyStrokes();
+        _renderPartnerStrokes();
+    }
+
+    // ── POSISI & UKURAN OVERLAY = persis menutupi messages-area ──
+    function _positionOverlay() {
+        if (!_overlay) return;
+        const rect = _getMessagesRect();
+        _overlay.style.left   = rect.left + 'px';
+        _overlay.style.top    = rect.top  + 'px';
+        _overlay.style.width  = rect.width  + 'px';
+        _overlay.style.height = rect.height + 'px';
+    }
+
+    // ── UKURAN CANVAS = sama dengan overlay (viewport messages-area) ──
     function _resizeCanvases() {
         if (!_overlay) return;
-        const container = _getChatWindow();
-        // scrollWidth/scrollHeight mencakup konten di luar viewport (sudah di-scroll)
-        // offsetWidth/offsetHeight hanya viewport yang terlihat
-        const w = (container?.scrollWidth  > 0 ? container.scrollWidth  : container?.offsetWidth)  || 400;
-        const h = (container?.scrollHeight > 0 ? container.scrollHeight : container?.offsetHeight) || 600;
+        const rect = _getMessagesRect();
+        const w = Math.round(rect.width)  || 400;
+        const h = Math.round(rect.height) || 600;
         [_myCanvas, _partnerCanvas].forEach(c => {
             if (!c) return;
             c.width  = w;
@@ -186,34 +184,62 @@ const DoodleSystem = (() => {
         });
     }
 
-    function _resizeCanvasesKeepContent() {
+    // ── SCROLL HANDLER: re-render strokes setiap scroll ──────
+    // Strokes punya koordinat absolut → saat scroll berubah,
+    // kita render ulang dengan offset = scrollTop saat ini
+    function _onScroll() {
         if (!_overlay) return;
-        const container = _getChatWindow();
-        const w = (container?.scrollWidth  > 0 ? container.scrollWidth  : (_overlay.scrollWidth  || 400));
-        const h = (container?.scrollHeight > 0 ? container.scrollHeight : (_overlay.scrollHeight || 600));
-
-        [
-            { canvas: _myCanvas,      ctx: _myCtx      },
-            { canvas: _partnerCanvas, ctx: _partnerCtx },
-        ].forEach(({ canvas, ctx }) => {
-            if (!canvas || !ctx) return;
-            if (canvas.width === w && canvas.height === h) return;
-            let saved = null;
-            if (canvas.width > 0 && canvas.height > 0) {
-                try {
-                    const tmp = document.createElement('canvas');
-                    tmp.width  = canvas.width;
-                    tmp.height = canvas.height;
-                    tmp.getContext('2d').drawImage(canvas, 0, 0);
-                    saved = tmp;
-                } catch(e) {}
-            }
-            canvas.width  = w;
-            canvas.height = h;
-            if (saved) {
-                try { ctx.drawImage(saved, 0, 0, w, h); } catch(e) {}
-            }
+        if (_scrollRAF) cancelAnimationFrame(_scrollRAF);
+        _scrollRAF = requestAnimationFrame(() => {
+            _renderMyStrokes();
+            _renderPartnerStrokes();
         });
+    }
+
+    // ── RENDER STROKES KE CANVAS ──────────────────────────────
+    // scrollTop = berapa pixel messages-area sudah di-scroll ke bawah
+    // Koordinat absolut stroke dikurangi scrollTop = koordinat di canvas viewport
+    function _renderStrokes(ctx, canvas, strokes) {
+        if (!ctx || !canvas) return;
+        const container = _getMessagesArea();
+        const scrollTop = container ? container.scrollTop : 0;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        strokes.forEach(stroke => {
+            if (!stroke.points || stroke.points.length < 2) return;
+            ctx.save();
+            if (stroke.eraser) {
+                ctx.globalCompositeOperation = 'destination-out';
+                ctx.strokeStyle = 'rgba(0,0,0,1)';
+                ctx.lineWidth   = stroke.lineWidth * 2;
+            } else {
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.strokeStyle = stroke.color;
+                ctx.lineWidth   = stroke.lineWidth;
+            }
+            ctx.lineCap  = 'round';
+            ctx.lineJoin = 'round';
+            ctx.beginPath();
+
+            let started = false;
+            stroke.points.forEach(pt => {
+                // Koordinat y di canvas = koordinat absolut - scrollTop sekarang
+                const cx = pt.x;
+                const cy = pt.y - scrollTop;
+                if (!started) { ctx.moveTo(cx, cy); started = true; }
+                else ctx.lineTo(cx, cy);
+            });
+            ctx.stroke();
+            ctx.restore();
+        });
+    }
+
+    function _renderMyStrokes() {
+        _renderStrokes(_myCtx, _myCanvas, _myStrokes);
+    }
+
+    function _renderPartnerStrokes() {
+        _renderStrokes(_partnerCtx, _partnerCanvas, _partnerStrokes);
     }
 
     // ── COLOR SWATCHES ────────────────────────────────────────
@@ -257,38 +283,13 @@ const DoodleSystem = (() => {
         document.getElementById('doodleRedoBtn').addEventListener('click', _redo);
 
         document.getElementById('doodleClearBtn').addEventListener('click', () => {
-            _saveHistory();
-            _myCtx.clearRect(0, 0, _myCanvas.width, _myCanvas.height);
-            _syncMyCanvas(false);
+            _undoStack.push(JSON.parse(JSON.stringify(_myStrokes)));
+            _redoStack = [];
+            _myStrokes = [];
+            _renderMyStrokes();
+            _refreshUndoRedo();
+            _syncMyStrokes(false);
         });
-
-        // ── Scroll navigation: user bisa geser area chat dari dalam toolbar ──
-        // Hold mouse down untuk scroll terus-menerus
-        let _scrollInterval = null;
-        const _startScroll = (dir) => {
-            const container = _getChatWindow();
-            if (!container) return;
-            container.scrollTop += dir * 120;
-            _scrollInterval = setInterval(() => { container.scrollTop += dir * 120; }, 200);
-        };
-        const _stopScroll = () => { clearInterval(_scrollInterval); _scrollInterval = null; };
-
-        const scrollUpBtn   = document.getElementById('doodleScrollUpBtn');
-        const scrollDownBtn = document.getElementById('doodleScrollDownBtn');
-        if (scrollUpBtn) {
-            scrollUpBtn.addEventListener('mousedown',  () => _startScroll(-1));
-            scrollUpBtn.addEventListener('touchstart', () => _startScroll(-1), { passive: true });
-            scrollUpBtn.addEventListener('mouseup',    _stopScroll);
-            scrollUpBtn.addEventListener('mouseleave', _stopScroll);
-            scrollUpBtn.addEventListener('touchend',   _stopScroll);
-        }
-        if (scrollDownBtn) {
-            scrollDownBtn.addEventListener('mousedown',  () => _startScroll(1));
-            scrollDownBtn.addEventListener('touchstart', () => _startScroll(1), { passive: true });
-            scrollDownBtn.addEventListener('mouseup',    _stopScroll);
-            scrollDownBtn.addEventListener('mouseleave', _stopScroll);
-            scrollDownBtn.addEventListener('touchend',   _stopScroll);
-        }
 
         document.getElementById('doodleSizeSlider').addEventListener('input', e => {
             _lineWidth = parseInt(e.target.value);
@@ -302,104 +303,91 @@ const DoodleSystem = (() => {
             document.querySelectorAll('.doodle-color-swatch').forEach(s => s.classList.remove('selected'));
         });
 
+        // Mouse events — koordinat dari clientX/Y langsung
         _myCanvas.addEventListener('mousedown',  _startDraw);
         _myCanvas.addEventListener('mousemove',  _draw);
         _myCanvas.addEventListener('mouseup',    _endDraw);
         _myCanvas.addEventListener('mouseleave', _endDraw);
 
+        // Touch events
         _myCanvas.addEventListener('touchstart',  _touchStart,  { passive: false });
         _myCanvas.addEventListener('touchmove',   _touchMove,   { passive: false });
         _myCanvas.addEventListener('touchend',    _endDraw);
         _myCanvas.addEventListener('touchcancel', _endDraw);
-
-        // Izinkan scroll di atas canvas agar user bisa navigasi area chat
-        _setupScrollPassthrough();
     }
 
-    // ── DRAW ──────────────────────────────────────────────────
-    function _getPos(e) {
-        const container  = _getChatWindow();
-        // Canvas adalah position:absolute di dalam container (position:relative).
-        // overlay.getBoundingClientRect() memberi posisi overlay di viewport.
-        // Koordinat klik relatif ke canvas = (klik di viewport) - (posisi overlay di viewport).
-        // Karena canvas berukuran scrollWidth × scrollHeight (sama dengan overlay),
-        // kita gunakan overlay.getBoundingClientRect() sebagai acuan origin canvas.
-        const overlayRect = _overlay ? _overlay.getBoundingClientRect() : { left: 0, top: 0 };
-        const scaleX = _myCanvas.width  / (_myCanvas.offsetWidth  || _myCanvas.width);
-        const scaleY = _myCanvas.height / (_myCanvas.offsetHeight || _myCanvas.height);
+    // ── KOORDINAT ─────────────────────────────────────────────
+    // Koordinat di canvas viewport = clientX/Y dikurangi rect overlay
+    // Koordinat ABSOLUT (untuk disimpan) = viewport + scrollTop
+    function _getCanvasPos(clientX, clientY) {
+        const rect      = _overlay.getBoundingClientRect();
+        const container = _getMessagesArea();
+        const scrollTop = container ? container.scrollTop : 0;
+        const cx = clientX - rect.left;   // posisi di canvas (viewport)
+        const cy = clientY - rect.top;    // posisi di canvas (viewport)
         return {
-            x: (e.clientX - overlayRect.left) * scaleX,
-            y: (e.clientY - overlayRect.top  + (container ? container.scrollTop : 0)) * scaleY,
+            canvasX: cx,
+            canvasY: cy,
+            absX: cx,                      // x absolut = sama (tidak ada horizontal scroll)
+            absY: cy + scrollTop,          // y absolut = viewport y + scroll
         };
     }
 
-    function _saveHistory() {
-        _history.push(_myCtx.getImageData(0, 0, _myCanvas.width, _myCanvas.height));
-        if (_history.length > 40) _history.shift();
-        _redoStack = [];
-        _refreshUndoRedo();
-    }
-
-    function _refreshUndoRedo() {
-        const u = document.getElementById('doodleUndoBtn');
-        const r = document.getElementById('doodleRedoBtn');
-        if (u) u.disabled = _history.length === 0;
-        if (r) r.disabled = _redoStack.length === 0;
-    }
-
-    function _undo() {
-        if (!_history.length) return;
-        _redoStack.push(_myCtx.getImageData(0, 0, _myCanvas.width, _myCanvas.height));
-        _myCtx.putImageData(_history.pop(), 0, 0);
-        _refreshUndoRedo();
-        _syncMyCanvas(false);
-    }
-
-    function _redo() {
-        if (!_redoStack.length) return;
-        _history.push(_myCtx.getImageData(0, 0, _myCanvas.width, _myCanvas.height));
-        _myCtx.putImageData(_redoStack.pop(), 0, 0);
-        _refreshUndoRedo();
-        _syncMyCanvas(false);
-    }
-
-    function _applyStyle() {
-        if (_eraser) {
-            _myCtx.globalCompositeOperation = 'destination-out';
-            _myCtx.strokeStyle = 'rgba(0,0,0,1)';
-            _myCtx.lineWidth   = _lineWidth * 2;
-        } else {
-            _myCtx.globalCompositeOperation = 'source-over';
-            _myCtx.strokeStyle = _color;
-            _myCtx.lineWidth   = _lineWidth;
-        }
-        _myCtx.lineCap  = 'round';
-        _myCtx.lineJoin = 'round';
-    }
-
+    // ── DRAW ──────────────────────────────────────────────────
     function _startDraw(e) {
         e.preventDefault();
-        _saveHistory();
+        const { canvasX, canvasY, absX, absY } = _getCanvasPos(e.clientX, e.clientY);
+
+        // Simpan snapshot untuk undo
+        _undoStack.push(JSON.parse(JSON.stringify(_myStrokes)));
+        if (_undoStack.length > 40) _undoStack.shift();
+        _redoStack = [];
+        _refreshUndoRedo();
+
         _isDrawing = true;
-        const pos = _getPos(e);
+        _currentStroke = {
+            color    : _eraser ? null : _color,
+            lineWidth: _lineWidth,
+            eraser   : _eraser,
+            points   : [{ x: absX, y: absY }],
+        };
+        _myStrokes.push(_currentStroke);
+
+        // Langsung gambar titik awal
+        _myCtx.save();
+        _applyStyleToCtx(_myCtx, _currentStroke);
         _myCtx.beginPath();
-        _myCtx.moveTo(pos.x, pos.y);
-        _applyStyle();
+        _myCtx.moveTo(canvasX, canvasY);
+        _myCtx.restore();
     }
 
     function _draw(e) {
-        if (!_isDrawing) return;
+        if (!_isDrawing || !_currentStroke) return;
         e.preventDefault();
-        const pos = _getPos(e);
-        _myCtx.lineTo(pos.x, pos.y);
+        const { canvasX, canvasY, absX, absY } = _getCanvasPos(e.clientX, e.clientY);
+
+        _currentStroke.points.push({ x: absX, y: absY });
+
+        // Gambar incremental — lebih smooth dari re-render penuh
+        _myCtx.save();
+        _applyStyleToCtx(_myCtx, _currentStroke);
+        const pts = _currentStroke.points;
+        const prev = pts[pts.length - 2];
+        const container = _getMessagesArea();
+        const scrollTop = container ? container.scrollTop : 0;
+        const prevCanvasY = prev.y - scrollTop;
+        _myCtx.beginPath();
+        _myCtx.moveTo(prev.x, prevCanvasY);
+        _myCtx.lineTo(canvasX, canvasY);
         _myCtx.stroke();
+        _myCtx.restore();
     }
 
     function _endDraw() {
         if (!_isDrawing) return;
-        _isDrawing = false;
-        _myCtx.closePath();
-        _syncMyCanvas(false);
+        _isDrawing    = false;
+        _currentStroke = null;
+        _syncMyStrokes(false);
     }
 
     function _touchStart(e) {
@@ -413,227 +401,113 @@ const DoodleSystem = (() => {
         _draw({ clientX: t.clientX, clientY: t.clientY, preventDefault: ()=>{} });
     }
 
+    function _applyStyleToCtx(ctx, stroke) {
+        if (stroke.eraser) {
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.strokeStyle = 'rgba(0,0,0,1)';
+            ctx.lineWidth   = stroke.lineWidth * 2;
+        } else {
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.strokeStyle = stroke.color;
+            ctx.lineWidth   = stroke.lineWidth;
+        }
+        ctx.lineCap  = 'round';
+        ctx.lineJoin = 'round';
+    }
+
+    // ── UNDO / REDO ───────────────────────────────────────────
+    function _refreshUndoRedo() {
+        const u = document.getElementById('doodleUndoBtn');
+        const r = document.getElementById('doodleRedoBtn');
+        if (u) u.disabled = _undoStack.length === 0;
+        if (r) r.disabled = _redoStack.length === 0;
+    }
+
+    function _undo() {
+        if (!_undoStack.length) return;
+        _redoStack.push(JSON.parse(JSON.stringify(_myStrokes)));
+        _myStrokes = _undoStack.pop();
+        _refreshUndoRedo();
+        _renderMyStrokes();
+        _syncMyStrokes(false);
+    }
+
+    function _redo() {
+        if (!_redoStack.length) return;
+        _undoStack.push(JSON.parse(JSON.stringify(_myStrokes)));
+        _myStrokes = _redoStack.pop();
+        _refreshUndoRedo();
+        _renderMyStrokes();
+        _syncMyStrokes(false);
+    }
+
     // ── FIREBASE SYNC ─────────────────────────────────────────
-    function _syncMyCanvas(published) {
+    // Simpan strokes ke Firebase sebagai JSON (bukan PNG canvas)
+    // agar koordinat absolut tetap utuh dan bisa di-render ulang
+    function _syncMyStrokes(published) {
         clearTimeout(_syncTimeout);
         _syncTimeout = setTimeout(() => {
             if (!_db || !_myUid || !_partnerId) return;
             const { ref, set } = _fb;
-            const imageData = _myCtx.getImageData(0, 0, _myCanvas.width, _myCanvas.height);
-            const isBlank   = !imageData.data.some(v => v !== 0);
+            const isBlank = _myStrokes.length === 0;
+
+            // Untuk published, buat juga PNG dari full canvas virtual
+            let imageData = null;
+            if (published && !isBlank) {
+                imageData = _renderToDataURL(_myStrokes);
+            }
 
             set(ref(_db, _drawPath(_myUid)), {
-                image    : isBlank ? null : _myCanvas.toDataURL('image/png', 0.82),
+                strokes  : isBlank ? null : _myStrokes,
+                image    : imageData,
                 from     : _myUid,
                 ts       : Date.now(),
                 cleared  : isBlank,
                 published: published === true,
                 viewedBy : {},
             }).catch(err => console.error('[Doodle] sync err:', err));
-        }, published ? 0 : 200);
+        }, published ? 0 : 300);
     }
 
-    // ── SIMPAN STATE KE MAP ───────────────────────────────────
-    function _saveCurrentState() {
-        if (!_partnerId || !_overlay) return;
-
-        const mode = _overlay.classList.contains('doodle-active')
-            ? 'active'
-            : _overlay.classList.contains('doodle-view-only')
-                ? 'view-only'
-                : null;
-
-        let myImageSrc    = null;
-        let partnerImgSrc = null;
-
+    // Render semua strokes ke canvas off-screen berukuran penuh scroll
+    // Dipakai untuk menghasilkan PNG final saat "Selesai"
+    function _renderToDataURL(strokes) {
         try {
-            const d = _myCtx?.getImageData(0, 0, _myCanvas?.width || 1, _myCanvas?.height || 1);
-            if (d && d.data.some(v => v !== 0)) myImageSrc = _myCanvas.toDataURL('image/png');
-        } catch(e) {}
+            const container = _getMessagesArea();
+            const totalH    = container ? container.scrollHeight : 800;
+            const totalW    = container ? container.scrollWidth  : 400;
+            const offscreen = document.createElement('canvas');
+            offscreen.width  = totalW;
+            offscreen.height = totalH;
+            const ctx = offscreen.getContext('2d');
 
-        try {
-            const d = _partnerCtx?.getImageData(0, 0, _partnerCanvas?.width || 1, _partnerCanvas?.height || 1);
-            if (d && d.data.some(v => v !== 0)) partnerImgSrc = _partnerCanvas.toDataURL('image/png');
-        } catch(e) {}
-
-        _chatStates.set(_partnerId, { mode, myImageSrc, partnerImgSrc, hasPublished: _hasPublished });
-    }
-
-    // ── PULIHKAN STATE DARI MAP ───────────────────────────────
-    function _restoreState(partnerId) {
-        const state = _chatStates.get(partnerId);
-
-        if (!state || !state.mode) {
-            if (_overlay) _overlay.classList.remove('doodle-active', 'doodle-view-only');
-            _hasPublished = false;
-            _history = []; _redoStack = [];
-            _refreshUndoRedo();
-            return;
-        }
-
-        _hasPublished = state.hasPublished || false;
-
-        setTimeout(() => {
-            if (state.myImageSrc && _myCanvas && _myCtx) {
-                const img = new Image();
-                img.onload = () => {
-                    _myCtx.clearRect(0, 0, _myCanvas.width, _myCanvas.height);
-                    _myCtx.drawImage(img, 0, 0, _myCanvas.width, _myCanvas.height);
-                };
-                img.src = state.myImageSrc;
-            }
-
-            if (state.partnerImgSrc && _partnerCanvas && _partnerCtx) {
-                const img = new Image();
-                img.onload = () => {
-                    _partnerCtx.clearRect(0, 0, _partnerCanvas.width, _partnerCanvas.height);
-                    _partnerCtx.drawImage(img, 0, 0, _partnerCanvas.width, _partnerCanvas.height);
-                };
-                img.src = state.partnerImgSrc;
-            }
-
-            if (_overlay) {
-                _overlay.classList.remove('doodle-active', 'doodle-view-only');
-                if (state.mode === 'active') {
-                    _overlay.classList.add('doodle-active');
-                    document.getElementById('doodleToggleBtn')?.classList.add('active');
-                } else if (state.mode === 'view-only') {
-                    _overlay.classList.add('doodle-view-only');
-                    document.getElementById('doodleToggleBtn')?.classList.remove('active');
+            strokes.forEach(stroke => {
+                if (!stroke.points || stroke.points.length < 2) return;
+                ctx.save();
+                if (stroke.eraser) {
+                    ctx.globalCompositeOperation = 'destination-out';
+                    ctx.strokeStyle = 'rgba(0,0,0,1)';
+                    ctx.lineWidth   = stroke.lineWidth * 2;
+                } else {
+                    ctx.globalCompositeOperation = 'source-over';
+                    ctx.strokeStyle = stroke.color;
+                    ctx.lineWidth   = stroke.lineWidth;
                 }
-            }
-        }, 50);
-    }
+                ctx.lineCap  = 'round';
+                ctx.lineJoin = 'round';
+                ctx.beginPath();
+                stroke.points.forEach((pt, i) => {
+                    if (i === 0) ctx.moveTo(pt.x, pt.y);
+                    else ctx.lineTo(pt.x, pt.y);
+                });
+                ctx.stroke();
+                ctx.restore();
+            });
 
-    // ── PASTIKAN OVERLAY ADA DI DALAM MESSAGES-AREA ──────────
-    // Overlay (position:absolute) harus menjadi child dari .messages-area
-    // (position:relative) agar ikut scroll bersama isi chat dan tidak menutupi
-    // header maupun input-area.
-    function _ensureOverlayInChatWindow() {
-        const scrollContainer = _getChatWindow();
-        if (!scrollContainer) return;
-
-        // Pastikan containing block punya position:relative
-        const curPos = getComputedStyle(scrollContainer).position;
-        if (curPos === 'static') scrollContainer.style.position = 'relative';
-
-        let existing = document.getElementById('doodleOverlay');
-        if (!existing) {
-            _buildOverlay();
-        } else {
-            // Pindahkan ke scrollContainer jika belum di sana
-            if (existing.parentElement !== scrollContainer) {
-                scrollContainer.appendChild(existing);
-            }
-            _overlay       = existing;
-            _myCanvas      = document.getElementById('doodleMyCanvas');
-            _myCtx         = _myCanvas?.getContext('2d');
-            _partnerCanvas = document.getElementById('doodlePartnerCanvas');
-            _partnerCtx    = _partnerCanvas?.getContext('2d');
+            return offscreen.toDataURL('image/png', 0.82);
+        } catch(e) {
+            return null;
         }
-    }
-
-    // ── OPEN DOODLE ───────────────────────────────────────────
-    function openDoodle() {
-        if (!_partnerId) { alert('Pilih chat terlebih dahulu!'); return; }
-
-        _ensureOverlayInChatWindow();
-
-        // Tambahkan class active DULU agar overlay display:block,
-        // baru resize canvas — karena scrollWidth/Height tidak akurat saat display:none
-        _overlay.classList.add('doodle-active');
-        _overlay.classList.remove('doodle-view-only');
-        document.getElementById('doodleToggleBtn')?.classList.add('active');
-
-        _hasPublished = false;
-        // Resize setelah overlay visible, pakai scroll dimensions
-        _resizeCanvases();
-
-        _myCtx?.clearRect(0, 0, _myCanvas?.width || 0, _myCanvas?.height || 0);
-        _history   = [];
-        _redoStack = [];
-        _refreshUndoRedo();
-
-        const btn = document.getElementById('doodleFinishBtn');
-        if (btn) { btn.textContent = 'Selesai ✓'; btn.disabled = false; btn.style.background = ''; }
-
-        // TIDAK paksa scroll ke atas — user bebas memilih area chat yang ingin di-doodle.
-        // Hanya tampilkan hint scroll agar user tahu bisa scroll dulu sebelum menggambar.
-        _showScrollHint();
-
-        _listenPartnerNode();
-    }
-
-    // ── FINISH ────────────────────────────────────────────────
-    function finishDoodle() {
-        const imageData = _myCtx.getImageData(0, 0, _myCanvas.width, _myCanvas.height);
-        const isBlank   = !imageData.data.some(v => v !== 0);
-        if (isBlank) { alert('Canvas kosong, gambar sesuatu dulu!'); return; }
-
-        _hasPublished = true;
-        _syncMyCanvas(true);
-
-        const btn = document.getElementById('doodleFinishBtn');
-        if (btn) { btn.textContent = '✓ Terkirim!'; btn.disabled = true; }
-
-        setTimeout(() => {
-            _overlay?.classList.remove('doodle-active');
-            _overlay?.classList.add('doodle-view-only');
-            document.getElementById('doodleToggleBtn')?.classList.remove('active');
-            if (btn) { btn.textContent = 'Selesai ✓'; btn.disabled = false; }
-            _listenSelfNode();
-            // Simpan state view-only ke Map
-            _saveCurrentState();
-        }, 600);
-    }
-
-    // ── DISMISS ───────────────────────────────────────────────
-    function _dismissDoodle() {
-        if (!_overlay) return;
-        _stopPositionLoop();
-        _overlay.classList.remove('doodle-active', 'doodle-view-only');
-        document.getElementById('doodleToggleBtn')?.classList.remove('active');
-        _hidePartnerIndicator();
-
-        _myCtx?.clearRect(0, 0, _myCanvas?.width || 0, _myCanvas?.height || 0);
-        _partnerCtx?.clearRect(0, 0, _partnerCanvas?.width || 0, _partnerCanvas?.height || 0);
-
-        _history   = [];
-        _redoStack = [];
-        _refreshUndoRedo();
-        _hasPublished = false;
-
-        // Hapus state tersimpan
-        _chatStates.delete(_partnerId);
-
-        if (_db && _myUid && _partnerId) {
-            const { ref, set } = _fb;
-            set(ref(_db, _drawPath(_myUid)), {
-                image: null, from: _myUid, ts: Date.now(),
-                cleared: true, published: false, viewedBy: {},
-            }).catch(() => {});
-        }
-
-        _listenPartnerNode();
-    }
-
-    // ── CLOSE (batal sebelum selesai) ─────────────────────────
-    function closeDoodle() {
-        if (!_overlay) return;
-        _stopPositionLoop();
-        const wasActive = _overlay.classList.contains('doodle-active');
-        _overlay.classList.remove('doodle-active', 'doodle-view-only');
-        document.getElementById('doodleToggleBtn')?.classList.remove('active');
-
-        if (wasActive && !_hasPublished) {
-            _myCtx?.clearRect(0, 0, _myCanvas?.width || 0, _myCanvas?.height || 0);
-            _syncMyCanvas(false);
-            _chatStates.delete(_partnerId);
-        }
-
-        _history   = [];
-        _redoStack = [];
-        _refreshUndoRedo();
     }
 
     // ── LISTEN: node PARTNER ──────────────────────────────────
@@ -642,36 +516,30 @@ const DoodleSystem = (() => {
         if (_listenerPartner) { _listenerPartner(); _listenerPartner = null; }
 
         const { ref, onValue } = _fb;
-
         _listenerPartner = onValue(ref(_db, _drawPath(_partnerId)), snap => {
-            if (!snap.exists()) { _clearPartnerCanvas(); return; }
+            if (!snap.exists()) { _partnerStrokes = []; _renderPartnerStrokes(); return; }
             const data = snap.val();
-            if (!data) { _clearPartnerCanvas(); return; }
-
-            if (data.cleared || !data.image) {
-                _clearPartnerCanvas();
+            if (!data || data.cleared) {
+                _partnerStrokes = [];
+                _renderPartnerStrokes();
                 _hidePartnerIndicator();
-                if (!_overlay?.classList.contains('doodle-active') && !_hasPublished) {
-                    _overlay?.classList.remove('doodle-view-only');
-                }
                 return;
             }
 
             if (!_overlay) _buildOverlay();
 
-            const img = new Image();
-            img.onload = () => {
-                if (!_partnerCtx || !_partnerCanvas) return;
-                _partnerCtx.clearRect(0, 0, _partnerCanvas.width, _partnerCanvas.height);
-                _partnerCtx.drawImage(img, 0, 0, _partnerCanvas.width, _partnerCanvas.height);
-            };
-            img.src = data.image;
+            if (data.strokes) {
+                _partnerStrokes = data.strokes;
+                _renderPartnerStrokes();
+            } else if (data.image) {
+                // Fallback: partner masih pakai versi lama (PNG)
+                _loadPartnerImage(data.image);
+            }
 
             if (data.published) {
                 _hidePartnerIndicator();
                 if (!_overlay?.classList.contains('doodle-active')) {
                     _overlay?.classList.add('doodle-view-only');
-                    _startPositionLoop();
                     _showPublishToast();
                 }
             } else {
@@ -683,43 +551,40 @@ const DoodleSystem = (() => {
         });
     }
 
+    function _loadPartnerImage(src) {
+        // Render image partner ke partnerCanvas (legacy fallback)
+        const img = new Image();
+        img.onload = () => {
+            if (!_partnerCtx || !_partnerCanvas) return;
+            _partnerCtx.clearRect(0, 0, _partnerCanvas.width, _partnerCanvas.height);
+            _partnerCtx.drawImage(img, 0, 0, _partnerCanvas.width, _partnerCanvas.height);
+        };
+        img.src = src;
+    }
+
     // ── LISTEN: node SENDIRI ──────────────────────────────────
     function _listenSelfNode() {
         if (!_db || !_myUid || !_partnerId) return;
         if (_listenerSelf) { _listenerSelf(); _listenerSelf = null; }
 
         const { ref, onValue } = _fb;
-
         _listenerSelf = onValue(ref(_db, _drawPath(_myUid)), snap => {
             if (!snap.exists()) return;
             const data = snap.val();
-            if (!data || !data.image || !data.published) return;
-            if (data.from !== _myUid) return;
-
-            const imageData = _myCtx?.getImageData(0, 0, _myCanvas?.width || 1, _myCanvas?.height || 1);
-            const isBlank   = !imageData?.data.some(v => v !== 0);
-            if (isBlank && data.image) {
-                const img = new Image();
-                img.onload = () => {
-                    _myCtx.clearRect(0, 0, _myCanvas.width, _myCanvas.height);
-                    _myCtx.drawImage(img, 0, 0, _myCanvas.width, _myCanvas.height);
-                    _overlay?.classList.add('doodle-view-only');
-                };
-                img.src = data.image;
+            if (!data || !data.published || data.from !== _myUid) return;
+            if (data.strokes && _myStrokes.length === 0) {
+                _myStrokes = data.strokes;
+                _renderMyStrokes();
+                _overlay?.classList.add('doodle-view-only');
             }
         });
     }
 
     // ── HELPER ────────────────────────────────────────────────
-    function _clearPartnerCanvas() {
-        if (_partnerCtx && _partnerCanvas)
-            _partnerCtx.clearRect(0, 0, _partnerCanvas.width, _partnerCanvas.height);
-    }
-
     function _showPartnerIndicator() {
         const ind = document.getElementById('doodlePartnerIndicator');
         if (ind) {
-            ind.innerHTML = `&#127912; <span id="doodlePartnerName">${_getPartnerName()}</span> sedang menggambar...`;
+            ind.innerHTML = `&#127912; <span>${_getPartnerName()}</span> sedang menggambar...`;
             ind.classList.add('visible');
             ind.classList.remove('published');
         }
@@ -727,42 +592,6 @@ const DoodleSystem = (() => {
 
     function _hidePartnerIndicator() {
         document.getElementById('doodlePartnerIndicator')?.classList.remove('visible', 'published');
-    }
-
-    // ── SCROLL HINT: beritahu user bahwa mereka bisa scroll dulu sebelum menggambar ──
-    function _showScrollHint() {
-        let hint = document.getElementById('doodleScrollHint');
-        if (!hint) {
-            hint = document.createElement('div');
-            hint.id = 'doodleScrollHint';
-            hint.innerHTML = `
-                <span>📜</span>
-                <span>Scroll ke area yang ingin digambar, lalu mulai coret-coret!</span>
-                <button id="doodleScrollHintClose">✕</button>
-            `;
-            document.body.appendChild(hint);
-            document.getElementById('doodleScrollHintClose').addEventListener('click', () => {
-                hint.classList.remove('visible');
-            });
-        }
-        hint.classList.add('visible');
-        // Auto-dismiss setelah 3 detik
-        clearTimeout(hint._dismissTimer);
-        hint._dismissTimer = setTimeout(() => hint.classList.remove('visible'), 3500);
-    }
-
-    // ── IZINKAN SCROLL saat doodle aktif (pointer-events:all di overlay bisa blok wheel) ──
-    // Solusi: tangkap wheel event di overlay dan teruskan ke container
-    function _setupScrollPassthrough() {
-        if (!_myCanvas || _myCanvas._scrollPassthroughBound) return;
-        _myCanvas._scrollPassthroughBound = true;
-        _myCanvas.addEventListener('wheel', (e) => {
-            const container = _getChatWindow();
-            if (!container) return;
-            // Teruskan scroll ke messages-area agar user tetap bisa scroll
-            container.scrollTop += e.deltaY;
-            e.preventDefault();
-        }, { passive: false });
     }
 
     function _showPublishToast() {
@@ -779,55 +608,139 @@ const DoodleSystem = (() => {
         return u?.name || u?.displayName || 'Partner';
     }
 
-    // ── ON SELECT USER (ganti chat) ───────────────────────────
+    // ── OPEN DOODLE ───────────────────────────────────────────
+    function openDoodle() {
+        if (!_partnerId) { alert('Pilih chat terlebih dahulu!'); return; }
+
+        if (!_overlay || !document.getElementById('doodleOverlay')) {
+            _buildOverlay();
+        } else {
+            _positionOverlay();
+            _resizeCanvases();
+        }
+
+        _overlay.classList.add('doodle-active');
+        _overlay.classList.remove('doodle-view-only');
+        document.getElementById('doodleToggleBtn')?.classList.add('active');
+
+        _hasPublished = false;
+        _myStrokes    = [];
+        _undoStack    = [];
+        _redoStack    = [];
+        _refreshUndoRedo();
+        _renderMyStrokes();
+
+        const btn = document.getElementById('doodleFinishBtn');
+        if (btn) { btn.textContent = 'Selesai ✓'; btn.disabled = false; btn.style.background = ''; }
+
+        // Dengarkan scroll messages-area → re-render strokes setiap scroll
+        const container = _getMessagesArea();
+        if (container) {
+            container.removeEventListener('scroll', _onScroll);
+            container.addEventListener('scroll', _onScroll, { passive: true });
+        }
+
+        _listenPartnerNode();
+    }
+
+    // ── FINISH ────────────────────────────────────────────────
+    function finishDoodle() {
+        if (_myStrokes.length === 0) { alert('Canvas kosong, gambar sesuatu dulu!'); return; }
+
+        _hasPublished = true;
+        _syncMyStrokes(true);
+
+        const btn = document.getElementById('doodleFinishBtn');
+        if (btn) { btn.textContent = '✓ Terkirim!'; btn.disabled = true; }
+
+        setTimeout(() => {
+            _overlay?.classList.remove('doodle-active');
+            _overlay?.classList.add('doodle-view-only');
+            document.getElementById('doodleToggleBtn')?.classList.remove('active');
+            if (btn) { btn.textContent = 'Selesai ✓'; btn.disabled = false; }
+            _listenSelfNode();
+        }, 600);
+    }
+
+    // ── DISMISS ───────────────────────────────────────────────
+    function _dismissDoodle() {
+        if (!_overlay) return;
+        _overlay.classList.remove('doodle-active', 'doodle-view-only');
+        document.getElementById('doodleToggleBtn')?.classList.remove('active');
+        _hidePartnerIndicator();
+
+        _myStrokes      = [];
+        _partnerStrokes = [];
+        _undoStack      = [];
+        _redoStack      = [];
+        _hasPublished   = false;
+        _renderMyStrokes();
+        _renderPartnerStrokes();
+        _refreshUndoRedo();
+
+        const container = _getMessagesArea();
+        if (container) container.removeEventListener('scroll', _onScroll);
+
+        if (_db && _myUid && _partnerId) {
+            const { ref, set } = _fb;
+            set(ref(_db, _drawPath(_myUid)), {
+                strokes: null, image: null, from: _myUid, ts: Date.now(),
+                cleared: true, published: false, viewedBy: {},
+            }).catch(() => {});
+        }
+
+        _listenPartnerNode();
+    }
+
+    function closeDoodle() {
+        if (!_overlay) return;
+        const wasActive = _overlay.classList.contains('doodle-active');
+        _overlay.classList.remove('doodle-active', 'doodle-view-only');
+        document.getElementById('doodleToggleBtn')?.classList.remove('active');
+
+        const container = _getMessagesArea();
+        if (container) container.removeEventListener('scroll', _onScroll);
+
+        if (wasActive && !_hasPublished) {
+            _myStrokes = [];
+            _renderMyStrokes();
+            _syncMyStrokes(false);
+        }
+        _undoStack = [];
+        _redoStack = [];
+        _refreshUndoRedo();
+    }
+
+    // ── ON SELECT USER ────────────────────────────────────────
     function onSelectUser(userId) {
         const prev = _partnerId;
+        if (prev === userId) return;
 
-        if (prev === userId) {
-            // Partner sama: pastikan overlay masih di chatWindow yang benar
-            _ensureOverlayInChatWindow();
-            return;
-        }
-
-        // Simpan state chat sebelumnya ke Map
-        if (prev) {
-            _saveCurrentState();
-        }
-
-        // Hentikan listener lama
         if (_listenerPartner) { _listenerPartner(); _listenerPartner = null; }
         if (_listenerSelf)    { _listenerSelf();    _listenerSelf    = null; }
 
+        const container = _getMessagesArea();
+        if (container) container.removeEventListener('scroll', _onScroll);
+
         _partnerId = userId;
 
-        // Pastikan overlay ada di chatWindow yang aktif
-        _ensureOverlayInChatWindow();
-
-        // Sembunyikan overlay dulu
         if (_overlay) _overlay.classList.remove('doodle-active', 'doodle-view-only');
         document.getElementById('doodleToggleBtn')?.classList.remove('active');
         _hidePartnerIndicator();
 
-        // Bersihkan canvas sementara
-        _myCtx?.clearRect(0, 0, _myCanvas?.width || 0, _myCanvas?.height || 0);
-        _clearPartnerCanvas();
-        _history   = [];
-        _redoStack = [];
+        _myStrokes      = [];
+        _partnerStrokes = [];
+        _undoStack      = [];
+        _redoStack      = [];
+        _hasPublished   = false;
+        _renderMyStrokes();
+        _renderPartnerStrokes();
         _refreshUndoRedo();
 
-        // Pulihkan state jika pernah buka doodle dengan partner ini
-        if (_chatStates.has(userId)) {
-            _resizeCanvasesKeepContent();
-            _restoreState(userId);
-        } else {
-            _hasPublished = false;
-        }
-
-        // Mulai listen partner baru
         _listenPartnerNode();
     }
 
-    // ── VIEWER FULLSCREEN ─────────────────────────────────────
+    // ── VIEWER ────────────────────────────────────────────────
     function openViewer(src) {
         const viewer = document.getElementById('doodleViewer');
         const img    = document.getElementById('doodleViewerImg');
@@ -847,7 +760,7 @@ const DoodleSystem = (() => {
                 if (window._myUid) {
                     _myUid = window._myUid;
                     clearInterval(_waitUid);
-                    console.log('[DoodleSystem v8] UID resolved:', _myUid);
+                    console.log('[DoodleSystem v10] UID resolved:', _myUid);
                 }
             }, 300);
         }
@@ -863,7 +776,7 @@ const DoodleSystem = (() => {
             });
         }
 
-        console.log('[DoodleSystem v9] ✅ Init — overlay:absolute in chatWindow, no RAF loop, no scroll bug');
+        console.log('[DoodleSystem v10] ✅ Init — position:fixed, stroke-based, scroll-aware');
     }
 
     // ── PUBLIC API ────────────────────────────────────────────
@@ -873,15 +786,13 @@ const DoodleSystem = (() => {
         openDoodle,
         closeDoodle,
         openViewer,
-        /**
-         * Panggil ini setelah messages selesai dirender ke DOM,
-         * agar canvas di-resize sesuai scrollHeight messages-area yang baru.
-         * Contoh: DoodleSystem.onMessagesRendered() di akhir loadMessages().
-         */
         onMessagesRendered() {
             if (_overlay && (_overlay.classList.contains('doodle-active') ||
                              _overlay.classList.contains('doodle-view-only'))) {
-                _resizeCanvasesKeepContent();
+                _positionOverlay();
+                _resizeCanvases();
+                _renderMyStrokes();
+                _renderPartnerStrokes();
             }
         },
     };

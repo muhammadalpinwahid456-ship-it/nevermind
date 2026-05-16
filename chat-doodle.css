@@ -1,17 +1,13 @@
 /* =====================================================
-   CHAT DOODLE v10 - Overlay di dalam messages-area
-   Overlay = position:absolute di dalam .messages-area
-   (bukan .chat-window), sehingga:
-   - Ikut scroll bersama riwayat pesan (gambar bergerak saat scroll)
-   - Tidak menutupi header maupun input-area
-   - Canvas mencakup seluruh scrollHeight messages-area
-   Toolbar, close button, dan label pakai position:fixed
-   agar tetap terlihat di viewport saat user scroll.
+   CHAT DOODLE v10 - position:fixed di atas messages-area
+   
+   Overlay = position:fixed, ukuran & posisi diset via JS
+   agar persis menutupi .messages-area di viewport.
+   
+   Canvas berukuran sama dengan viewport messages-area,
+   strokes disimpan dengan koordinat ABSOLUT (y + scrollTop),
+   dan di-render ulang setiap kali user scroll.
    ===================================================== */
-
-/* ── .messages-area HARUS position:relative ──
-   Sudah ada di chat_style.css. JS juga set via getComputedStyle
-   guard di _ensureOverlayInChatWindow() sebagai fallback. */
 
 /* ── Doodle Toggle Button ── */
 #doodleToggleBtn {
@@ -37,69 +33,56 @@
 }
 
 /* ── OVERLAY UTAMA ──
-   position:absolute di dalam .messages-area (position:relative).
-   inset:0 → left:0, top:0, right:0, bottom:0
-   width/height dihitung dari scrollWidth/scrollHeight via JS (_resizeCanvases).
-   Dengan ini overlay IKUT SCROLL bersama isi messages-area.
-   pointer-events:none saat tidak aktif agar chat tetap bisa dipakai.
+   position:fixed → persis di atas messages-area.
+   left/top/width/height diset via JS (_positionOverlay).
+   pointer-events:none saat tidak aktif.
 */
 #doodleOverlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    /* width & height diset via JS ke scrollWidth/scrollHeight container */
-    width: 100%;
-    min-height: 100%;
-    z-index: 100;
-    display: none;
+    position: fixed;
+    z-index: 1000;
+    display: block;
     pointer-events: none;
-    /* TIDAK overflow:hidden — agar seluruh scroll content tertutup */
+    /* ukuran & posisi diset sepenuhnya oleh JS */
 }
 
-/* Mode aktif (user sedang menggambar) — tampil, blokir interaksi ke bawah */
+/* Mode aktif — tampil, blokir klik ke bawah */
 #doodleOverlay.doodle-active {
-    display: block;
     pointer-events: all;
 }
 
-/* Mode view-only (melihat doodle partner / hasil selesai) — tampil tapi tidak blok */
+/* Mode view-only — tampil tapi tidak blok interaksi */
 #doodleOverlay.doodle-view-only {
-    display: block;
     pointer-events: none;
 }
 
-/* ── Background gelap semi-transparan saat menggambar ── */
+/* Background gelap semi-transparan saat menggambar */
 #doodleOverlay.doodle-active::before {
     content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(1px);
+    -webkit-backdrop-filter: blur(1px);
+    pointer-events: none;
+}
+
+/* ── Dua Canvas ── */
+#doodlePartnerCanvas {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.45);
-    z-index: 0;
-    backdrop-filter: blur(1px);
-    -webkit-backdrop-filter: blur(1px);
-}
-
-/* ── Dua Canvas ── */
-
-/* Canvas partner: paling bawah, hanya tampil, tidak interaktif */
-#doodlePartnerCanvas {
-    position: absolute;
-    top: 0;
-    left: 0;
-    /* width & height diset via JS */
     pointer-events: none;
     z-index: 1;
 }
 
-/* Canvas milik sendiri: di atas, interaktif saat mode aktif */
 #doodleMyCanvas {
     position: absolute;
     top: 0;
     left: 0;
-    /* width & height diset via JS */
+    width: 100%;
+    height: 100%;
     pointer-events: none;
     z-index: 2;
     cursor: crosshair;
@@ -111,10 +94,7 @@
     cursor: cell;
 }
 
-/* ── Close Button ──
-   position:fixed agar tetap terlihat di viewport saat scroll.
-   Toolbar, label, dan indicator juga fixed.
-*/
+/* ── Close Button ── */
 #doodleCloseBtn {
     position: fixed;
     top: 16px;
@@ -144,17 +124,17 @@
     transform: scale(1.08);
 }
 
-/* ── Label "Menggambar..." (tengah atas, fixed) ── */
+/* ── Label (tengah atas, fixed) ── */
 #doodleLabel {
     position: fixed;
     top: 16px;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(0,0,0,0.5);
-    color: rgba(255,255,255,0.9);
+    background: rgba(0,0,0,0.55);
+    color: rgba(255,255,255,0.92);
     font-size: 0.73rem;
     font-weight: 600;
-    padding: 4px 12px;
+    padding: 5px 14px;
     border-radius: 20px;
     pointer-events: none;
     z-index: 9100;
@@ -162,21 +142,20 @@
     backdrop-filter: blur(6px);
     letter-spacing: 0.04em;
     text-align: center;
+    white-space: nowrap;
 }
 #doodleOverlay.doodle-active #doodleLabel {
     display: block;
 }
-/* Sub-label: scroll hint kecil di bawah label utama */
 #doodleLabelSub {
     display: block;
     font-size: 0.62rem;
     font-weight: 400;
     opacity: 0.65;
-    letter-spacing: 0.02em;
-    margin-top: 1px;
+    margin-top: 2px;
 }
 
-/* ── Partner "sedang menggambar" indicator (fixed) ── */
+/* ── Partner "sedang menggambar" indicator ── */
 #doodlePartnerIndicator {
     position: fixed;
     top: 16px;
@@ -203,11 +182,14 @@
     0%, 100% { opacity: 1; }
     50% { opacity: 0.55; }
 }
+#doodlePartnerIndicator.published {
+    background: rgba(52,199,89,0.18);
+    border-color: rgba(52,199,89,0.45);
+    color: #6ee7a0;
+    animation: none;
+}
 
-/* ── Toolbar (fixed di bawah viewport, di atas input-area) ──
-   position:fixed agar selalu terlihat di viewport saat user scroll.
-   bottom dihitung agar tepat di atas input-area (~68px tinggi).
-*/
+/* ── Toolbar (fixed, bawah viewport) ── */
 #doodleToolbar {
     position: fixed;
     bottom: 80px;
@@ -339,26 +321,6 @@
     transform: none;
 }
 
-/* ── Scroll navigation buttons di toolbar ──
-   Memungkinkan user scroll ke area chat yang diinginkan tanpa keluar dari mode doodle */
-#doodleScrollUpBtn,
-#doodleScrollDownBtn {
-    font-size: 1.1rem;
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.1);
-}
-#doodleScrollUpBtn:hover,
-#doodleScrollDownBtn:hover {
-    background: rgba(167,139,250,0.2);
-    border-color: rgba(167,139,250,0.35);
-    color: #c4b5fd;
-}
-#doodleScrollUpBtn:active,
-#doodleScrollDownBtn:active {
-    background: rgba(167,139,250,0.35);
-    transform: scale(0.95);
-}
-
 /* ── Tombol Selesai ── */
 #doodleFinishBtn {
     padding: 6px 18px;
@@ -382,15 +344,7 @@
 #doodleFinishBtn:active { opacity: 0.85; }
 #doodleFinishBtn:disabled { cursor: default; transform: none; opacity: 0.6; }
 
-/* ── Partner indicator published ── */
-#doodlePartnerIndicator.published {
-    background: rgba(52,199,89,0.18);
-    border-color: rgba(52,199,89,0.45);
-    color: #6ee7a0;
-    animation: none;
-}
-
-/* ── Doodle Bubble (pesan doodle di riwayat chat) ── */
+/* ── Doodle Bubble ── */
 .doodle-bubble {
     max-width: 240px;
     border-radius: 14px;
@@ -398,7 +352,6 @@
     cursor: pointer;
     transition: transform 0.15s;
     border: 1px solid rgba(255,255,255,0.08);
-    /* Pastikan bubble muncul di atas overlay saat view-only */
     position: relative;
     z-index: 101;
 }
@@ -452,97 +405,14 @@
         gap: 5px;
         padding: 7px 10px;
         bottom: 70px;
+        overflow-x: auto;
+        max-width: calc(100vw - 16px);
+        border-radius: 20px;
     }
     .doodle-color-swatch { width: 16px; height: 16px; }
     #doodleSizeSlider { width: 46px; }
     #doodleColorPicker { width: 16px; height: 16px; }
-    #doodleCloseBtn {
-        top: 12px;
-        right: 12px;
-    }
+    #doodleCloseBtn { top: 12px; right: 12px; }
+    #doodleLabel { font-size: 0.68rem; }
+    #doodleLabelSub { display: none; }
 }
-
-/* ── Scroll Hint Toast ─────────────────────────────────────────
-   Muncul saat doodle mode aktif, memberi tahu user bahwa mereka
-   bisa scroll ke area yang diinginkan sebelum mulai menggambar.
-   ──────────────────────────────────────────────────────────── */
-#doodleScrollHint {
-    position: fixed;
-    top: 60px;
-    left: 50%;
-    transform: translateX(-50%) translateY(-8px);
-    background: rgba(15, 15, 30, 0.88);
-    border: 1px solid rgba(167, 139, 250, 0.35);
-    color: rgba(255,255,255,0.9);
-    font-size: 0.78rem;
-    font-weight: 500;
-    padding: 9px 16px 9px 13px;
-    border-radius: 24px;
-    display: none;
-    align-items: center;
-    gap: 8px;
-    z-index: 9200;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-    pointer-events: all;
-    max-width: calc(100vw - 40px);
-    white-space: nowrap;
-    opacity: 0;
-    transition: opacity 0.3s ease, transform 0.3s ease;
-}
-#doodleScrollHint.visible {
-    display: flex;
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-}
-#doodleScrollHint span:first-child {
-    font-size: 1rem;
-    flex-shrink: 0;
-}
-#doodleScrollHintClose {
-    background: none;
-    border: none;
-    color: rgba(255,255,255,0.45);
-    font-size: 0.75rem;
-    cursor: pointer;
-    padding: 0 0 0 6px;
-    line-height: 1;
-    flex-shrink: 0;
-    transition: color 0.15s;
-}
-#doodleScrollHintClose:hover { color: rgba(255,255,255,0.85); }
-
-/* ── Viewport position indicator (fixed, kanan bawah toolbar) ──
-   Menunjukkan di bagian mana dari chat user sedang menggambar.
-   ──────────────────────────────────────────────────────────── */
-#doodlePositionHint {
-    position: fixed;
-    bottom: 140px;
-    right: 20px;
-    background: rgba(10,10,20,0.75);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 10px;
-    padding: 5px 10px;
-    font-size: 0.68rem;
-    color: rgba(255,255,255,0.5);
-    pointer-events: none;
-    z-index: 9100;
-    display: none;
-    backdrop-filter: blur(8px);
-    white-space: nowrap;
-}
-#doodleOverlay.doodle-active #doodlePositionHint {
-    /* position:fixed tidak bisa di-child overlay — dirender di body via JS */
-}
-
-@media (max-width: 600px) {
-    #doodleScrollHint {
-        font-size: 0.72rem;
-        padding: 7px 12px 7px 10px;
-        white-space: normal;
-        text-align: center;
-        max-width: calc(100vw - 32px);
-    }
-}
-
