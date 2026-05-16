@@ -457,6 +457,14 @@ const DoodleSystem = (() => {
                 imageData = _renderToDataURL(_myStrokes);
             }
 
+            // Update cache lokal
+            const s = _chatStates.get(_partnerId) || {};
+            _chatStates.set(_partnerId, {
+                ...s,
+                myStrokes   : JSON.parse(JSON.stringify(_myStrokes)),
+                hasPublished: published === true,
+            });
+
             set(ref(_db, _drawPath(_myUid)), {
                 strokes  : isBlank ? null : _myStrokes,
                 image    : imageData,
@@ -523,6 +531,9 @@ const DoodleSystem = (() => {
                 _partnerStrokes = [];
                 _renderPartnerStrokes();
                 _hidePartnerIndicator();
+                // Update cache
+                const s = _chatStates.get(_partnerId) || {};
+                _chatStates.set(_partnerId, { ...s, partnerStrokes: [] });
                 return;
             }
 
@@ -530,6 +541,9 @@ const DoodleSystem = (() => {
 
             if (data.strokes) {
                 _partnerStrokes = data.strokes;
+                // Update cache
+                const s = _chatStates.get(_partnerId) || {};
+                _chatStates.set(_partnerId, { ...s, partnerStrokes: data.strokes });
                 _renderPartnerStrokes();
             } else if (data.image) {
                 // Fallback: partner masih pakai versi lama (PNG)
@@ -541,14 +555,27 @@ const DoodleSystem = (() => {
                 if (!_overlay?.classList.contains('doodle-active')) {
                     _overlay?.classList.add('doodle-view-only');
                     _showPublishToast();
+                    // Pasang scroll listener agar doodle ikut scroll di view-only
+                    _attachScrollForViewOnly();
                 }
             } else {
                 if (!_overlay?.classList.contains('doodle-active')) {
                     _showPartnerIndicator();
                     _overlay?.classList.add('doodle-view-only');
+                    // Pasang scroll listener agar preview partner ikut scroll
+                    _attachScrollForViewOnly();
                 }
             }
         });
+    }
+
+    // Pasang scroll listener ke messages-area untuk mode view-only
+    function _attachScrollForViewOnly() {
+        const container = _getMessagesArea();
+        if (!container) return;
+        // Hapus dulu agar tidak double
+        container.removeEventListener('scroll', _onScroll);
+        container.addEventListener('scroll', _onScroll, { passive: true });
     }
 
     function _loadPartnerImage(src) {
@@ -572,10 +599,15 @@ const DoodleSystem = (() => {
             if (!snap.exists()) return;
             const data = snap.val();
             if (!data || !data.published || data.from !== _myUid) return;
-            if (data.strokes && _myStrokes.length === 0) {
+            if (data.strokes) {
                 _myStrokes = data.strokes;
+                // Simpan ke cache
+                const s = _chatStates.get(_partnerId) || {};
+                _chatStates.set(_partnerId, { ...s, myStrokes: data.strokes, hasPublished: true });
                 _renderMyStrokes();
                 _overlay?.classList.add('doodle-view-only');
+                // Scroll listener agar doodle pengirim juga ikut scroll di view-only
+                _attachScrollForViewOnly();
             }
         });
     }
@@ -650,6 +682,14 @@ const DoodleSystem = (() => {
         _hasPublished = true;
         _syncMyStrokes(true);
 
+        // Update cache
+        const s = _chatStates.get(_partnerId) || {};
+        _chatStates.set(_partnerId, {
+            ...s,
+            myStrokes   : JSON.parse(JSON.stringify(_myStrokes)),
+            hasPublished: true,
+        });
+
         const btn = document.getElementById('doodleFinishBtn');
         if (btn) { btn.textContent = '✓ Terkirim!'; btn.disabled = true; }
 
@@ -658,6 +698,8 @@ const DoodleSystem = (() => {
             _overlay?.classList.add('doodle-view-only');
             document.getElementById('doodleToggleBtn')?.classList.remove('active');
             if (btn) { btn.textContent = 'Selesai ✓'; btn.disabled = false; }
+            // Pasang scroll listener agar doodle pengirim tetap ikut scroll
+            _attachScrollForViewOnly();
             _listenSelfNode();
         }, 600);
     }
@@ -677,6 +719,9 @@ const DoodleSystem = (() => {
         _renderMyStrokes();
         _renderPartnerStrokes();
         _refreshUndoRedo();
+
+        // Hapus cache partner ini juga
+        _chatStates.delete(_partnerId);
 
         const container = _getMessagesArea();
         if (container) container.removeEventListener('scroll', _onScroll);
@@ -705,6 +750,9 @@ const DoodleSystem = (() => {
             _myStrokes = [];
             _renderMyStrokes();
             _syncMyStrokes(false);
+            // Reset cache juga
+            const s = _chatStates.get(_partnerId) || {};
+            _chatStates.set(_partnerId, { ...s, myStrokes: [], hasPublished: false });
         }
         _undoStack = [];
         _redoStack = [];
@@ -715,6 +763,15 @@ const DoodleSystem = (() => {
     function onSelectUser(userId) {
         const prev = _partnerId;
         if (prev === userId) return;
+
+        // ── Simpan state partner sebelumnya ──────────────────
+        if (prev) {
+            _chatStates.set(prev, {
+                myStrokes     : JSON.parse(JSON.stringify(_myStrokes)),
+                partnerStrokes: JSON.parse(JSON.stringify(_partnerStrokes)),
+                hasPublished  : _hasPublished,
+            });
+        }
 
         if (_listenerPartner) { _listenerPartner(); _listenerPartner = null; }
         if (_listenerSelf)    { _listenerSelf();    _listenerSelf    = null; }
@@ -728,14 +785,28 @@ const DoodleSystem = (() => {
         document.getElementById('doodleToggleBtn')?.classList.remove('active');
         _hidePartnerIndicator();
 
-        _myStrokes      = [];
-        _partnerStrokes = [];
-        _undoStack      = [];
-        _redoStack      = [];
-        _hasPublished   = false;
-        _renderMyStrokes();
-        _renderPartnerStrokes();
+        // ── Restore state partner baru jika ada ─────────────
+        const saved = _chatStates.get(userId);
+        if (saved) {
+            _myStrokes      = saved.myStrokes;
+            _partnerStrokes = saved.partnerStrokes;
+            _hasPublished   = saved.hasPublished;
+        } else {
+            _myStrokes      = [];
+            _partnerStrokes = [];
+            _hasPublished   = false;
+        }
+        _undoStack = [];
+        _redoStack = [];
         _refreshUndoRedo();
+
+        // Render ulang jika overlay masih ada
+        if (_overlay) {
+            _positionOverlay();
+            _resizeCanvases();
+            _renderMyStrokes();
+            _renderPartnerStrokes();
+        }
 
         _listenPartnerNode();
     }
