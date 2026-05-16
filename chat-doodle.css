@@ -144,7 +144,7 @@
     transform: scale(1.08);
 }
 
-/* ── Label "Menggambar..." (kiri atas, fixed) ── */
+/* ── Label "Menggambar..." (tengah atas, fixed) ── */
 #doodleLabel {
     position: fixed;
     top: 16px;
@@ -161,9 +161,19 @@
     display: none;
     backdrop-filter: blur(6px);
     letter-spacing: 0.04em;
+    text-align: center;
 }
 #doodleOverlay.doodle-active #doodleLabel {
     display: block;
+}
+/* Sub-label: scroll hint kecil di bawah label utama */
+#doodleLabelSub {
+    display: block;
+    font-size: 0.62rem;
+    font-weight: 400;
+    opacity: 0.65;
+    letter-spacing: 0.02em;
+    margin-top: 1px;
 }
 
 /* ── Partner "sedang menggambar" indicator (fixed) ── */
@@ -329,6 +339,26 @@
     transform: none;
 }
 
+/* ── Scroll navigation buttons di toolbar ──
+   Memungkinkan user scroll ke area chat yang diinginkan tanpa keluar dari mode doodle */
+#doodleScrollUpBtn,
+#doodleScrollDownBtn {
+    font-size: 1.1rem;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+}
+#doodleScrollUpBtn:hover,
+#doodleScrollDownBtn:hover {
+    background: rgba(167,139,250,0.2);
+    border-color: rgba(167,139,250,0.35);
+    color: #c4b5fd;
+}
+#doodleScrollUpBtn:active,
+#doodleScrollDownBtn:active {
+    background: rgba(167,139,250,0.35);
+    transform: scale(0.95);
+}
+
 /* ── Tombol Selesai ── */
 #doodleFinishBtn {
     padding: 6px 18px;
@@ -429,6 +459,90 @@
     #doodleCloseBtn {
         top: 12px;
         right: 12px;
+    }
+}
+
+/* ── Scroll Hint Toast ─────────────────────────────────────────
+   Muncul saat doodle mode aktif, memberi tahu user bahwa mereka
+   bisa scroll ke area yang diinginkan sebelum mulai menggambar.
+   ──────────────────────────────────────────────────────────── */
+#doodleScrollHint {
+    position: fixed;
+    top: 60px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-8px);
+    background: rgba(15, 15, 30, 0.88);
+    border: 1px solid rgba(167, 139, 250, 0.35);
+    color: rgba(255,255,255,0.9);
+    font-size: 0.78rem;
+    font-weight: 500;
+    padding: 9px 16px 9px 13px;
+    border-radius: 24px;
+    display: none;
+    align-items: center;
+    gap: 8px;
+    z-index: 9200;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    pointer-events: all;
+    max-width: calc(100vw - 40px);
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+#doodleScrollHint.visible {
+    display: flex;
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+#doodleScrollHint span:first-child {
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+#doodleScrollHintClose {
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.45);
+    font-size: 0.75rem;
+    cursor: pointer;
+    padding: 0 0 0 6px;
+    line-height: 1;
+    flex-shrink: 0;
+    transition: color 0.15s;
+}
+#doodleScrollHintClose:hover { color: rgba(255,255,255,0.85); }
+
+/* ── Viewport position indicator (fixed, kanan bawah toolbar) ──
+   Menunjukkan di bagian mana dari chat user sedang menggambar.
+   ──────────────────────────────────────────────────────────── */
+#doodlePositionHint {
+    position: fixed;
+    bottom: 140px;
+    right: 20px;
+    background: rgba(10,10,20,0.75);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+    padding: 5px 10px;
+    font-size: 0.68rem;
+    color: rgba(255,255,255,0.5);
+    pointer-events: none;
+    z-index: 9100;
+    display: none;
+    backdrop-filter: blur(8px);
+    white-space: nowrap;
+}
+#doodleOverlay.doodle-active #doodlePositionHint {
+    /* position:fixed tidak bisa di-child overlay — dirender di body via JS */
+}
+
+@media (max-width: 600px) {
+    #doodleScrollHint {
+        font-size: 0.72rem;
+        padding: 7px 12px 7px 10px;
+        white-space: normal;
+        text-align: center;
+        max-width: calc(100vw - 32px);
     }
 }
 

@@ -106,7 +106,9 @@ const DoodleSystem = (() => {
             <canvas id="doodlePartnerCanvas"></canvas>
             <canvas id="doodleMyCanvas"></canvas>
             <button id="doodleCloseBtn" title="Tutup">&#10005;</button>
-            <div id="doodleLabel">&#9998;&#65039; Menggambar...</div>
+            <div id="doodleLabel">&#9998;&#65039; Menggambar...
+                <span id="doodleLabelSub">Scroll dulu ke area yang ingin digambar</span>
+            </div>
             <div id="doodlePartnerIndicator">
                 &#127912; <span id="doodlePartnerName">Partner</span> sedang menggambar...
             </div>
@@ -119,6 +121,9 @@ const DoodleSystem = (() => {
                     <input type="range" id="doodleSizeSlider" min="2" max="40" value="${_lineWidth}">
                     <span class="doodle-size-icon big">&#9679;</span>
                 </div>
+                <div class="doodle-divider"></div>
+                <button class="doodle-tool-btn" id="doodleScrollUpBtn" title="Scroll ke atas">&#8679;</button>
+                <button class="doodle-tool-btn" id="doodleScrollDownBtn" title="Scroll ke bawah">&#8681;</button>
                 <div class="doodle-divider"></div>
                 <button class="doodle-tool-btn" id="doodleEraserBtn" title="Eraser">&#129529;</button>
                 <button class="doodle-tool-btn" id="doodleUndoBtn" title="Undo" disabled>&#8617;</button>
@@ -257,6 +262,34 @@ const DoodleSystem = (() => {
             _syncMyCanvas(false);
         });
 
+        // ── Scroll navigation: user bisa geser area chat dari dalam toolbar ──
+        // Hold mouse down untuk scroll terus-menerus
+        let _scrollInterval = null;
+        const _startScroll = (dir) => {
+            const container = _getChatWindow();
+            if (!container) return;
+            container.scrollTop += dir * 120;
+            _scrollInterval = setInterval(() => { container.scrollTop += dir * 120; }, 200);
+        };
+        const _stopScroll = () => { clearInterval(_scrollInterval); _scrollInterval = null; };
+
+        const scrollUpBtn   = document.getElementById('doodleScrollUpBtn');
+        const scrollDownBtn = document.getElementById('doodleScrollDownBtn');
+        if (scrollUpBtn) {
+            scrollUpBtn.addEventListener('mousedown',  () => _startScroll(-1));
+            scrollUpBtn.addEventListener('touchstart', () => _startScroll(-1), { passive: true });
+            scrollUpBtn.addEventListener('mouseup',    _stopScroll);
+            scrollUpBtn.addEventListener('mouseleave', _stopScroll);
+            scrollUpBtn.addEventListener('touchend',   _stopScroll);
+        }
+        if (scrollDownBtn) {
+            scrollDownBtn.addEventListener('mousedown',  () => _startScroll(1));
+            scrollDownBtn.addEventListener('touchstart', () => _startScroll(1), { passive: true });
+            scrollDownBtn.addEventListener('mouseup',    _stopScroll);
+            scrollDownBtn.addEventListener('mouseleave', _stopScroll);
+            scrollDownBtn.addEventListener('touchend',   _stopScroll);
+        }
+
         document.getElementById('doodleSizeSlider').addEventListener('input', e => {
             _lineWidth = parseInt(e.target.value);
         });
@@ -278,21 +311,25 @@ const DoodleSystem = (() => {
         _myCanvas.addEventListener('touchmove',   _touchMove,   { passive: false });
         _myCanvas.addEventListener('touchend',    _endDraw);
         _myCanvas.addEventListener('touchcancel', _endDraw);
+
+        // Izinkan scroll di atas canvas agar user bisa navigasi area chat
+        _setupScrollPassthrough();
     }
 
     // ── DRAW ──────────────────────────────────────────────────
     function _getPos(e) {
-        const rect      = _myCanvas.getBoundingClientRect();
-        const container = _getChatWindow();
-        // getBoundingClientRect() sudah memperhitungkan scroll viewport,
-        // tapi karena canvas berada di dalam scroll container (messages-area),
-        // kita perlu tambahkan scrollTop & scrollLeft container untuk mendapat
-        // koordinat yang akurat relatif terhadap canvas (bukan viewport).
-        const scrollTop  = container ? container.scrollTop  : 0;
-        const scrollLeft = container ? container.scrollLeft : 0;
+        const container  = _getChatWindow();
+        // Canvas adalah position:absolute di dalam container (position:relative).
+        // overlay.getBoundingClientRect() memberi posisi overlay di viewport.
+        // Koordinat klik relatif ke canvas = (klik di viewport) - (posisi overlay di viewport).
+        // Karena canvas berukuran scrollWidth × scrollHeight (sama dengan overlay),
+        // kita gunakan overlay.getBoundingClientRect() sebagai acuan origin canvas.
+        const overlayRect = _overlay ? _overlay.getBoundingClientRect() : { left: 0, top: 0 };
+        const scaleX = _myCanvas.width  / (_myCanvas.offsetWidth  || _myCanvas.width);
+        const scaleY = _myCanvas.height / (_myCanvas.offsetHeight || _myCanvas.height);
         return {
-            x: (e.clientX - rect.left + scrollLeft) * (_myCanvas.width  / _myCanvas.offsetWidth),
-            y: (e.clientY - rect.top  + scrollTop)  * (_myCanvas.height / _myCanvas.offsetHeight),
+            x: (e.clientX - overlayRect.left) * scaleX,
+            y: (e.clientY - overlayRect.top  + (container ? container.scrollTop : 0)) * scaleY,
         };
     }
 
@@ -520,9 +557,9 @@ const DoodleSystem = (() => {
         const btn = document.getElementById('doodleFinishBtn');
         if (btn) { btn.textContent = 'Selesai ✓'; btn.disabled = false; btn.style.background = ''; }
 
-        // Scroll messages-area ke atas agar user langsung melihat canvas menggambar
-        const container = _getChatWindow();
-        if (container) container.scrollTop = 0;
+        // TIDAK paksa scroll ke atas — user bebas memilih area chat yang ingin di-doodle.
+        // Hanya tampilkan hint scroll agar user tahu bisa scroll dulu sebelum menggambar.
+        _showScrollHint();
 
         _listenPartnerNode();
     }
@@ -690,6 +727,42 @@ const DoodleSystem = (() => {
 
     function _hidePartnerIndicator() {
         document.getElementById('doodlePartnerIndicator')?.classList.remove('visible', 'published');
+    }
+
+    // ── SCROLL HINT: beritahu user bahwa mereka bisa scroll dulu sebelum menggambar ──
+    function _showScrollHint() {
+        let hint = document.getElementById('doodleScrollHint');
+        if (!hint) {
+            hint = document.createElement('div');
+            hint.id = 'doodleScrollHint';
+            hint.innerHTML = `
+                <span>📜</span>
+                <span>Scroll ke area yang ingin digambar, lalu mulai coret-coret!</span>
+                <button id="doodleScrollHintClose">✕</button>
+            `;
+            document.body.appendChild(hint);
+            document.getElementById('doodleScrollHintClose').addEventListener('click', () => {
+                hint.classList.remove('visible');
+            });
+        }
+        hint.classList.add('visible');
+        // Auto-dismiss setelah 3 detik
+        clearTimeout(hint._dismissTimer);
+        hint._dismissTimer = setTimeout(() => hint.classList.remove('visible'), 3500);
+    }
+
+    // ── IZINKAN SCROLL saat doodle aktif (pointer-events:all di overlay bisa blok wheel) ──
+    // Solusi: tangkap wheel event di overlay dan teruskan ke container
+    function _setupScrollPassthrough() {
+        if (!_myCanvas || _myCanvas._scrollPassthroughBound) return;
+        _myCanvas._scrollPassthroughBound = true;
+        _myCanvas.addEventListener('wheel', (e) => {
+            const container = _getChatWindow();
+            if (!container) return;
+            // Teruskan scroll ke messages-area agar user tetap bisa scroll
+            container.scrollTop += e.deltaY;
+            e.preventDefault();
+        }, { passive: false });
     }
 
     function _showPublishToast() {
