@@ -1,8 +1,8 @@
 /* =====================================================
-   CHAT DOODLE v6 - In-Chat Canvas Style
+   CHAT DOODLE v4 - Instagram DM Overlay Style
    ===================================================== */
 
-/* ── Toggle Button ── */
+/* ── Doodle Toggle Button ── */
 #doodleToggleBtn {
     background: none;
     border: none;
@@ -25,51 +25,60 @@
     background: rgba(167,139,250,0.15);
 }
 
-/* =====================================================
-   DRAW OVERLAY — muncul saat mode gambar aktif
-   Menutupi HANYA area chat (bukan sidebar)
-   ===================================================== */
-#doodleDrawOverlay {
+/* ── OVERLAY UTAMA ──
+   Menutup seluruh chat-window (header + messages + input area)
+   tapi pointer-events hanya pada canvas (tidak block input asli)
+*/
+#doodleOverlay {
     position: absolute;
     inset: 0;
-    z-index: 200;
+    z-index: 150;
     display: none;
-    flex-direction: column;
-    background: rgba(8, 8, 18, 0.92);
-    backdrop-filter: blur(3px);
-    -webkit-backdrop-filter: blur(3px);
-}
-#doodleDrawOverlay.doodle-draw-active {
-    display: flex;
+    pointer-events: none;   /* default: tidak block chat di bawah */
 }
 
-/* Canvas menggambar — mengisi seluruh area kecuali toolbar */
-#doodleDrawCanvas {
-    flex: 1;
-    width: 100%;
+/* Mode aktif (user sedang menggambar) */
+#doodleOverlay.doodle-active {
     display: block;
-    cursor: crosshair;
-    touch-action: none;
+    pointer-events: none;   /* toolbar & canvas handle sendiri */
 }
-#doodleDrawCanvas.eraser-mode { cursor: cell; }
 
-/* Label kiri atas */
-#doodleLabel {
-    position: absolute;
-    top: 12px;
-    left: 12px;
-    background: rgba(0,0,0,0.5);
-    color: rgba(255,255,255,0.8);
-    font-size: 0.72rem;
-    font-weight: 600;
-    padding: 3px 10px;
-    border-radius: 12px;
+/* Mode view-only (melihat coretan partner saja) */
+#doodleOverlay.doodle-view-only {
+    display: block;
     pointer-events: none;
-    z-index: 210;
-    backdrop-filter: blur(4px);
 }
 
-/* Tombol tutup kanan atas */
+/* ── Dua Canvas ── */
+
+/* Canvas partner: paling bawah, hanya tampil */
+#doodlePartnerCanvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 151;
+}
+
+/* Canvas milik sendiri: di atas, interaktif saat aktif */
+#doodleMyCanvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;   /* non-aktif: tidak block */
+    z-index: 152;
+    cursor: crosshair;
+}
+#doodleOverlay.doodle-active #doodleMyCanvas {
+    pointer-events: all;    /* aktif: bisa digambar */
+}
+#doodleMyCanvas.eraser-mode {
+    cursor: cell;
+}
+
+/* ── Close Button (kanan atas) ── */
 #doodleCloseBtn {
     position: absolute;
     top: 10px;
@@ -82,43 +91,105 @@
     color: #fff;
     font-size: 0.95rem;
     cursor: pointer;
-    display: flex;
+    display: none;
     align-items: center;
     justify-content: center;
-    z-index: 210;
+    z-index: 160;
+    pointer-events: all;
     backdrop-filter: blur(6px);
     transition: background 0.15s, transform 0.12s;
+}
+#doodleOverlay.doodle-active #doodleCloseBtn {
+    display: flex;
 }
 #doodleCloseBtn:hover {
     background: rgba(239,68,68,0.65);
     transform: scale(1.08);
 }
 
-/* ── Toolbar ── */
-#doodleToolbar {
+/* ── Label "Menggambar..." ── */
+#doodleLabel {
     position: absolute;
-    bottom: 18px;
+    top: 10px;
+    left: 10px;
+    background: rgba(0,0,0,0.45);
+    color: rgba(255,255,255,0.85);
+    font-size: 0.73rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 12px;
+    pointer-events: none;
+    z-index: 160;
+    display: none;
+    backdrop-filter: blur(4px);
+    letter-spacing: 0.02em;
+}
+#doodleOverlay.doodle-active #doodleLabel {
+    display: block;
+}
+
+/* ── Partner "sedang menggambar" indicator ── */
+#doodlePartnerIndicator {
+    position: absolute;
+    top: 10px;
     left: 50%;
     transform: translateX(-50%);
-    display: flex;
+    background: rgba(167, 139, 250, 0.18);
+    border: 1px solid rgba(167, 139, 250, 0.4);
+    color: #c4b5fd;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 5px 14px;
+    border-radius: 20px;
+    pointer-events: none;
+    z-index: 160;
+    display: none;
+    backdrop-filter: blur(8px);
+    white-space: nowrap;
+    animation: doodleIndicatorPulse 2s ease-in-out infinite;
+}
+#doodlePartnerIndicator.visible {
+    display: block;
+}
+@keyframes doodleIndicatorPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+/* ── Toolbar (bawah, di atas input area) ── */
+#doodleToolbar {
+    position: absolute;
+    bottom: 72px;           /* di atas input area */
+    left: 50%;
+    transform: translateX(-50%);
+    display: none;
     align-items: center;
     gap: 7px;
     padding: 9px 15px;
     border-radius: 36px;
-    background: rgba(15, 15, 25, 0.82);
+    background: rgba(15, 15, 25, 0.78);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255,255,255,0.12);
-    box-shadow: 0 6px 28px rgba(0,0,0,0.6);
-    z-index: 210;
+    border: 1px solid rgba(255,255,255,0.13);
+    box-shadow: 0 6px 28px rgba(0,0,0,0.55);
+    z-index: 160;
+    pointer-events: all;
     white-space: nowrap;
     max-width: calc(100% - 24px);
 }
+#doodleOverlay.doodle-active #doodleToolbar {
+    display: flex;
+}
 
-/* Color Swatches */
-.doodle-colors { display: flex; align-items: center; gap: 5px; }
+/* ── Color Swatches ── */
+.doodle-colors {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
 .doodle-color-swatch {
-    width: 20px; height: 20px;
+    width: 20px;
+    height: 20px;
     border-radius: 50%;
     cursor: pointer;
     border: 2px solid transparent;
@@ -131,8 +202,11 @@
     transform: scale(1.28);
     box-shadow: 0 0 0 1px rgba(0,0,0,0.4);
 }
+
+/* Color picker input */
 #doodleColorPicker {
-    width: 20px; height: 20px;
+    width: 20px;
+    height: 20px;
     border-radius: 50%;
     border: 2px dashed rgba(255,255,255,0.5);
     cursor: pointer;
@@ -147,19 +221,26 @@
 #doodleColorPicker::-webkit-color-swatch { border: none; border-radius: 50%; }
 #doodleColorPicker:hover { transform: scale(1.2); }
 
+/* Divider */
 .doodle-divider {
-    width: 1px; height: 20px;
+    width: 1px;
+    height: 20px;
     background: rgba(255,255,255,0.15);
     flex-shrink: 0;
 }
 
 /* Brush size */
-.doodle-size-wrap { display: flex; align-items: center; gap: 5px; }
+.doodle-size-wrap {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
 .doodle-size-icon { font-size: 0.6rem; color: rgba(255,255,255,0.45); }
 .doodle-size-icon.big { font-size: 0.95rem; }
 #doodleSizeSlider {
     -webkit-appearance: none;
-    width: 60px; height: 3px;
+    width: 60px;
+    height: 3px;
     border-radius: 3px;
     background: rgba(255,255,255,0.25);
     outline: none;
@@ -183,7 +264,8 @@
 
 /* Tool buttons */
 .doodle-tool-btn {
-    width: 30px; height: 30px;
+    width: 30px;
+    height: 30px;
     border-radius: 50%;
     border: none;
     background: rgba(255,255,255,0.08);
@@ -196,112 +278,21 @@
     transition: background 0.15s, transform 0.12s;
     flex-shrink: 0;
 }
-.doodle-tool-btn:hover { background: rgba(255,255,255,0.18); transform: scale(1.1); }
-.doodle-tool-btn.active { background: rgba(167,139,250,0.35); color: #c4b5fd; }
-.doodle-tool-btn:disabled { opacity: 0.3; cursor: default; transform: none; }
-
-/* Tombol Selesai */
-#doodleFinishBtn {
-    padding: 6px 16px;
-    border-radius: 20px;
-    border: none;
-    background: linear-gradient(135deg, #34c759, #30a14e);
-    color: #fff;
-    font-size: 0.78rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: transform 0.15s, background 0.3s;
-    white-space: nowrap;
-    flex-shrink: 0;
-    box-shadow: 0 2px 10px rgba(52,199,89,0.4);
+.doodle-tool-btn:hover {
+    background: rgba(255,255,255,0.18);
+    transform: scale(1.1);
 }
-#doodleFinishBtn:hover { transform: scale(1.06); }
-#doodleFinishBtn:active { opacity: 0.85; }
-#doodleFinishBtn:disabled { cursor: default; transform: none; }
-#doodleFinishBtn.finish-sent {
-    background: rgba(52,199,89,0.35);
-    box-shadow: none;
-}
-
-/* =====================================================
-   CHAT DOODLE ELEMENT — hidup di dalam messagesArea
-   Ikut scroll seperti pesan biasa
-   ===================================================== */
-.chat-doodle-wrapper {
-    width: 100%;
-    padding: 10px 12px;
-    display: none; /* diatur oleh JS */
-    box-sizing: border-box;
-}
-
-.chat-doodle-inner {
-    position: relative;
-    width: 100%;
-    max-width: 420px;
-    margin: 0 auto;
-    border-radius: 18px;
-    overflow: hidden;
-    background: #111118;
-    border: 1px solid rgba(255,255,255,0.08);
-    box-shadow: 0 4px 24px rgba(0,0,0,0.5);
-}
-
-.chat-doodle-canvas {
-    display: block;
-    width: 100%;
-    height: auto;
-    border-radius: 18px 18px 0 0;
-    background: #111118;
-}
-
-.chat-doodle-meta {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 6px 12px 8px;
-    background: rgba(0,0,0,0.35);
-    border-top: 1px solid rgba(255,255,255,0.06);
-}
-
-.chat-doodle-author {
-    font-size: 0.72rem;
-    font-weight: 600;
-    color: rgba(255,255,255,0.65);
-    letter-spacing: 0.02em;
-}
-
-.chat-doodle-time {
-    font-size: 0.68rem;
-    color: rgba(255,255,255,0.35);
-}
-
-/* Live badge — tampil saat user sedang menggambar */
-.chat-doodle-live-badge {
-    position: absolute;
-    top: 10px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(167,139,250,0.22);
-    border: 1px solid rgba(167,139,250,0.45);
+.doodle-tool-btn.active {
+    background: rgba(167,139,250,0.35);
     color: #c4b5fd;
-    font-size: 0.72rem;
-    font-weight: 700;
-    padding: 4px 12px;
-    border-radius: 20px;
-    display: none;
-    align-items: center;
-    gap: 5px;
-    white-space: nowrap;
-    backdrop-filter: blur(8px);
-    animation: livePulse 2s ease-in-out infinite;
-    pointer-events: none;
 }
-@keyframes livePulse {
-    0%, 100% { opacity: 1; }
-    50%       { opacity: 0.55; }
+.doodle-tool-btn:disabled {
+    opacity: 0.3;
+    cursor: default;
+    transform: none;
 }
 
-/* ── Doodle Bubble (legacy) ── */
+/* ── Doodle Bubble (legacy: pesan doodle lama di chat) ── */
 .doodle-bubble {
     max-width: 240px;
     border-radius: 14px;
@@ -311,7 +302,11 @@
     border: 1px solid rgba(255,255,255,0.08);
 }
 .doodle-bubble:hover { transform: scale(1.02); }
-.doodle-bubble img { display: block; width: 100%; border-radius: 14px; }
+.doodle-bubble img {
+    display: block;
+    width: 100%;
+    border-radius: 14px;
+}
 .doodle-bubble-label {
     font-size: 0.68rem;
     color: rgba(255,255,255,0.45);
@@ -321,8 +316,10 @@
 
 /* ── Fullscreen Viewer ── */
 #doodleViewer {
-    position: fixed; inset: 0; z-index: 9999;
-    background: rgba(0,0,0,0.93);
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(0,0,0,0.92);
     display: none;
     align-items: center;
     justify-content: center;
@@ -331,7 +328,8 @@
 }
 #doodleViewer.open { display: flex; }
 #doodleViewerImg {
-    max-width: 90vw; max-height: 80vh;
+    max-width: 90vw;
+    max-height: 80vh;
     border-radius: 14px;
     box-shadow: 0 8px 40px rgba(0,0,0,0.6);
 }
@@ -349,9 +347,46 @@
 
 /* ── Mobile ── */
 @media (max-width: 600px) {
-    #doodleToolbar { gap: 5px; padding: 7px 10px; bottom: 12px; }
+    #doodleToolbar {
+        gap: 5px;
+        padding: 7px 10px;
+        bottom: 64px;
+    }
     .doodle-color-swatch { width: 16px; height: 16px; }
     #doodleSizeSlider { width: 46px; }
     #doodleColorPicker { width: 16px; height: 16px; }
-    .chat-doodle-inner { max-width: 100%; }
+}
+
+/* ── Tombol Selesai ── */
+#doodleFinishBtn {
+    padding: 6px 16px;
+    border-radius: 20px;
+    border: none;
+    background: linear-gradient(135deg, #34c759, #30a14e);
+    color: #fff;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.15s, opacity 0.15s, background 0.3s;
+    white-space: nowrap;
+    flex-shrink: 0;
+    pointer-events: all;
+    box-shadow: 0 2px 10px rgba(52, 199, 89, 0.4);
+}
+#doodleFinishBtn:hover {
+    transform: scale(1.06);
+    box-shadow: 0 4px 16px rgba(52, 199, 89, 0.55);
+}
+#doodleFinishBtn:active { opacity: 0.85; }
+#doodleFinishBtn:disabled {
+    cursor: default;
+    transform: none;
+}
+
+/* Partner indicator — state "published" (doodle terkirim) */
+#doodlePartnerIndicator.published {
+    background: rgba(52, 199, 89, 0.18);
+    border-color: rgba(52, 199, 89, 0.45);
+    color: #6ee7a0;
+    animation: none;
 }
