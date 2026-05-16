@@ -131,8 +131,13 @@ const DoodleSystem = (() => {
         _buildColorSwatches();
         _bindEvents();
 
-        // Update ukuran canvas saat window resize
-        window.addEventListener('resize', _resizeCanvasesKeepContent);
+        // Auto-resize canvas saat ukuran chatWindow berubah (resize window, orientasi, dsb)
+        if (window.ResizeObserver) {
+            const ro = new ResizeObserver(() => _resizeCanvasesKeepContent());
+            ro.observe(chatWin);
+        } else {
+            window.addEventListener('resize', _resizeCanvasesKeepContent);
+        }
 
         // Fullscreen viewer
         if (!document.getElementById('doodleViewer')) {
@@ -146,11 +151,13 @@ const DoodleSystem = (() => {
     }
 
     // ── CANVAS RESIZE ─────────────────────────────────────────
+    // Ukuran canvas = ukuran chatWindow (containing block overlay).
+    // openDoodle() dipanggil setelah chatWindow visible, jadi offsetWidth/Height valid.
     function _resizeCanvases() {
         if (!_overlay) return;
         const chatWin = _getChatWindow();
-        const w = (chatWin?.offsetWidth  > 0 ? chatWin.offsetWidth  : 400);
-        const h = (chatWin?.offsetHeight > 0 ? chatWin.offsetHeight : 600);
+        const w = chatWin?.offsetWidth  || 400;
+        const h = chatWin?.offsetHeight || 600;
         [_myCanvas, _partnerCanvas].forEach(c => {
             if (!c) return;
             c.width  = w;
@@ -161,8 +168,8 @@ const DoodleSystem = (() => {
     function _resizeCanvasesKeepContent() {
         if (!_overlay) return;
         const chatWin = _getChatWindow();
-        const w = (chatWin?.offsetWidth  > 0 ? chatWin.offsetWidth  : 400);
-        const h = (chatWin?.offsetHeight > 0 ? chatWin.offsetHeight : 600);
+        const w = (chatWin?.offsetWidth  > 0 ? chatWin.offsetWidth  : (_overlay.offsetWidth  || 400));
+        const h = (chatWin?.offsetHeight > 0 ? chatWin.offsetHeight : (_overlay.offsetHeight || 600));
 
         [
             { canvas: _myCanvas,      ctx: _myCtx      },
@@ -466,13 +473,15 @@ const DoodleSystem = (() => {
         if (!_partnerId) { alert('Pilih chat terlebih dahulu!'); return; }
 
         _ensureOverlayInChatWindow();
-        _startPositionLoop(); // terus update posisi overlay agar tidak ikut scroll
 
+        // Tambahkan class active DULU agar overlay display:block,
+        // baru resize canvas — karena offsetWidth/Height = 0 saat display:none
         _overlay.classList.add('doodle-active');
         _overlay.classList.remove('doodle-view-only');
         document.getElementById('doodleToggleBtn')?.classList.add('active');
 
         _hasPublished = false;
+        // Resize setelah overlay visible
         _resizeCanvases();
 
         _myCtx?.clearRect(0, 0, _myCanvas?.width || 0, _myCanvas?.height || 0);
