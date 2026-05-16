@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="chat.style.css">
     <link rel="stylesheet" href="chat-notes.css">
     <link rel="stylesheet" href="chat-streak.css">
+    <link rel="stylesheet" href="chat-doodle.css">
     <style>
         /* Auto-delete 24 jam: badge sisa waktu */
         .note-expires {
@@ -715,6 +716,7 @@
                     <div class="input-area">
                         <input type="file" id="mediaInput" accept="image/*,video/*" style="display: none;">
                         <button class="btn-attachment" onclick="document.getElementById('mediaInput').click()" title="Attach Media">📎</button>
+                        <button id="doodleToggleBtn" title="Draw / Doodle">✏️</button>
                         <input 
                             type="text" 
                             id="messageInput" 
@@ -1514,6 +1516,16 @@
                 };
                 _initStreak();
 
+                // ===== DOODLE SYSTEM INIT =====
+                const _initDoodle = () => {
+                    if (window.DoodleSystem) {
+                        window.DoodleSystem.init(database, { ref, set, push, onValue, get });
+                    } else {
+                        setTimeout(_initDoodle, 300);
+                    }
+                };
+                _initDoodle();
+
                 // Cek dan hapus note expired saat login
                 checkAndDeleteExpiredNotes();
                 // Cek ulang setiap 1 menit
@@ -1680,6 +1692,8 @@
             // ===== STREAK: update header & global tracker =====
             window._selectedUserId = userId;
             if (window.StreakSystem) window.StreakSystem.renderHeaderStreak(userId);
+            // ===== DOODLE: switch partner =====
+            if (window.DoodleSystem) window.DoodleSystem.onSelectUser(userId);
         };
 
         // Load messages
@@ -1793,7 +1807,15 @@
                         }
 
                         let contentHtml = '';
-                        if (msg.isDeleted) {
+                        if (msg.type === 'doodle') {
+                            // ===== DOODLE BUBBLE =====
+                            contentHtml = `
+                                <div class="doodle-bubble" onclick="DoodleSystem.openViewer('${msg.image}')">
+                                    <img src="${msg.image}" alt="Doodle" loading="lazy">
+                                </div>
+                                <div class="doodle-bubble-label">🎨 Doodle</div>
+                            `;
+                        } else if (msg.isDeleted) {
                             contentHtml = '<p style="font-style: italic; color: #999;">🗑️ Pesan telah dihapus</p>';
                         } else if (msg.isUnsent) {
                             contentHtml = '<p style="font-style: italic; color: #aaa; font-size: 0.88rem;">↩️ Kamu membatalkan pengiriman pesan ini</p>';
@@ -2943,5 +2965,6 @@
     </script>
     <script src="chat-notes.js"></script>
     <script src="chat-streak.js"></script>
+    <script src="chat-doodle.js"></script>
 </body>
 </html>

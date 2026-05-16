@@ -1,0 +1,346 @@
+/* =====================================================
+   CHAT DOODLE - Instagram DM Draw Style
+   ===================================================== */
+
+/* ── Doodle Toggle Button (di input area) ── */
+#doodleToggleBtn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.3rem;
+    padding: 6px;
+    border-radius: 8px;
+    transition: background 0.2s, transform 0.15s;
+    color: #a0aec0;
+    line-height: 1;
+    flex-shrink: 0;
+}
+#doodleToggleBtn:hover {
+    background: rgba(255,255,255,0.08);
+    transform: scale(1.12);
+    color: #e2e8f0;
+}
+#doodleToggleBtn.active {
+    color: #a78bfa;
+    background: rgba(167,139,250,0.15);
+}
+
+/* ── Fullscreen Doodle Overlay ── */
+#doodleOverlay {
+    position: absolute;
+    inset: 0;
+    z-index: 200;
+    display: none;
+    flex-direction: column;
+    border-radius: inherit;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+}
+#doodleOverlay.doodle-active {
+    display: flex;
+}
+
+/* ── Canvas ── */
+#doodleCanvas {
+    flex: 1;
+    width: 100%;
+    display: block;
+    cursor: crosshair;
+    touch-action: none;
+}
+#doodleCanvas.eraser-mode {
+    cursor: cell;
+}
+
+/* ── Toolbar Container ── */
+#doodleToolbar {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-radius: 40px;
+    background: rgba(20, 20, 35, 0.72);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.12);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04);
+    z-index: 210;
+    white-space: nowrap;
+    flex-wrap: nowrap;
+    max-width: calc(100% - 24px);
+}
+
+/* ── Color Swatches ── */
+.doodle-colors {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.doodle-color-swatch {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: transform 0.15s, border-color 0.15s;
+    flex-shrink: 0;
+}
+.doodle-color-swatch:hover {
+    transform: scale(1.2);
+}
+.doodle-color-swatch.selected {
+    border-color: #fff;
+    transform: scale(1.25);
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.4);
+}
+
+/* Custom color picker (hidden input) */
+#doodleColorPicker {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2px dashed rgba(255,255,255,0.5);
+    cursor: pointer;
+    padding: 0;
+    background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red);
+    flex-shrink: 0;
+    -webkit-appearance: none;
+    appearance: none;
+    transition: transform 0.15s;
+}
+#doodleColorPicker::-webkit-color-swatch-wrapper { padding: 0; border-radius: 50%; }
+#doodleColorPicker::-webkit-color-swatch { border: none; border-radius: 50%; }
+#doodleColorPicker:hover { transform: scale(1.2); }
+
+/* ── Divider ── */
+.doodle-divider {
+    width: 1px;
+    height: 22px;
+    background: rgba(255,255,255,0.18);
+    flex-shrink: 0;
+}
+
+/* ── Brush Size Slider ── */
+.doodle-size-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.doodle-size-icon {
+    font-size: 0.65rem;
+    color: rgba(255,255,255,0.5);
+}
+.doodle-size-icon.big {
+    font-size: 1rem;
+}
+#doodleSizeSlider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 64px;
+    height: 4px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.25);
+    outline: none;
+    cursor: pointer;
+}
+#doodleSizeSlider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+}
+#doodleSizeSlider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+}
+
+/* ── Tool Buttons (eraser, undo, redo) ── */
+.doodle-tool-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255,255,255,0.08);
+    color: #e2e8f0;
+    font-size: 0.9rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, transform 0.12s;
+    flex-shrink: 0;
+}
+.doodle-tool-btn:hover {
+    background: rgba(255,255,255,0.18);
+    transform: scale(1.1);
+}
+.doodle-tool-btn.active {
+    background: rgba(167,139,250,0.35);
+    color: #c4b5fd;
+}
+.doodle-tool-btn:disabled {
+    opacity: 0.3;
+    cursor: default;
+    transform: none;
+}
+
+/* ── Send / Close Buttons ── */
+#doodleSendBtn {
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: none;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.15s, opacity 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+#doodleSendBtn:hover { transform: scale(1.05); }
+#doodleSendBtn:active { opacity: 0.85; }
+
+#doodleCloseBtn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(0,0,0,0.5);
+    color: #fff;
+    font-size: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 215;
+    transition: background 0.15s, transform 0.12s;
+    backdrop-filter: blur(6px);
+}
+#doodleCloseBtn:hover {
+    background: rgba(239,68,68,0.6);
+    transform: scale(1.1);
+}
+
+/* ── "Menggambar..." label ── */
+#doodleLabel {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    color: rgba(255,255,255,0.7);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    backdrop-filter: blur(4px);
+    background: rgba(0,0,0,0.3);
+    padding: 3px 10px;
+    border-radius: 12px;
+    pointer-events: none;
+    z-index: 215;
+}
+
+/* ── Incoming Doodle Bubble ── */
+.doodle-bubble {
+    max-width: 260px;
+    border-radius: 16px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.15s;
+    border: 1px solid rgba(255,255,255,0.08);
+}
+.doodle-bubble:hover { transform: scale(1.02); }
+.doodle-bubble img {
+    display: block;
+    width: 100%;
+    border-radius: 16px;
+}
+.doodle-bubble-label {
+    font-size: 0.7rem;
+    color: rgba(255,255,255,0.5);
+    margin-top: 3px;
+    text-align: center;
+}
+
+/* ── Fullscreen viewer (klik doodle) ── */
+#doodleViewer {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(0,0,0,0.92);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 14px;
+}
+#doodleViewer.open { display: flex; }
+#doodleViewerImg {
+    max-width: 90vw;
+    max-height: 80vh;
+    border-radius: 16px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+}
+#doodleViewerClose {
+    color: rgba(255,255,255,0.7);
+    font-size: 0.85rem;
+    cursor: pointer;
+    background: rgba(255,255,255,0.1);
+    border: none;
+    padding: 6px 18px;
+    border-radius: 20px;
+    transition: background 0.15s;
+}
+#doodleViewerClose:hover { background: rgba(255,255,255,0.2); }
+
+/* ── Brush cursor preview (top-right) ── */
+#doodleCursorPreview {
+    position: absolute;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    pointer-events: none;
+    z-index: 212;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0,0,0,0.35);
+    border-radius: 20px;
+    padding: 4px 10px;
+    backdrop-filter: blur(6px);
+}
+#doodleCursorDot {
+    border-radius: 50%;
+    background: #fff;
+    flex-shrink: 0;
+    border: 1px solid rgba(0,0,0,0.2);
+    transition: width 0.1s, height 0.1s, background 0.1s;
+}
+
+/* ── Mobile adjustments ── */
+@media (max-width: 600px) {
+    #doodleToolbar {
+        gap: 5px;
+        padding: 8px 12px;
+        bottom: 12px;
+    }
+    .doodle-color-swatch { width: 18px; height: 18px; }
+    #doodleSizeSlider { width: 50px; }
+    #doodleSendBtn { padding: 5px 10px; font-size: 0.72rem; }
+}
