@@ -356,3 +356,37 @@
     #doodleSizeSlider { width: 46px; }
     #doodleColorPicker { width: 16px; height: 16px; }
 }
+
+/* ── Tombol Selesai ── */
+#doodleFinishBtn {
+    padding: 6px 16px;
+    border-radius: 20px;
+    border: none;
+    background: linear-gradient(135deg, #34c759, #30a14e);
+    color: #fff;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.15s, opacity 0.15s, background 0.3s;
+    white-space: nowrap;
+    flex-shrink: 0;
+    pointer-events: all;
+    box-shadow: 0 2px 10px rgba(52, 199, 89, 0.4);
+}
+#doodleFinishBtn:hover {
+    transform: scale(1.06);
+    box-shadow: 0 4px 16px rgba(52, 199, 89, 0.55);
+}
+#doodleFinishBtn:active { opacity: 0.85; }
+#doodleFinishBtn:disabled {
+    cursor: default;
+    transform: none;
+}
+
+/* Partner indicator — state "published" (doodle terkirim) */
+#doodlePartnerIndicator.published {
+    background: rgba(52, 199, 89, 0.18);
+    border-color: rgba(52, 199, 89, 0.45);
+    color: #6ee7a0;
+    animation: none;
+}
