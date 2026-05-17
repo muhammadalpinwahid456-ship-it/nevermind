@@ -408,36 +408,35 @@
             notifUnsubscribes.push(reelsNotifUnsub);
 
             // Listen to notes likes
-            const notesRef = ref(database, 'notes');
-            const notesNotifUnsub = onValue(notesRef, (snapshot) => {
+            // Struktur: notes/{userId}/likes/{likerId} = true|timestamp
+            // Kita langsung listen ke notes/{uid}/likes
+            const notesLikesRef = ref(database, `notes/${uid}/likes`);
+            const notesNotifUnsub = onValue(notesLikesRef, (snapshot) => {
                 allNotifications = allNotifications.filter(n => n.source !== 'notes');
                 if (!snapshot.exists()) {
                     updateNotifBadge();
+                    if (document.getElementById('notifPanel').style.display !== 'none') {
+                        renderNotifList();
+                    }
                     return;
                 }
-                // notes structure: notes/{chatId}/{noteId} or notes/{userId}
-                // We listen broadly and check if note belongs to current user
-                snapshot.forEach((chatSnap) => {
-                    chatSnap.forEach((noteSnap) => {
-                        const note = noteSnap.val();
-                        if (!note) return;
-                        if (note.userId !== uid && note.from !== uid) return;
-                        const likes = note.likes || {};
-                        Object.entries(likes).forEach(([likerId, val]) => {
-                            if (likerId === uid || !val) return;
-                            const notifId = `notes_like_${noteSnap.key}_${likerId}`;
-                            allNotifications.push({
-                                id: notifId,
-                                source: 'notes',
-                                type: 'like',
-                                actorName: likerId,
-                                actorPhoto: 'https://via.placeholder.com/44',
-                                message: 'menyukai notes kamu',
-                                mediaUrl: null,
-                                timestamp: (typeof val === 'number' ? val : note.timestamp) || Date.now(),
-                                likerId
-                            });
-                        });
+
+                snapshot.forEach((likerSnap) => {
+                    const likerId = likerSnap.key;
+                    const val = likerSnap.val();
+                    // val bisa true atau timestamp — skip null
+                    if (!val || likerId === uid) return;
+                    const notifId = `notes_like_${uid}_${likerId}`;
+                    allNotifications.push({
+                        id: notifId,
+                        source: 'notes',
+                        type: 'like',
+                        actorName: likerId,
+                        actorPhoto: 'https://via.placeholder.com/44',
+                        message: 'menyukai notes kamu',
+                        mediaUrl: null,
+                        timestamp: (typeof val === 'number' ? val : Date.now()),
+                        likerId
                     });
                 });
 
