@@ -33,20 +33,29 @@
     background: rgba(244,114,182,0.15);
 }
 
+/* ── Tombol tema: z-index tinggi agar tidak tertutup panel ── */
+#themeToggleBtn {
+    position: relative;
+    z-index: 9300;
+}
+
 /* ── Panel pemilih tema ── */
 #themePicker {
     position: fixed;
     z-index: 9200;
-    bottom: 80px;
+    /* top & right diset via JS, muncul di bawah tombol */
+    top: auto;
     right: 20px;
     width: 320px;
-    background: rgba(10, 12, 28, 0.96);
-    border: 1px solid rgba(255,255,255,0.12);
+    max-height: calc(100vh - 80px);
+    overflow-y: auto;
+    background: rgba(10, 12, 28, 0.97);
+    border: 1px solid rgba(255,255,255,0.14);
     border-radius: 20px;
     padding: 18px;
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
-    box-shadow: 0 12px 40px rgba(0,0,0,0.7);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.75);
     display: none;
     flex-direction: column;
     gap: 14px;
@@ -55,7 +64,7 @@
 #themePicker.open { display: flex; }
 
 @keyframes themePickerIn {
-    from { opacity: 0; transform: translateY(14px) scale(0.96); }
+    from { opacity: 0; transform: translateY(-8px) scale(0.96); }
     to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
@@ -351,7 +360,8 @@
 /* Background chat area */
 .chat-window[data-theme] .messages-area {
     background: var(--tw-bg) !important;
-    background-image: none !important;
+    background-image: unset !important;
+    position: relative !important;
 }
 
 /* Header chat (nama user) */
@@ -512,13 +522,11 @@
     position: relative;
 }
 
-/* Pastikan pesan-pesan tampil di atas ilustrasi */
+/* messages-area dan pesan di atas ilustrasi */
 .chat-window[data-theme] .messages-area {
     position: relative;
     z-index: 2;
 }
-
-/* Pastikan bubble tetap terlihat di atas ilustrasi */
 .chat-window[data-theme] .messages-area .message,
 .chat-window[data-theme] .messages-area .date-separator-label,
 .chat-window[data-theme] .messages-area .no-messages {

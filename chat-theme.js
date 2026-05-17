@@ -117,7 +117,6 @@ const ThemeSystem = (() => {
     let _illustResizeObs = null;
 
     function _applyIllustration(theme) {
-        // Hapus ilustrasi lama
         const old = document.getElementById('themeIllustration');
         if (old) old.remove();
         if (_illustResizeObs) { _illustResizeObs.disconnect(); _illustResizeObs = null; }
@@ -136,21 +135,19 @@ const ThemeSystem = (() => {
         el.id = 'themeIllustration';
         el.innerHTML = _getSVG(theme);
 
-        // Posisikan persis menutupi messages-area, relatif ke chat-window
         function _positionIllus() {
             if (!area) return;
             const cwRect   = cw.getBoundingClientRect();
             const areaRect = area.getBoundingClientRect();
-            el.style.top    = (areaRect.top  - cwRect.top)  + "px";
-            el.style.left   = (areaRect.left - cwRect.left) + "px";
-            el.style.width  = areaRect.width  + "px";
-            el.style.height = areaRect.height + "px";
+            el.style.top    = (areaRect.top  - cwRect.top)  + 'px';
+            el.style.left   = (areaRect.left - cwRect.left) + 'px';
+            el.style.width  = areaRect.width  + 'px';
+            el.style.height = areaRect.height + 'px';
         }
 
         cw.appendChild(el);
         _positionIllus();
 
-        // Re-posisikan jika ukuran berubah
         _illustResizeObs = new ResizeObserver(_positionIllus);
         _illustResizeObs.observe(cw);
         if (area) _illustResizeObs.observe(area);
@@ -762,14 +759,18 @@ const ThemeSystem = (() => {
         _buildPanel();
         const panel = document.getElementById('themePicker');
         if (!panel) return;
-        // Posisikan di dekat tombol toggle
+        // Posisikan di bawah tombol toggle, rata kanan dengan tombol
         const btn = document.getElementById('themeToggleBtn');
         if (btn) {
             const rect = btn.getBoundingClientRect();
-            panel.style.right  = (window.innerWidth - rect.right) + 'px';
-            panel.style.bottom = (window.innerHeight - rect.top + 8) + 'px';
+            // Panel muncul di BAWAH tombol
+            const topPos = rect.bottom + 8;
+            // Rata kanan: sisi kanan panel sejajar sisi kanan tombol
+            const rightPos = window.innerWidth - rect.right;
+            panel.style.top    = topPos + 'px';
+            panel.style.right  = rightPos + 'px';
             panel.style.left   = 'auto';
-            panel.style.top    = 'auto';
+            panel.style.bottom = 'auto';
         }
         // Update selection sesuai tema chat aktif
         const current = _getTheme(_partnerId);
