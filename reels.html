@@ -846,7 +846,7 @@
                             ? '<span class="owner-badge">Kreator</span>' : '';
                         const replyUserNameEsc = reply.userName.replace(/'/g, "\\'");
                         repliesHtml += '<div class="reply-item" id="reply-' + reply.id + '">' +
-                            '<img src="' + (reply.userPhoto || 'https://via.placeholder.com/28') + '" alt="user" class="reply-avatar" onerror="this.src='https://via.placeholder.com/28'">' +
+                            '<img src="' + (reply.userPhoto || 'https://via.placeholder.com/28') + '" alt="user" class="reply-avatar" onerror="this.src=\'https://via.placeholder.com/28\'">' +
                             '<div class="reply-body">' +
                                 '<div class="comment-meta-row">' +
                                     '<span class="comment-username">' + escapeHtml(reply.userName) + '</span>' +
@@ -890,7 +890,7 @@
                     }
 
                     commentElement.innerHTML =
-                        '<img src="' + (comment.userPhoto || 'https://via.placeholder.com/32') + '" alt="user" class="comment-avatar" onerror="this.src='https://via.placeholder.com/32'">' +
+                        '<img src="' + (comment.userPhoto || 'https://via.placeholder.com/32') + '" alt="user" class="comment-avatar" onerror="this.src=\'https://via.placeholder.com/32\'">' +
                         '<div class="comment-body">' +
                             '<div class="comment-meta-row">' +
                                 '<span class="comment-username">' + escapeHtml(comment.userName) + '</span>' +
