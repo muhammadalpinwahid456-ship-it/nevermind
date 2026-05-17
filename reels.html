@@ -306,32 +306,42 @@
             filtered.sort((a, b) => b.timestamp - a.timestamp);
 
             if (filtered.length === 0) {
-                list.innerHTML = `<div class="notif-empty"><span>🔔</span><p>Belum ada notifikasi</p></div>`;
+                list.innerHTML = '<div class="notif-empty"><span>🔔</span><p>Belum ada notifikasi</p></div>';
                 return;
             }
 
             list.innerHTML = filtered.map(n => {
                 const isNew = !seenNotifIds.has(n.id);
-                const icon = n.type === 'like' ? '❤️' : '💬';
-                const sourceTag = n.source === 'notes' 
-                    ? '<span class="notif-source-tag notes-tag">Notes</span>' 
-                    : '<span class="notif-source-tag reels-tag">Reels</span>';
-                return `
-                <div class="notif-item ${isNew ? 'notif-unread' : ''}" onclick="onNotifClick('${n.id}')">
-                    <div class="notif-avatar-wrap">
-                        <img src="${n.actorPhoto || 'https://via.placeholder.com/44'}" alt="" class="notif-avatar" onerror="this.src='https://via.placeholder.com/44'">
-                        <span class="notif-type-icon">${icon}</span>
-                    </div>
-                    <div class="notif-body">
-                        <p class="notif-text"><strong>${escapeHtml(n.actorName)}</strong> ${n.message}</p>
-                        <div class="notif-meta">
-                            <span class="notif-time">${timeAgo(n.timestamp)}</span>
-                            ${sourceTag}
-                        </div>
-                    </div>
-                    ${n.mediaUrl ? `<div class="notif-thumb"><img src="${n.mediaUrl}" alt="" onerror="this.style.display='none'"></div>` : ''}
-                    ${isNew ? '<div class="notif-dot"></div>' : ''}
-                </div>`;
+                let icon = '💬';
+                if (n.type === 'like') icon = '❤️';
+                else if (n.type === 'reply') icon = '↩️';
+
+                const sourceTag = n.source === 'notes'
+                    ? '<span class="notif-source-tag notes-tag">Notes</span>'
+                    : n.type === 'reply'
+                        ? '<span class="notif-source-tag reply-tag">Balasan</span>'
+                        : '<span class="notif-source-tag reels-tag">Reels</span>';
+
+                const thumbHtml = n.mediaUrl
+                    ? '<div class="notif-thumb"><img src="' + n.mediaUrl + '" alt="" onerror="this.style.display='none'"></div>'
+                    : '';
+                const dotHtml = isNew ? '<div class="notif-dot"></div>' : '';
+
+                return '<div class="notif-item ' + (isNew ? 'notif-unread' : '') + '" onclick="onNotifClick('' + n.id + '')">' +
+                    '<div class="notif-avatar-wrap">' +
+                        '<img src="' + (n.actorPhoto || 'https://via.placeholder.com/44') + '" alt="" class="notif-avatar" onerror="this.src='https://via.placeholder.com/44'">' +
+                        '<span class="notif-type-icon">' + icon + '</span>' +
+                    '</div>' +
+                    '<div class="notif-body">' +
+                        '<p class="notif-text"><strong>' + escapeHtml(n.actorName) + '</strong> ' + n.message + '</p>' +
+                        '<div class="notif-meta">' +
+                            '<span class="notif-time">' + timeAgo(n.timestamp) + '</span>' +
+                            sourceTag +
+                        '</div>' +
+                    '</div>' +
+                    thumbHtml +
+                    dotHtml +
+                '</div>';
             }).join('');
         }
 
@@ -348,62 +358,97 @@
             notifUnsubscribes = [];
             allNotifications = [];
 
-            // Listen to all reels, look for likes & comments on MY reels
+            // Listen to all reels — cari likes, komentar di reels SAYA,
+            // dan balasan pada komentar SAYA di reels siapapun
             const reelsRef = ref(database, 'reels');
             const reelsNotifUnsub = onValue(reelsRef, (snapshot) => {
-                // Remove old reels/notes notifs and rebuild
                 allNotifications = allNotifications.filter(n => n.source !== 'reels');
 
                 if (snapshot.exists()) {
                     snapshot.forEach((childSnap) => {
                         const reel = childSnap.val();
                         const reelId = childSnap.key;
-
-                        // Only my reels
-                        if (reel.userId !== uid) return;
-
                         const thumbUrl = reel.mediaType === 'image' ? reel.mediaUrl : null;
+                        const isMyReel = reel.userId === uid;
 
-                        // Likes
-                        const likes = reel.likes || {};
-                        Object.entries(likes).forEach(([likerId, val]) => {
-                            if (likerId === uid || !val) return;
-                            const notifId = `reels_like_${reelId}_${likerId}`;
-                            allNotifications.push({
-                                id: notifId,
-                                source: 'reels',
-                                type: 'like',
-                                actorName: likerId, // will be enriched later
-                                actorPhoto: 'https://via.placeholder.com/44',
-                                message: 'menyukai reels kamu',
-                                mediaUrl: thumbUrl,
-                                timestamp: reel.timestamp || Date.now(),
-                                likerId,
-                                reelId
-                            });
+                        const comments = reel.comments || {};
+
+                        // Buat map commentId -> comment untuk lookup cepat
+                        const commentMap = {};
+                        Object.entries(comments).forEach(([cid, c]) => {
+                            commentMap[cid] = c;
                         });
 
-                        // Comments
-                        const comments = reel.comments || {};
+                        if (isMyReel) {
+                            // === LIKES di reels saya ===
+                            const likes = reel.likes || {};
+                            Object.entries(likes).forEach(([likerId, val]) => {
+                                if (likerId === uid || !val) return;
+                                const notifId = 'reels_like_' + reelId + '_' + likerId;
+                                allNotifications.push({
+                                    id: notifId,
+                                    source: 'reels',
+                                    type: 'like',
+                                    actorName: likerId,
+                                    actorPhoto: 'https://via.placeholder.com/44',
+                                    message: 'menyukai reels kamu',
+                                    mediaUrl: thumbUrl,
+                                    timestamp: reel.timestamp || Date.now(),
+                                    likerId,
+                                    reelId
+                                });
+                            });
+
+                            // === KOMENTAR TOP-LEVEL di reels saya ===
+                            Object.entries(comments).forEach(([commentId, comment]) => {
+                                if (comment.userId === uid) return;
+                                if (comment.parentCommentId) return; // skip replies, dihandle terpisah
+                                const notifId = 'reels_comment_' + reelId + '_' + commentId;
+                                const preview = comment.text && comment.text.length > 30
+                                    ? comment.text.substring(0, 30) + '...' : comment.text;
+                                allNotifications.push({
+                                    id: notifId,
+                                    source: 'reels',
+                                    type: 'comment',
+                                    actorName: comment.userName || 'Seseorang',
+                                    actorPhoto: comment.userPhoto || 'https://via.placeholder.com/44',
+                                    message: 'berkomentar: "' + preview + '"',
+                                    mediaUrl: thumbUrl,
+                                    timestamp: comment.timestamp || reel.timestamp || Date.now(),
+                                    reelId
+                                });
+                            });
+                        }
+
+                        // === BALASAN pada komentar SAYA (di reels siapapun) ===
                         Object.entries(comments).forEach(([commentId, comment]) => {
-                            if (comment.userId === uid) return;
-                            const notifId = `reels_comment_${reelId}_${commentId}`;
+                            if (!comment.parentCommentId) return; // hanya replies
+                            if (comment.userId === uid) return; // bukan balasan dari saya sendiri
+
+                            // Cek apakah komentar induknya milik saya
+                            const parentComment = commentMap[comment.parentCommentId];
+                            if (!parentComment) return;
+                            if (parentComment.userId !== uid) return;
+
+                            const notifId = 'reels_reply_' + reelId + '_' + commentId;
+                            const preview = comment.text && comment.text.length > 30
+                                ? comment.text.substring(0, 30) + '...' : comment.text;
                             allNotifications.push({
                                 id: notifId,
                                 source: 'reels',
-                                type: 'comment',
+                                type: 'reply',
                                 actorName: comment.userName || 'Seseorang',
                                 actorPhoto: comment.userPhoto || 'https://via.placeholder.com/44',
-                                message: `berkomentar: "${comment.text && comment.text.length > 30 ? comment.text.substring(0,30)+'...' : comment.text}"`,
+                                message: 'membalas komentar kamu: "' + preview + '"',
                                 mediaUrl: thumbUrl,
-                                timestamp: comment.timestamp || reel.timestamp || Date.now(),
-                                reelId
+                                timestamp: comment.timestamp || Date.now(),
+                                reelId,
+                                commentId: comment.parentCommentId
                             });
                         });
                     });
                 }
 
-                // Enrich actor names for likes from users table
                 enrichLikerNames(uid).then(() => {
                     updateNotifBadge();
                     if (document.getElementById('notifPanel').style.display !== 'none') {
