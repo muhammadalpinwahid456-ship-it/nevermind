@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="chat-notes.css">
     <link rel="stylesheet" href="chat-streak.css">
     <link rel="stylesheet" href="chat-doodle.css">
+    <link rel="stylesheet" href="chat-theme.css">
     <style>
         /* Auto-delete 24 jam: badge sisa waktu */
         .note-expires {
@@ -704,7 +705,10 @@
                                 <span id="userStatus" class="user-status">online</span>
                             </div>
                         </div>
-                        <button class="btn-close-chat" onclick="closeChat()">✕</button>
+                        <div class="chat-header-right" style="display:flex;align-items:center;gap:6px;">
+                            <button id="themeToggleBtn" title="Ganti Tema Chat">🎨</button>
+                            <button class="btn-close-chat" onclick="closeChat()">✕</button>
+                        </div>
                     </div>
 
                     <!-- MESSAGES AREA -->
@@ -1526,6 +1530,16 @@
                 };
                 _initDoodle();
 
+                // ===== THEME SYSTEM INIT =====
+                const _initTheme = () => {
+                    if (window.ThemeSystem) {
+                        window.ThemeSystem.init(user.uid);
+                    } else {
+                        setTimeout(_initTheme, 200);
+                    }
+                };
+                _initTheme();
+
                 // Cek dan hapus note expired saat login
                 checkAndDeleteExpiredNotes();
                 // Cek ulang setiap 1 menit
@@ -1694,6 +1708,8 @@
             if (window.StreakSystem) window.StreakSystem.renderHeaderStreak(userId);
             // ===== DOODLE: switch partner =====
             if (window.DoodleSystem) window.DoodleSystem.onSelectUser(userId);
+            // ===== THEME: terapkan tema chat ini =====
+            if (window.ThemeSystem) window.ThemeSystem.onSelectUser(userId);
         };
 
         // Load messages
@@ -2969,5 +2985,6 @@
     <script src="chat-notes.js"></script>
     <script src="chat-streak.js"></script>
     <script src="chat-doodle.js"></script>
+    <script src="chat-theme.js"></script>
 </body>
 </html>
