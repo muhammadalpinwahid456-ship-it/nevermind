@@ -37,7 +37,7 @@
 #themePicker {
     position: fixed;
     z-index: 9200;
-    top: 60px;
+    bottom: 80px;
     right: 20px;
     width: 320px;
     background: rgba(10, 12, 28, 0.96);
@@ -55,7 +55,7 @@
 #themePicker.open { display: flex; }
 
 @keyframes themePickerIn {
-    from { opacity: 0; transform: translateY(-10px) scale(0.96); }
+    from { opacity: 0; transform: translateY(14px) scale(0.96); }
     to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
@@ -121,11 +121,27 @@
     padding: 6px;
     gap: 3px;
     justify-content: flex-end;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Ilustrasi mini di dalam preview kartu */
+.theme-preview-illus {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+}
+.theme-preview-illus svg {
+    width: 100%;
+    height: 100%;
 }
 .tp-bubble {
     height: 8px;
     border-radius: 6px;
     opacity: 0.9;
+    position: relative;
+    z-index: 1;
 }
 .tp-bubble.sent  { align-self: flex-end; width: 60%; }
 .tp-bubble.recv  { align-self: flex-start; width: 50%; }
@@ -468,6 +484,157 @@
     #themePicker {
         width: calc(100vw - 32px);
         right: 16px;
-        bottom: auto;
+        bottom: 70px;
     }
+}
+
+/* ==========================================================
+   THEME ILLUSTRATION OVERLAY
+   Animasi/ilustrasi SVG diam di dalam messages-area.
+   Elemen #themeIllustration diinjeksi via JS.
+   ========================================================== */
+
+#themeIllustration {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+}
+#themeIllustration svg {
+    width: 100%;
+    height: 100%;
+}
+
+/* Pastikan messages scroll di atas ilustrasi */
+.chat-window[data-theme] .messages-area {
+    position: relative;
+}
+.chat-window[data-theme] .messages-area > *:not(#themeIllustration) {
+    position: relative;
+    z-index: 1;
+}
+
+/* ── SUNSET animations ── */
+@keyframes sunsetFloat1 {
+    0%,100% { transform: translateY(0px) rotate(0deg); opacity: 0.55; }
+    50%      { transform: translateY(-18px) rotate(8deg); opacity: 0.8; }
+}
+@keyframes sunsetFloat2 {
+    0%,100% { transform: translateY(0px); opacity: 0.35; }
+    50%      { transform: translateY(-14px); opacity: 0.6; }
+}
+@keyframes sunsetPulse {
+    0%,100% { transform: scale(1); opacity: 0.65; }
+    50%      { transform: scale(1.1); opacity: 1; }
+}
+@keyframes cloudDrift {
+    0%,100% { transform: translateX(0); }
+    50%      { transform: translateX(12px); }
+}
+
+/* ── OCEAN animations ── */
+@keyframes fishSwim {
+    0%   { transform: translateX(-60px) scaleX(1); opacity: 0; }
+    5%   { opacity: 0.8; }
+    48%  { transform: translateX(calc(100% + 10px)) scaleX(1); opacity: 0.8; }
+    49%  { transform: translateX(calc(100% + 10px)) scaleX(-1); opacity: 0; }
+    50%  { transform: translateX(calc(100% + 10px)) scaleX(-1); opacity: 0; }
+    55%  { opacity: 0.7; }
+    100% { transform: translateX(-60px) scaleX(-1); opacity: 0; }
+}
+@keyframes bubbleRise {
+    0%   { transform: translateY(0) scale(1); opacity: 0.7; }
+    100% { transform: translateY(-140px) scale(1.6); opacity: 0; }
+}
+@keyframes seaweedSway {
+    0%,100% { transform-origin: bottom center; transform: rotate(-6deg); }
+    50%      { transform-origin: bottom center; transform: rotate(6deg); }
+}
+@keyframes waveMove {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+}
+
+/* ── MIDNIGHT animations ── */
+@keyframes starTwinkle {
+    0%,100% { opacity: 0.15; r: 1.5; }
+    50%      { opacity: 1; r: 2.5; }
+}
+@keyframes starTwinkle2 {
+    0%,100% { opacity: 0.7; }
+    50%      { opacity: 0.1; }
+}
+@keyframes cometShoot {
+    0%   { stroke-dashoffset: 200; opacity: 0; }
+    10%  { opacity: 1; }
+    80%  { opacity: 0.9; }
+    100% { stroke-dashoffset: -200; opacity: 0; }
+}
+@keyframes moonGlow {
+    0%,100% { filter: drop-shadow(0 0 6px rgba(255,255,200,0.5)); }
+    50%      { filter: drop-shadow(0 0 18px rgba(255,255,220,0.95)); }
+}
+@keyframes planetOrbit {
+    0%   { transform: rotate(0deg) translateX(28px) rotate(0deg); }
+    100% { transform: rotate(360deg) translateX(28px) rotate(-360deg); }
+}
+
+/* ── FOREST animations ── */
+@keyframes leafFall1 {
+    0%   { transform: translate(0,-20px) rotate(0deg); opacity: 0.9; }
+    100% { transform: translate(35px,110%) rotate(200deg); opacity: 0; }
+}
+@keyframes leafFall2 {
+    0%   { transform: translate(0,-20px) rotate(60deg); opacity: 0.8; }
+    100% { transform: translate(-30px,110%) rotate(-150deg); opacity: 0; }
+}
+@keyframes leafSway {
+    0%,100% { transform: rotate(-10deg); }
+    50%     { transform: rotate(8deg); }
+}
+@keyframes firefly {
+    0%,100% { opacity: 0; transform: translate(0,0); }
+    25%     { opacity: 1; transform: translate(6px,-10px); }
+    75%     { opacity: 0.7; transform: translate(-4px,-6px); }
+}
+@keyframes fogDrift {
+    0%,100% { transform: translateX(0); opacity: 0.12; }
+    50%      { transform: translateX(14px); opacity: 0.22; }
+}
+
+/* ── ROSEGOLD animations ── */
+@keyframes petalFloat {
+    0%   { transform: translateY(-5%) rotate(0deg) translateX(0); opacity: 0; }
+    8%   { opacity: 0.85; }
+    90%  { opacity: 0.6; }
+    100% { transform: translateY(105%) rotate(320deg) translateX(50px); opacity: 0; }
+}
+@keyframes heartPulse {
+    0%,100% { transform: scale(1); opacity: 0.5; }
+    50%      { transform: scale(1.2); opacity: 0.85; }
+}
+@keyframes sparkle {
+    0%,100% { opacity: 0; transform: scale(0) rotate(0deg); }
+    50%      { opacity: 1; transform: scale(1) rotate(180deg); }
+}
+@keyframes ribbonFloat {
+    0%,100% { transform: translateY(0) rotate(-5deg); opacity: 0.4; }
+    50%      { transform: translateY(-10px) rotate(5deg); opacity: 0.7; }
+}
+
+/* ── MONO animations ── */
+@keyframes monoFloat {
+    0%,100% { transform: translateY(0) rotate(0deg); opacity: 0.12; }
+    50%      { transform: translateY(-22px) rotate(90deg); opacity: 0.28; }
+}
+@keyframes monoScan {
+    0%   { transform: translateY(-100%); opacity: 0; }
+    8%   { opacity: 0.06; }
+    92%  { opacity: 0.06; }
+    100% { transform: translateY(200%); opacity: 0; }
+}
+@keyframes monoBlink {
+    0%,100% { opacity: 0.1; }
+    50%      { opacity: 0.4; }
 }
