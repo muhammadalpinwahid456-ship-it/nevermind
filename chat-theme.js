@@ -741,9 +741,9 @@ const ThemeSystem = (() => {
         const btn = document.getElementById('themeToggleBtn');
         if (btn) {
             const rect = btn.getBoundingClientRect();
-            const panelH = 320; // perkiraan tinggi panel
+            const panelH = 340;
             let topPos = rect.top - panelH - 8;
-            if (topPos < 8) topPos = rect.bottom + 8; // fallback: tampil di bawah tombol
+            if (topPos < 8) topPos = rect.bottom + 8;
             panel.style.top    = topPos + 'px';
             panel.style.right  = (window.innerWidth - rect.right) + 'px';
             panel.style.left   = 'auto';
@@ -817,6 +817,19 @@ const ThemeSystem = (() => {
         window.addEventListener('resize', () => {
             if (_isOpen) _closePanel();
         });
+
+        // MutationObserver: re-inject ilustrasi jika messages-area di-clear
+        const area = document.getElementById('messagesArea') ||
+                     document.querySelector('.messages-area');
+        if (area) {
+            const obs = new MutationObserver(() => {
+                if (_partnerId && !document.getElementById('themeIllustration')) {
+                    const theme = _getTheme(_partnerId);
+                    if (theme !== DEFAULT) _applyIllustration(theme);
+                }
+            });
+            obs.observe(area, { childList: true });
+        }
 
     } // end init
 
