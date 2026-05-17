@@ -213,14 +213,14 @@ const ThemeSystem = (() => {
         _buildPanel();
         const panel = document.getElementById('themePicker');
         if (!panel) return;
-        // Posisikan di dekat tombol toggle
+        // Posisikan di bawah tombol toggle (bukan di atas)
         const btn = document.getElementById('themeToggleBtn');
         if (btn) {
             const rect = btn.getBoundingClientRect();
+            panel.style.top    = (rect.bottom + 8) + 'px';
             panel.style.right  = (window.innerWidth - rect.right) + 'px';
-            panel.style.bottom = (window.innerHeight - rect.top + 8) + 'px';
+            panel.style.bottom = 'auto';
             panel.style.left   = 'auto';
-            panel.style.top    = 'auto';
         }
         // Update selection sesuai tema chat aktif
         const current = _getTheme(_partnerId);
