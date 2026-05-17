@@ -491,7 +491,21 @@
         }
 
         // ===== AUTH CHECK =====
+        // Beri waktu Firebase restore sesi dari localStorage (maks 5 detik)
+        let authResolved = false;
+        const authFallbackTimer = setTimeout(() => {
+            if (!authResolved) {
+                authResolved = true;
+                document.getElementById('authCheck').style.display = 'flex';
+                document.getElementById('reelsContainer').style.display = 'none';
+            }
+        }, 5000);
+
         onAuthStateChanged(auth, (user) => {
+            if (authResolved && !user) return; // sudah tampil auth check, skip
+            authResolved = true;
+            clearTimeout(authFallbackTimer);
+
             if (user) {
                 currentUser = user;
                 console.log('✅ User logged in:', user.email);

@@ -18,7 +18,7 @@
     <a href="#company">COMPANY</a>
     <a href="#feature">FEATURES</a>
     <a href="chat.html">CHAT</a>
-    <a href="#reels">REELS</a>
+    <a href="#reels" onclick="goToReels(event)">REELS</a>
 </nav>
             <button class="btn-signing" id="headerAuthBtn" onclick="toggleAuthModal()">SIGNING</button>
         </header>
@@ -183,7 +183,7 @@
 <section id="reels" class="section">
     <h2>REELS</h2>
     <p>Bagikan momen Anda melalui video dan foto pendek yang kreatif!</p>
-    <a href="reels.html" class="btn-learn-more">Lihat Reels &gt;</a>
+    <a href="reels.html" class="btn-learn-more" onclick="goToReels(event)">Lihat Reels &gt;</a>
 </section>
 
     <!-- SIGNUP SECTION -->
@@ -553,6 +553,19 @@ onAuthStateChanged(auth, (user) => {
         authBtn.onclick = toggleAuthModal;
     }
 });
+
+// ================= GO TO REELS (AUTH GUARD) =================
+window.goToReels = function(e) {
+    if (e) e.preventDefault();
+    const user = auth.currentUser;
+    if (user) {
+        window.location.href = 'reels.html';
+    } else {
+        alert('⚠️ Silakan login terlebih dahulu untuk mengakses Reels!');
+        document.getElementById('authModal').classList.add('active');
+        switchTab('login');
+    }
+};
 
 // ================= MODAL =================
 window.toggleAuthModal = function () {
