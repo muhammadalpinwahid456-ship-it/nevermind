@@ -93,6 +93,9 @@
 #doodleMyCanvas.eraser-mode {
     cursor: cell;
 }
+#doodleMyCanvas.fill-mode {
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Ctext y='20' font-size='20'%3E🪣%3C/text%3E%3C/svg%3E") 0 20, crosshair;
+}
 
 /* ── Close Button ── */
 #doodleCloseBtn {
@@ -315,6 +318,10 @@
     background: rgba(167,139,250,0.35);
     color: #c4b5fd;
 }
+#doodleFillBtn.active {
+    background: rgba(251, 191, 36, 0.30);
+    color: #fbbf24;
+}
 .doodle-tool-btn:disabled {
     opacity: 0.3;
     cursor: default;
@@ -415,4 +422,27 @@
     #doodleCloseBtn { top: 12px; right: 12px; }
     #doodleLabel { font-size: 0.68rem; }
     #doodleLabelSub { display: none; }
+}
+
+/* ── Fill Tool Processing Indicator ── */
+#doodleFillIndicator {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.75);
+    color: #fbbf24;
+    font-size: 1.5rem;
+    padding: 14px 22px;
+    border-radius: 16px;
+    z-index: 9200;
+    pointer-events: none;
+    display: none;
+    backdrop-filter: blur(8px);
+    animation: fillSpin 0.6s linear infinite;
+}
+#doodleFillIndicator.visible { display: block; }
+@keyframes fillSpin {
+    0%   { transform: translate(-50%, -50%) rotate(0deg);   }
+    100% { transform: translate(-50%, -50%) rotate(360deg); }
 }

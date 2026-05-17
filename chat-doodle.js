@@ -34,6 +34,7 @@ const DoodleSystem = (() => {
 
     let _isDrawing   = false;
     let _eraser      = false;
+    let _fillMode    = false;   // Paint Bucket Tool
     let _color       = '#ff3b30';
     let _lineWidth   = 6;
     let _hasPublished = false;
@@ -119,6 +120,7 @@ const DoodleSystem = (() => {
                 </div>
                 <div class="doodle-divider"></div>
                 <button class="doodle-tool-btn" id="doodleEraserBtn" title="Eraser">&#129529;</button>
+                <button class="doodle-tool-btn" id="doodleFillBtn" title="Paint Bucket (isi area)">&#129524;</button>
                 <button class="doodle-tool-btn" id="doodleUndoBtn" title="Undo" disabled>&#8617;</button>
                 <button class="doodle-tool-btn" id="doodleRedoBtn" title="Redo" disabled>&#8618;</button>
                 <button class="doodle-tool-btn" id="doodleClearBtn" title="Hapus semua">&#128465;&#65039;</button>
@@ -196,6 +198,181 @@ const DoodleSystem = (() => {
         });
     }
 
+    // ── FLOOD FILL (Paint Bucket) ─────────────────────────────
+    /**
+     * Flood fill (BFS) pada _myCanvas di posisi klik (canvasX, canvasY).
+     * Hasilnya disimpan sebagai stroke bertipe "fill" agar bisa
+     * di-sync ke Firebase dan di-render ulang saat scroll.
+     *
+     * Stroke fill: { type:'fill', color, absX, absY, scrollTop, eraser:false }
+     * Saat render: gambar ulang hasil fill ke offscreen → copy ke canvas.
+     */
+    function _doFloodFill(canvasX, canvasY, absX, absY) {
+        // Snapshot untuk undo
+        _undoStack.push(JSON.parse(JSON.stringify(_myStrokes)));
+        if (_undoStack.length > 40) _undoStack.shift();
+        _redoStack = [];
+        _refreshUndoRedo();
+
+        const container = _getMessagesArea();
+        const scrollTop = container ? container.scrollTop : 0;
+
+        // Gabungkan dua canvas (partner + my) ke satu offscreen untuk sampling warna
+        const w = _myCanvas.width;
+        const h = _myCanvas.height;
+
+        // Buat offscreen gabungan: partner dulu, lalu my
+        const merged = document.createElement('canvas');
+        merged.width  = w;
+        merged.height = h;
+        const mCtx = merged.getContext('2d');
+        mCtx.drawImage(_partnerCanvas, 0, 0);
+        mCtx.drawImage(_myCanvas, 0, 0);
+
+        // Jalankan BFS fill pada canvas gabungan
+        _floodFillBFS(mCtx, Math.round(canvasX), Math.round(canvasY), _color, w, h);
+
+        // Ambil imageData hasil fill
+        const filled = mCtx.getImageData(0, 0, w, h);
+
+        // Bandingkan dengan canvas gabungan sebelum fill — ambil hanya piksel yang berubah
+        // lalu overlay ke _myCanvas
+        const before = (() => {
+            const tmp = document.createElement('canvas');
+            tmp.width = w; tmp.height = h;
+            const tc = tmp.getContext('2d');
+            tc.drawImage(_partnerCanvas, 0, 0);
+            tc.drawImage(_myCanvas, 0, 0);
+            return tc.getImageData(0, 0, w, h);
+        })();
+
+        // Patch: gambar hanya area yang berubah ke _myCtx
+        const diff = _myCtx.createImageData(w, h);
+        const fd = filled.data;
+        const bd = before.data;
+        const dd = diff.data;
+        let hasDiff = false;
+        for (let i = 0; i < fd.length; i += 4) {
+            if (fd[i] !== bd[i] || fd[i+1] !== bd[i+1] || fd[i+2] !== bd[i+2] || fd[i+3] !== bd[i+3]) {
+                dd[i]   = fd[i];
+                dd[i+1] = fd[i+1];
+                dd[i+2] = fd[i+2];
+                dd[i+3] = fd[i+3];
+                hasDiff = true;
+            } else {
+                // Transparan (tidak diubah)
+                dd[i] = dd[i+1] = dd[i+2] = dd[i+3] = 0;
+            }
+        }
+
+        if (!hasDiff) return; // Klik di area sudah sama warna
+
+        _myCtx.putImageData(diff, 0, 0);
+
+        // Simpan sebagai stroke tipe fill dengan toDataURL snapshot partial
+        // (lebih efisien: simpan sebagai "fill stroke" dengan absX/Y + scrollTop)
+        const fillStroke = {
+            type     : 'fill',
+            color    : _color,
+            absX     : absX,
+            absY     : absY,
+            scrollTop: scrollTop,
+            eraser   : false,
+            points   : [],   // kosong — digunakan oleh _renderStrokes (skip jika < 2)
+        };
+
+        // Simpan imageData snapshot sebagai dataURL di stroke
+        // Hanya bagian diff yang disimpan (lebih kecil ukurannya)
+        const snapCanvas = document.createElement('canvas');
+        snapCanvas.width  = w;
+        snapCanvas.height = h;
+        snapCanvas.getContext('2d').putImageData(diff, 0, 0);
+        fillStroke._fillSnapshot = snapCanvas.toDataURL('image/png', 0.8);
+        fillStroke._fillScrollTop = scrollTop; // scroll saat snapshot dibuat
+
+        _myStrokes.push(fillStroke);
+        _syncMyStrokes(false);
+    }
+
+    /** BFS flood fill langsung pada ImageData ctx */
+    function _floodFillBFS(ctx, startX, startY, fillColorHex, w, h) {
+        const imgData = ctx.getImageData(0, 0, w, h);
+        const data    = imgData.data;
+
+        // Parse target color
+        const fr = parseInt(fillColorHex.slice(1, 3), 16);
+        const fg = parseInt(fillColorHex.slice(3, 5), 16);
+        const fb = parseInt(fillColorHex.slice(5, 7), 16);
+        const fa = 255;
+
+        // Warna awal di titik klik
+        const idx0 = (startY * w + startX) * 4;
+        const tr = data[idx0];
+        const tg = data[idx0 + 1];
+        const tb = data[idx0 + 2];
+        const ta = data[idx0 + 3];
+
+        // Jika warna target sama dengan warna fill → skip
+        if (tr === fr && tg === fg && tb === fb && ta === fa) return;
+
+        const TOLERANCE = 30; // toleransi anti-aliasing
+        function _similar(i) {
+            return Math.abs(data[i]   - tr) <= TOLERANCE &&
+                   Math.abs(data[i+1] - tg) <= TOLERANCE &&
+                   Math.abs(data[i+2] - tb) <= TOLERANCE &&
+                   Math.abs(data[i+3] - ta) <= TOLERANCE;
+        }
+
+        const visited = new Uint8Array(w * h);
+        const queue   = [startX + startY * w];
+        visited[startX + startY * w] = 1;
+
+        while (queue.length > 0) {
+            const pos = queue.pop();
+            const px  = pos % w;
+            const py  = Math.floor(pos / w);
+            const i   = pos * 4;
+
+            data[i]   = fr;
+            data[i+1] = fg;
+            data[i+2] = fb;
+            data[i+3] = fa;
+
+            const neighbors = [
+                px > 0     && pos - 1,
+                px < w - 1 && pos + 1,
+                py > 0     && pos - w,
+                py < h - 1 && pos + w,
+            ];
+
+            for (const n of neighbors) {
+                if (n !== false && !visited[n]) {
+                    visited[n] = 1;
+                    if (_similar(n * 4)) queue.push(n);
+                }
+            }
+        }
+        ctx.putImageData(imgData, 0, 0);
+    }
+
+    // ── RENDER STROKES (override untuk handle fill type) ─────
+    // Tambahkan rendering untuk stroke fill setelah _renderStrokes biasa
+    function _renderFillStrokeToCtx(ctx, stroke, scrollTop) {
+        if (!stroke._fillSnapshot) return;
+        // Fill stroke disimpan dengan scroll tertentu.
+        // Saat render ulang: geser y agar tetap di posisi absolut yang sama.
+        const deltaScroll = stroke._fillScrollTop - scrollTop;
+        const img = new Image();
+        img.onload = () => {
+            ctx.save();
+            // Translate vertikal agar fill "menempel" di posisi absolut
+            ctx.translate(0, deltaScroll);
+            ctx.drawImage(img, 0, 0);
+            ctx.restore();
+        };
+        img.src = stroke._fillSnapshot;
+    }
+
     // ── RENDER STROKES KE CANVAS ──────────────────────────────
     // scrollTop = berapa pixel messages-area sudah di-scroll ke bawah
     // Koordinat absolut stroke dikurangi scrollTop = koordinat di canvas viewport
@@ -206,6 +383,12 @@ const DoodleSystem = (() => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         strokes.forEach(stroke => {
+            // ── Fill stroke: render snapshot dengan offset scroll ──
+            if (stroke.type === 'fill' && stroke._fillSnapshot) {
+                _renderFillStrokeToCtx(ctx, stroke, scrollTop);
+                return;
+            }
+
             if (!stroke.points || stroke.points.length < 2) return;
             ctx.save();
             if (stroke.eraser) {
@@ -258,10 +441,12 @@ const DoodleSystem = (() => {
     }
 
     function _setColor(c, el) {
-        _color  = c;
-        _eraser = false;
+        _color    = c;
+        _eraser   = false;
+        _fillMode = false;
         document.getElementById('doodleEraserBtn')?.classList.remove('active');
-        _myCanvas?.classList.remove('eraser-mode');
+        document.getElementById('doodleFillBtn')?.classList.remove('active');
+        _myCanvas?.classList.remove('eraser-mode', 'fill-mode');
         document.querySelectorAll('.doodle-color-swatch').forEach(s => s.classList.remove('selected'));
         el?.classList.add('selected');
         const picker = document.getElementById('doodleColorPicker');
@@ -275,8 +460,20 @@ const DoodleSystem = (() => {
 
         document.getElementById('doodleEraserBtn').addEventListener('click', () => {
             _eraser = !_eraser;
+            _fillMode = false;
             document.getElementById('doodleEraserBtn').classList.toggle('active', _eraser);
+            document.getElementById('doodleFillBtn')?.classList.remove('active');
             _myCanvas.classList.toggle('eraser-mode', _eraser);
+            _myCanvas.classList.remove('fill-mode');
+        });
+
+        document.getElementById('doodleFillBtn').addEventListener('click', () => {
+            _fillMode = !_fillMode;
+            _eraser   = false;
+            document.getElementById('doodleFillBtn').classList.toggle('active', _fillMode);
+            document.getElementById('doodleEraserBtn')?.classList.remove('active');
+            _myCanvas.classList.toggle('fill-mode', _fillMode);
+            _myCanvas.classList.remove('eraser-mode');
         });
 
         document.getElementById('doodleUndoBtn').addEventListener('click', _undo);
@@ -296,10 +493,12 @@ const DoodleSystem = (() => {
         });
 
         document.getElementById('doodleColorPicker').addEventListener('input', e => {
-            _color  = e.target.value;
-            _eraser = false;
+            _color    = e.target.value;
+            _eraser   = false;
+            _fillMode = false;
             document.getElementById('doodleEraserBtn')?.classList.remove('active');
-            _myCanvas?.classList.remove('eraser-mode');
+            document.getElementById('doodleFillBtn')?.classList.remove('active');
+            _myCanvas?.classList.remove('eraser-mode', 'fill-mode');
             document.querySelectorAll('.doodle-color-swatch').forEach(s => s.classList.remove('selected'));
         });
 
@@ -337,6 +536,12 @@ const DoodleSystem = (() => {
     function _startDraw(e) {
         e.preventDefault();
         const { canvasX, canvasY, absX, absY } = _getCanvasPos(e.clientX, e.clientY);
+
+        // ── FILL MODE: flood fill lalu simpan sebagai stroke khusus ──
+        if (_fillMode) {
+            _doFloodFill(canvasX, canvasY, absX, absY);
+            return;
+        }
 
         // Simpan snapshot untuk undo
         _undoStack.push(JSON.parse(JSON.stringify(_myStrokes)));
@@ -490,6 +695,18 @@ const DoodleSystem = (() => {
             const ctx = offscreen.getContext('2d');
 
             strokes.forEach(stroke => {
+                // Fill stroke: render snapshot ke offscreen di posisi absolut
+                if (stroke.type === 'fill' && stroke._fillSnapshot) {
+                    const img = new Image();
+                    img.src = stroke._fillSnapshot;
+                    // Geser agar sesuai posisi absolut (undo efek scroll saat snapshot)
+                    ctx.save();
+                    ctx.translate(0, stroke._fillScrollTop);
+                    ctx.drawImage(img, 0, 0);
+                    ctx.restore();
+                    return;
+                }
+
                 if (!stroke.points || stroke.points.length < 2) return;
                 ctx.save();
                 if (stroke.eraser) {
@@ -706,6 +923,8 @@ const DoodleSystem = (() => {
 
         _undoStack    = [];
         _redoStack    = [];
+        _fillMode     = false;
+        _eraser       = false;
         _refreshUndoRedo();
         _renderMyStrokes();
 
@@ -817,6 +1036,8 @@ const DoodleSystem = (() => {
         }
         _undoStack = [];
         _redoStack = [];
+        _fillMode  = false;
+        _eraser    = false;
         _refreshUndoRedo();
     }
 
