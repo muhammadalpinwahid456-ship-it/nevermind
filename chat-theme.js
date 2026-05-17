@@ -741,10 +741,13 @@ const ThemeSystem = (() => {
         const btn = document.getElementById('themeToggleBtn');
         if (btn) {
             const rect = btn.getBoundingClientRect();
+            const panelH = 320; // perkiraan tinggi panel
+            let topPos = rect.top - panelH - 8;
+            if (topPos < 8) topPos = rect.bottom + 8; // fallback: tampil di bawah tombol
+            panel.style.top    = topPos + 'px';
             panel.style.right  = (window.innerWidth - rect.right) + 'px';
-            panel.style.bottom = (window.innerHeight - rect.top + 8) + 'px';
             panel.style.left   = 'auto';
-            panel.style.top    = 'auto';
+            panel.style.bottom = 'auto';
         }
         // Update selection sesuai tema chat aktif
         const current = _getTheme(_partnerId);
@@ -814,6 +817,8 @@ const ThemeSystem = (() => {
         window.addEventListener('resize', () => {
             if (_isOpen) _closePanel();
         });
+
+    } // end init
 
     // ── PREVIEW SVG (mini, untuk kartu picker) ────────────────
     function _getPreviewSVG(themeId) {
