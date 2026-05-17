@@ -15,6 +15,30 @@
           ".write": "auth != null && ($drawNode === ('draw_' + auth.uid) || root.child('doodles').child($chatId).child($drawNode).child('from').val() === auth.uid)"
         }
       }
+    },
+    "reels": {
+      "$reelId": {
+        ".read": "auth != null",
+        ".write": "auth != null && (data.child('userId').val() === auth.uid || !data.exists())",
+        "comments": {
+          "$commentId": {
+            ".read": "auth != null",
+            ".write": "auth != null && (!data.exists() || data.child('userId').val() === auth.uid || root.child('reels').child($reelId).child('userId').val() === auth.uid)"
+          }
+        },
+        "likes": {
+          "$userId": {
+            ".read": "auth != null",
+            ".write": "auth != null && $userId === auth.uid"
+          }
+        }
+      }
+    },
+    "notifications": {
+      "$userId": {
+        ".read": "auth != null && $userId === auth.uid",
+        ".write": "auth != null"
+      }
     }
   }
 }

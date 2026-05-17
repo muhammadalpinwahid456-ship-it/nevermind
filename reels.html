@@ -101,6 +101,10 @@
                 <div class="comments-list" id="commentsList">
                     <!-- Comments akan ditampilkan di sini -->
                 </div>
+                <div class="reply-indicator" id="replyIndicator" style="display:none;">
+                    <span id="replyIndicatorText">Membalas <strong></strong></span>
+                    <button class="cancel-reply-btn" onclick="cancelReply(event)">✕ Batal</button>
+                </div>
                 <div class="comment-input-area">
                     <input 
                         type="text" 
@@ -236,6 +240,8 @@
         let commentsUnsubscribe = null;
         let loadTimeout = null;
         let currentVideoElement = null;
+        // Reply state
+        let replyTo = null; // { commentId, userName }
 
         // ===== NOTIFICATION SYSTEM =====
         let notifUnsubscribes = [];
@@ -716,6 +722,63 @@
             document.getElementById('commentCount').textContent = Object.keys(currentReel.comments || {}).length;
         }
 
+        // ===== REPLY FUNCTIONS =====
+        window.setReply = function(commentId, userName) {
+            replyTo = { commentId, userName };
+            const indicator = document.getElementById('replyIndicator');
+            const indicatorText = document.getElementById('replyIndicatorText');
+            indicator.style.display = 'flex';
+            indicatorText.innerHTML = 'Membalas <strong>@' + escapeHtml(userName) + '</strong>';
+            const input = document.getElementById('commentInput');
+            input.placeholder = 'Balas komentar @' + userName + '...';
+            input.focus();
+        };
+
+        window.cancelReply = function(event) {
+            if (event) event.stopPropagation();
+            replyTo = null;
+            document.getElementById('replyIndicator').style.display = 'none';
+            document.getElementById('commentInput').placeholder = 'Tambahkan komentar...';
+        };
+
+        window.toggleReplies = function(commentId) {
+            const repliesEl = document.getElementById('replies-' + commentId);
+            const toggleBtn = document.getElementById('toggle-replies-' + commentId);
+            if (!repliesEl) return;
+            const isHidden = repliesEl.style.display === 'none';
+            repliesEl.style.display = isHidden ? 'block' : 'none';
+            if (toggleBtn) {
+                const count = repliesEl.querySelectorAll('.reply-item').length;
+                toggleBtn.textContent = isHidden 
+                    ? '▲ Sembunyikan balasan' 
+                    : '▼ Lihat ' + count + ' balasan';
+            }
+        };
+
+        // Delete comment/reply
+        window.deleteComment = async function(commentId, isReply, parentId) {
+            const currentReel = allReels[currentReelIndex];
+            if (!currentReel) return;
+            if (!confirm('Hapus komentar ini?')) return;
+            try {
+                await remove(ref(database, 'reels/' + currentReel.id + '/comments/' + commentId));
+                if (!isReply) {
+                    const snap = await get(ref(database, 'reels/' + currentReel.id + '/comments'));
+                    if (snap.exists()) {
+                        const dels = [];
+                        snap.forEach(child => {
+                            if (child.val().parentCommentId === commentId) {
+                                dels.push(remove(ref(database, 'reels/' + currentReel.id + '/comments/' + child.key)));
+                            }
+                        });
+                        await Promise.all(dels);
+                    }
+                }
+            } catch(e) {
+                alert('Gagal menghapus: ' + e.message);
+            }
+        };
+
         // Load comments
         function loadComments() {
             const currentReel = allReels[currentReelIndex];
@@ -725,7 +788,7 @@
                 commentsUnsubscribe();
             }
 
-            const commentsRef = ref(database, `reels/${currentReel.id}/comments`);
+            const commentsRef = ref(database, 'reels/' + currentReel.id + '/comments');
             
             commentsUnsubscribe = onValue(commentsRef, (snapshot) => {
                 const commentsList = document.getElementById('commentsList');
@@ -741,29 +804,96 @@
                     });
                 }
 
-                commentsArray.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+                const topLevel = commentsArray.filter(c => !c.parentCommentId);
+                const replies = commentsArray.filter(c => !!c.parentCommentId);
 
-                if (commentsArray.length === 0) {
-                    commentsList.innerHTML = '<p class="no-comments">Belum ada komentar</p>';
+                topLevel.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+
+                if (topLevel.length === 0) {
+                    commentsList.innerHTML = '<p class="no-comments">Belum ada komentar. Jadilah yang pertama! 💬</p>';
+                    document.getElementById('commentCount').textContent = '0';
                     return;
                 }
 
-                commentsArray.forEach(comment => {
+                const isOwner = currentReel.userId === currentUser.uid;
+
+                topLevel.forEach(comment => {
+                    const commentReplies = replies
+                        .filter(r => r.parentCommentId === comment.id)
+                        .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+
+                    const canDeleteComment = comment.userId === currentUser.uid || isOwner;
+                    const timeStr = timeAgo(comment.timestamp || Date.now());
+
+                    let repliesHtml = '';
+                    commentReplies.forEach(reply => {
+                        const canDeleteReply = reply.userId === currentUser.uid || isOwner;
+                        const replyIsOwnerBadge = reply.userId === currentReel.userId
+                            ? '<span class="owner-badge">Kreator</span>' : '';
+                        const replyUserNameEsc = reply.userName.replace(/'/g, "\\'");
+                        repliesHtml += '<div class="reply-item" id="reply-' + reply.id + '">' +
+                            '<img src="' + (reply.userPhoto || 'https://via.placeholder.com/28') + '" alt="user" class="reply-avatar" onerror="this.src='https://via.placeholder.com/28'">' +
+                            '<div class="reply-body">' +
+                                '<div class="comment-meta-row">' +
+                                    '<span class="comment-username">' + escapeHtml(reply.userName) + '</span>' +
+                                    replyIsOwnerBadge +
+                                    '<span class="comment-time">' + timeAgo(reply.timestamp || Date.now()) + '</span>' +
+                                    (canDeleteReply ? '<button class="comment-delete-btn" onclick="deleteComment(\'' + reply.id + '\', true, \'' + comment.id + '\')">🗑</button>' : '') +
+                                '</div>' +
+                                '<p class="reply-text">' +
+                                    (reply.replyToName ? '<span class="mention-tag">@' + escapeHtml(reply.replyToName) + '</span> ' : '') +
+                                    escapeHtml(reply.text) +
+                                '</p>' +
+                                '<div class="comment-actions-row">' +
+                                    '<button class="reply-btn" onclick="setReply(\'' + comment.id + '\', \'' + replyUserNameEsc + '\')">↩ Balas</button>' +
+                                '</div>' +
+                            '</div>' +
+                        '</div>';
+                    });
+
+                    const ownerBadge = comment.userId === currentReel.userId
+                        ? '<span class="owner-badge">Kreator</span>' : '';
+                    const commentUserNameEsc = comment.userName.replace(/'/g, "\\'");
+
                     const commentElement = document.createElement('div');
                     commentElement.className = 'comment-item';
-                    commentElement.innerHTML = `
-                        <div class="comment-user">
-                            <img src="${comment.userPhoto || 'https://via.placeholder.com/32'}" alt="user" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;">
-                            <div>
-                                <h5>${escapeHtml(comment.userName)}</h5>
-                                <p>${escapeHtml(comment.text)}</p>
-                            </div>
-                        </div>
-                    `;
+                    commentElement.id = 'comment-' + comment.id;
+
+                    let repliesSection = '';
+                    if (commentReplies.length > 0) {
+                        repliesSection = '<div class="replies-section">' +
+                            '<button class="toggle-replies-btn" id="toggle-replies-' + comment.id + '" onclick="toggleReplies(\'' + comment.id + '\')">' +
+                                '▼ Lihat ' + commentReplies.length + ' balasan' +
+                            '</button>' +
+                            '<div class="replies-list" id="replies-' + comment.id + '" style="display:none;">' +
+                                repliesHtml +
+                            '</div>' +
+                        '</div>';
+                    } else {
+                        repliesSection = '<div class="replies-section">' +
+                            '<div class="replies-list" id="replies-' + comment.id + '" style="display:none;"></div>' +
+                        '</div>';
+                    }
+
+                    commentElement.innerHTML =
+                        '<img src="' + (comment.userPhoto || 'https://via.placeholder.com/32') + '" alt="user" class="comment-avatar" onerror="this.src='https://via.placeholder.com/32'">' +
+                        '<div class="comment-body">' +
+                            '<div class="comment-meta-row">' +
+                                '<span class="comment-username">' + escapeHtml(comment.userName) + '</span>' +
+                                ownerBadge +
+                                '<span class="comment-time">' + timeStr + '</span>' +
+                                (canDeleteComment ? '<button class="comment-delete-btn" onclick="deleteComment(\'' + comment.id + '\', false, null)">🗑</button>' : '') +
+                            '</div>' +
+                            '<p class="comment-text">' + escapeHtml(comment.text) + '</p>' +
+                            '<div class="comment-actions-row">' +
+                                '<button class="reply-btn" onclick="setReply(\'' + comment.id + '\', \'' + commentUserNameEsc + '\')">↩ Balas</button>' +
+                            '</div>' +
+                            repliesSection +
+                        '</div>';
                     commentsList.appendChild(commentElement);
                 });
 
-                commentsList.scrollTop = commentsList.scrollHeight;
+                document.getElementById('commentCount').textContent = commentsArray.length;
             });
         }
 
@@ -814,7 +944,7 @@
                 return;
             }
 
-            const newCommentRef = push(ref(database, `reels/${currentReel.id}/comments`));
+            const newCommentRef = push(ref(database, 'reels/' + currentReel.id + '/comments'));
             const commentData = {
                 userName: currentUserData.fullname || 'Unknown',
                 userPhoto: currentUserData.photoURL || 'https://via.placeholder.com/32',
@@ -823,11 +953,41 @@
                 timestamp: Date.now()
             };
 
+            // If replying, add parentCommentId & replyToName
+            if (replyTo) {
+                commentData.parentCommentId = replyTo.commentId;
+                commentData.replyToName = replyTo.userName;
+            }
+
             set(newCommentRef, commentData)
                 .then(() => {
                     console.log('✅ Komentar berhasil ditambahkan');
                     commentInput.value = '';
+
+                    // Auto-expand replies if this is a reply
+                    if (replyTo) {
+                        const repliesEl = document.getElementById('replies-' + replyTo.commentId);
+                        const toggleBtn = document.getElementById('toggle-replies-' + replyTo.commentId);
+                        if (repliesEl) repliesEl.style.display = 'block';
+                        cancelReply(null);
+                    }
+
                     commentInput.focus();
+
+                    // Send notification to reel owner if commenter is not the owner
+                    if (currentReel.userId !== currentUser.uid) {
+                        const notifRef = push(ref(database, 'notifications/' + currentReel.userId));
+                        set(notifRef, {
+                            type: 'reply_comment',
+                            actorName: currentUserData.fullname || 'Seseorang',
+                            actorPhoto: currentUserData.photoURL || '',
+                            actorId: currentUser.uid,
+                            reelId: currentReel.id,
+                            text: text.length > 40 ? text.substring(0,40)+'...' : text,
+                            timestamp: Date.now(),
+                            read: false
+                        }).catch(() => {});
+                    }
                 })
                 .catch((error) => {
                     console.error('❌ Error sending comment:', error);

@@ -1200,3 +1200,222 @@ body {
         height: 28px;
     }
 }
+
+/* ===== REPLY SYSTEM ===== */
+
+/* Comment item restructure */
+.comment-item {
+    padding: 12px 16px;
+    border-bottom: 1px solid #1e2530;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    animation: slideInComment 0.25s ease;
+}
+
+.comment-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 1.5px solid #2d333b;
+}
+
+.comment-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.comment-meta-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 3px;
+}
+
+.comment-username {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #e0e6ed;
+}
+
+.comment-time {
+    font-size: 0.75rem;
+    color: #6e7681;
+}
+
+.comment-text {
+    font-size: 0.88rem;
+    color: #c9d1d9;
+    line-height: 1.45;
+    word-wrap: break-word;
+    margin: 0 0 6px 0;
+}
+
+/* Owner badge */
+.owner-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    background: rgba(59, 130, 246, 0.18);
+    color: #60a5fa;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    padding: 1px 6px;
+    border-radius: 999px;
+    letter-spacing: 0.3px;
+    flex-shrink: 0;
+}
+
+/* Action row below comment */
+.comment-actions-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 4px;
+}
+
+.reply-btn {
+    background: none;
+    border: none;
+    color: #6e7681;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 2px 0;
+    transition: color 0.15s;
+}
+
+.reply-btn:hover {
+    color: #3b82f6;
+}
+
+/* Delete button */
+.comment-delete-btn {
+    background: none;
+    border: none;
+    color: #4a5568;
+    font-size: 0.78rem;
+    cursor: pointer;
+    padding: 1px 4px;
+    border-radius: 4px;
+    transition: all 0.15s;
+    margin-left: auto;
+    opacity: 0;
+}
+
+.comment-item:hover .comment-delete-btn,
+.reply-item:hover .comment-delete-btn {
+    opacity: 1;
+}
+
+.comment-delete-btn:hover {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+}
+
+/* Toggle replies button */
+.replies-section {
+    margin-top: 4px;
+}
+
+.toggle-replies-btn {
+    background: none;
+    border: none;
+    color: #3b82f6;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 4px 0;
+    transition: color 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.toggle-replies-btn:hover {
+    color: #60a5fa;
+}
+
+/* Replies list */
+.replies-list {
+    margin-top: 8px;
+    border-left: 2px solid #2d333b;
+    padding-left: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Individual reply */
+.reply-item {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    animation: slideInComment 0.2s ease;
+}
+
+.reply-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 1.5px solid #2d333b;
+}
+
+.reply-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.reply-text {
+    font-size: 0.85rem;
+    color: #c9d1d9;
+    line-height: 1.4;
+    word-wrap: break-word;
+    margin: 2px 0 4px 0;
+}
+
+/* Mention tag (@username) */
+.mention-tag {
+    color: #3b82f6;
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+/* Reply indicator bar (above input) */
+.reply-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: rgba(59, 130, 246, 0.08);
+    border-top: 1px solid rgba(59, 130, 246, 0.2);
+    font-size: 0.82rem;
+    color: #8b949e;
+    gap: 8px;
+}
+
+.reply-indicator strong {
+    color: #60a5fa;
+}
+
+.cancel-reply-btn {
+    background: none;
+    border: none;
+    color: #6e7681;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.cancel-reply-btn:hover {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+}
