@@ -114,21 +114,46 @@ const ThemeSystem = (() => {
     }
 
     // ── ILLUSTRATION INJECTION ────────────────────────────────
-    function _applyIllustration(theme) {
-        const area = document.getElementById('messagesArea') ||
-                     document.querySelector('.messages-area');
-        if (!area) return;
+    let _illustResizeObs = null;
 
+    function _applyIllustration(theme) {
         // Hapus ilustrasi lama
         const old = document.getElementById('themeIllustration');
         if (old) old.remove();
+        if (_illustResizeObs) { _illustResizeObs.disconnect(); _illustResizeObs = null; }
 
         if (theme === DEFAULT) return;
+
+        // Inject ke .chat-window agar tidak ikut scroll messages-area
+        const cw = document.querySelector('.chat-window') ||
+                   document.getElementById('chatWindow');
+        if (!cw) return;
+
+        const area = document.getElementById('messagesArea') ||
+                     document.querySelector('.messages-area');
 
         const el = document.createElement('div');
         el.id = 'themeIllustration';
         el.innerHTML = _getSVG(theme);
-        area.insertBefore(el, area.firstChild);
+
+        // Posisikan persis menutupi messages-area, relatif ke chat-window
+        function _positionIllus() {
+            if (!area) return;
+            const cwRect   = cw.getBoundingClientRect();
+            const areaRect = area.getBoundingClientRect();
+            el.style.top    = (areaRect.top  - cwRect.top)  + "px";
+            el.style.left   = (areaRect.left - cwRect.left) + "px";
+            el.style.width  = areaRect.width  + "px";
+            el.style.height = areaRect.height + "px";
+        }
+
+        cw.appendChild(el);
+        _positionIllus();
+
+        // Re-posisikan jika ukuran berubah
+        _illustResizeObs = new ResizeObserver(_positionIllus);
+        _illustResizeObs.observe(cw);
+        if (area) _illustResizeObs.observe(area);
     }
 
     function _getSVG(theme) {
@@ -741,13 +766,10 @@ const ThemeSystem = (() => {
         const btn = document.getElementById('themeToggleBtn');
         if (btn) {
             const rect = btn.getBoundingClientRect();
-            const panelH = 340;
-            let topPos = rect.top - panelH - 8;
-            if (topPos < 8) topPos = rect.bottom + 8;
-            panel.style.top    = topPos + 'px';
             panel.style.right  = (window.innerWidth - rect.right) + 'px';
+            panel.style.bottom = (window.innerHeight - rect.top + 8) + 'px';
             panel.style.left   = 'auto';
-            panel.style.bottom = 'auto';
+            panel.style.top    = 'auto';
         }
         // Update selection sesuai tema chat aktif
         const current = _getTheme(_partnerId);
@@ -819,16 +841,16 @@ const ThemeSystem = (() => {
         });
 
         // MutationObserver: re-inject ilustrasi jika messages-area di-clear
-        const area = document.getElementById('messagesArea') ||
-                     document.querySelector('.messages-area');
-        if (area) {
-            const obs = new MutationObserver(() => {
+        const _area = document.getElementById('messagesArea') ||
+                      document.querySelector('.messages-area');
+        if (_area) {
+            const _obs = new MutationObserver(() => {
                 if (_partnerId && !document.getElementById('themeIllustration')) {
                     const theme = _getTheme(_partnerId);
                     if (theme !== DEFAULT) _applyIllustration(theme);
                 }
             });
-            obs.observe(area, { childList: true });
+            _obs.observe(_area, { childList: true });
         }
 
     } // end init

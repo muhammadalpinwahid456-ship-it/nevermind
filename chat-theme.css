@@ -351,8 +351,7 @@
 /* Background chat area */
 .chat-window[data-theme] .messages-area {
     background: var(--tw-bg) !important;
-    background-image: unset !important;
-    position: relative !important;
+    background-image: none !important;
 }
 
 /* Header chat (nama user) */
@@ -497,23 +496,34 @@
 
 #themeIllustration {
     position: absolute;
-    inset: 0;
     pointer-events: none;
-    z-index: 0;
+    z-index: 1;
     overflow: hidden;
+    /* top/left/width/height diset via JS agar pas di atas messages-area */
 }
 #themeIllustration svg {
     width: 100%;
     height: 100%;
+    display: block;
 }
 
-/* Pastikan messages scroll di atas ilustrasi */
-.chat-window[data-theme] .messages-area {
+/* chat-window harus position:relative agar ilustrasi absolute bisa menempel */
+.chat-window[data-theme] {
     position: relative;
 }
-.chat-window[data-theme] .messages-area > *:not(#themeIllustration) {
+
+/* Pastikan pesan-pesan tampil di atas ilustrasi */
+.chat-window[data-theme] .messages-area {
     position: relative;
-    z-index: 1;
+    z-index: 2;
+}
+
+/* Pastikan bubble tetap terlihat di atas ilustrasi */
+.chat-window[data-theme] .messages-area .message,
+.chat-window[data-theme] .messages-area .date-separator-label,
+.chat-window[data-theme] .messages-area .no-messages {
+    position: relative;
+    z-index: 2;
 }
 
 /* ── SUNSET animations ── */
