@@ -316,32 +316,33 @@
                 if (n.type === 'like') icon = '❤️';
                 else if (n.type === 'reply') icon = '↩️';
 
-                const sourceTag = n.source === 'notes'
-                    ? '<span class="notif-source-tag notes-tag">Notes</span>'
-                    : n.type === 'reply'
-                        ? '<span class="notif-source-tag reply-tag">Balasan</span>'
-                        : '<span class="notif-source-tag reels-tag">Reels</span>';
+                let sourceTag = '<span class="notif-source-tag reels-tag">Reels</span>';
+                if (n.source === 'notes') sourceTag = '<span class="notif-source-tag notes-tag">Notes</span>';
+                else if (n.type === 'reply') sourceTag = '<span class="notif-source-tag reply-tag">Balasan</span>';
 
                 const thumbHtml = n.mediaUrl
-                    ? '<div class="notif-thumb"><img src="' + n.mediaUrl + '" alt="" onerror="this.style.display='none'"></div>'
+                    ? `<div class="notif-thumb"><img src="${n.mediaUrl}" alt="" onerror="this.style.display='none'"></div>`
                     : '';
                 const dotHtml = isNew ? '<div class="notif-dot"></div>' : '';
+                const unreadClass = isNew ? 'notif-unread' : '';
+                const safeId = (n.id || '').replace(/'/g, "\\'");
+                const safePhoto = (n.actorPhoto || 'https://via.placeholder.com/44').replace(/'/g, "\\'");
 
-                return '<div class="notif-item ' + (isNew ? 'notif-unread' : '') + '" onclick="onNotifClick('' + n.id + '')">' +
-                    '<div class="notif-avatar-wrap">' +
-                        '<img src="' + (n.actorPhoto || 'https://via.placeholder.com/44') + '" alt="" class="notif-avatar" onerror="this.src='https://via.placeholder.com/44'">' +
-                        '<span class="notif-type-icon">' + icon + '</span>' +
-                    '</div>' +
-                    '<div class="notif-body">' +
-                        '<p class="notif-text"><strong>' + escapeHtml(n.actorName) + '</strong> ' + n.message + '</p>' +
-                        '<div class="notif-meta">' +
-                            '<span class="notif-time">' + timeAgo(n.timestamp) + '</span>' +
-                            sourceTag +
-                        '</div>' +
-                    '</div>' +
-                    thumbHtml +
-                    dotHtml +
-                '</div>';
+                return `<div class="notif-item ${unreadClass}" onclick="onNotifClick('${safeId}')">
+                    <div class="notif-avatar-wrap">
+                        <img src="${n.actorPhoto || 'https://via.placeholder.com/44'}" alt="" class="notif-avatar" onerror="this.src='https://via.placeholder.com/44'">
+                        <span class="notif-type-icon">${icon}</span>
+                    </div>
+                    <div class="notif-body">
+                        <p class="notif-text"><strong>${escapeHtml(n.actorName)}</strong> ${n.message}</p>
+                        <div class="notif-meta">
+                            <span class="notif-time">${timeAgo(n.timestamp)}</span>
+                            ${sourceTag}
+                        </div>
+                    </div>
+                    ${thumbHtml}
+                    ${dotHtml}
+                </div>`;
             }).join('');
         }
 
