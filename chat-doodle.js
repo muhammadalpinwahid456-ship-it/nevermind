@@ -846,30 +846,85 @@ const DoodleSystem = (() => {
         document.getElementById('doodleToggleBtn')?.classList.remove('active');
         _hidePartnerIndicator();
 
-        // ── Restore state partner baru jika ada ─────────────
+        _undoStack = [];
+        _redoStack = [];
+
+        // ── Ada cache? (pindah tab dalam sesi yang sama) ─────
         const saved = _chatStates.get(userId);
         if (saved) {
-            _myStrokes      = saved.myStrokes;
-            _partnerStrokes = saved.partnerStrokes;
-            _hasPublished   = saved.hasPublished;
+            _myStrokes      = saved.myStrokes      || [];
+            _partnerStrokes = saved.partnerStrokes || [];
+            _hasPublished   = saved.hasPublished   || false;
+            _refreshUndoRedo();
+            if (_overlay) {
+                _positionOverlay();
+                _resizeCanvases();
+                _renderMyStrokes();
+                _renderPartnerStrokes();
+            }
+            _listenPartnerNode();
         } else {
+            // ── Tidak ada cache → fresh load / setelah refresh ──────────
+            // Reset dulu, lalu ambil data milik sendiri dari Firebase.
             _myStrokes      = [];
             _partnerStrokes = [];
             _hasPublished   = false;
+            _refreshUndoRedo();
+            // Restore doodle milik sendiri (jika ada) sebelum listen partner
+            _restoreSelfDoodleOnLoad();
+            _listenPartnerNode();
         }
-        _undoStack = [];
-        _redoStack = [];
-        _refreshUndoRedo();
+    }
 
-        // Render ulang jika overlay masih ada
-        if (_overlay) {
-            _positionOverlay();
-            _resizeCanvases();
-            _renderMyStrokes();
-            _renderPartnerStrokes();
-        }
+    // ── RESTORE DOODLE SENDIRI SETELAH REFRESH ────────────────
+    // Dipanggil saat tidak ada cache (kondisi fresh / setelah refresh).
+    // Ambil snapshot dari Firebase:
+    //   published=true  → tampilkan langsung di overlay view-only
+    //   published=false → muat ke _myStrokes diam-diam (lanjut saat buka doodle)
+    function _restoreSelfDoodleOnLoad() {
+        if (!_db || !_myUid || !_partnerId) return;
+        const { ref, get } = _fb;
+        const snap_partnerId = _partnerId;   // snapshot saat fungsi dipanggil
 
-        _listenPartnerNode();
+        get(ref(_db, _drawPath(_myUid))).then(snap => {
+            // Guard: user sudah pindah ke chat lain → abaikan
+            if (_partnerId !== snap_partnerId) return;
+            if (!snap.exists()) return;
+
+            const data = snap.val();
+            if (!data || data.cleared || !Array.isArray(data.strokes) || data.strokes.length === 0) return;
+
+            _myStrokes    = data.strokes;
+            _hasPublished = !!data.published;
+
+            // Perbarui cache
+            const s = _chatStates.get(_partnerId) || {};
+            _chatStates.set(_partnerId, {
+                ...s,
+                myStrokes   : JSON.parse(JSON.stringify(_myStrokes)),
+                hasPublished: _hasPublished,
+            });
+
+            if (data.published) {
+                // Doodle sudah dikirim → tampilkan view-only otomatis
+                if (!_overlay || !document.getElementById('doodleOverlay')) {
+                    _buildOverlay();
+                } else {
+                    _positionOverlay();
+                    _resizeCanvases();
+                }
+                _overlay.classList.remove('doodle-active');
+                _overlay.classList.add('doodle-view-only');
+                _renderMyStrokes();
+                _attachScrollForViewOnly();
+                _listenSelfNode();   // dengarkan perubahan real-time pada node sendiri
+            } else {
+                // Draft belum dikirim → render canvas (overlay tetap tersembunyi)
+                if (_overlay) _renderMyStrokes();
+            }
+        }).catch(err => {
+            console.warn('[DoodleSystem] _restoreSelfDoodleOnLoad error:', err);
+        });
     }
 
     // ── VIEWER ────────────────────────────────────────────────
