@@ -229,22 +229,15 @@ const DoodleSystem = (() => {
         mCtx.drawImage(_partnerCanvas, 0, 0);
         mCtx.drawImage(_myCanvas, 0, 0);
 
+        // ── FIX BUG 1: Snapshot "before" harus diambil SEBELUM BFS dijalankan ──
+        // Sebelumnya before diambil setelah BFS → before == filled → diff selalu kosong
+        const before = mCtx.getImageData(0, 0, w, h);
+
         // Jalankan BFS fill pada canvas gabungan
         _floodFillBFS(mCtx, Math.round(canvasX), Math.round(canvasY), _color, w, h);
 
         // Ambil imageData hasil fill
         const filled = mCtx.getImageData(0, 0, w, h);
-
-        // Bandingkan dengan canvas gabungan sebelum fill — ambil hanya piksel yang berubah
-        // lalu overlay ke _myCanvas
-        const before = (() => {
-            const tmp = document.createElement('canvas');
-            tmp.width = w; tmp.height = h;
-            const tc = tmp.getContext('2d');
-            tc.drawImage(_partnerCanvas, 0, 0);
-            tc.drawImage(_myCanvas, 0, 0);
-            return tc.getImageData(0, 0, w, h);
-        })();
 
         // Patch: gambar hanya area yang berubah ke _myCtx
         const diff = _myCtx.createImageData(w, h);
@@ -267,28 +260,27 @@ const DoodleSystem = (() => {
 
         if (!hasDiff) return; // Klik di area sudah sama warna
 
-        _myCtx.putImageData(diff, 0, 0);
+        // ── FIX BUG 2: putImageData menimpa seluruh canvas (termasuk stroke lain).
+        // Harus composite ke _myCtx dengan drawImage dari offscreen temp, bukan putImageData langsung.
+        const diffCanvas = document.createElement('canvas');
+        diffCanvas.width  = w;
+        diffCanvas.height = h;
+        diffCanvas.getContext('2d').putImageData(diff, 0, 0);
+        _myCtx.drawImage(diffCanvas, 0, 0);
 
-        // Simpan sebagai stroke tipe fill dengan toDataURL snapshot partial
-        // (lebih efisien: simpan sebagai "fill stroke" dengan absX/Y + scrollTop)
+        // FIX BUG 3: gunakan diffCanvas yang sudah dibuat, tidak perlu canvas baru lagi
+        // FIX BUG 4: gunakan nama field tanpa underscore agar lolos Firebase rules/serialization
         const fillStroke = {
-            type     : 'fill',
-            color    : _color,
-            absX     : absX,
-            absY     : absY,
-            scrollTop: scrollTop,
-            eraser   : false,
-            points   : [],   // kosong — digunakan oleh _renderStrokes (skip jika < 2)
+            type         : 'fill',
+            color        : _color,
+            absX         : absX,
+            absY         : absY,
+            scrollTop    : scrollTop,
+            eraser       : false,
+            points       : [],
+            fillSnapshot : diffCanvas.toDataURL('image/png', 0.8),
+            fillScrollTop: scrollTop,
         };
-
-        // Simpan imageData snapshot sebagai dataURL di stroke
-        // Hanya bagian diff yang disimpan (lebih kecil ukurannya)
-        const snapCanvas = document.createElement('canvas');
-        snapCanvas.width  = w;
-        snapCanvas.height = h;
-        snapCanvas.getContext('2d').putImageData(diff, 0, 0);
-        fillStroke._fillSnapshot = snapCanvas.toDataURL('image/png', 0.8);
-        fillStroke._fillScrollTop = scrollTop; // scroll saat snapshot dibuat
 
         _myStrokes.push(fillStroke);
         _syncMyStrokes(false);
@@ -356,21 +348,32 @@ const DoodleSystem = (() => {
     }
 
     // ── RENDER STROKES (override untuk handle fill type) ─────
-    // Tambahkan rendering untuk stroke fill setelah _renderStrokes biasa
+    // FIX BUG 5 (KRITIS): onload async menyebabkan fill tidak tampil saat re-render
+    // karena clearRect dipanggil setelah onload selesai.
+    // Solusi: cache Image object di stroke, gambar sinkron jika sudah loaded,
+    // atau trigger re-render ulang saat load selesai pertama kali.
     function _renderFillStrokeToCtx(ctx, stroke, scrollTop) {
-        if (!stroke._fillSnapshot) return;
-        // Fill stroke disimpan dengan scroll tertentu.
-        // Saat render ulang: geser y agar tetap di posisi absolut yang sama.
-        const deltaScroll = stroke._fillScrollTop - scrollTop;
-        const img = new Image();
-        img.onload = () => {
-            ctx.save();
-            // Translate vertikal agar fill "menempel" di posisi absolut
-            ctx.translate(0, deltaScroll);
-            ctx.drawImage(img, 0, 0);
-            ctx.restore();
-        };
-        img.src = stroke._fillSnapshot;
+        if (!stroke.fillSnapshot) return;
+        const deltaScroll = stroke.fillScrollTop - scrollTop;
+
+        if (!stroke._cachedImg) {
+            const img = new Image();
+            stroke._cachedImg = img;
+            img.onload = () => {
+                // Gambar siap — render ulang agar urutan stroke tetap benar
+                _renderMyStrokes();
+                _renderPartnerStrokes();
+            };
+            img.src = stroke.fillSnapshot;
+        }
+
+        const img = stroke._cachedImg;
+        if (!img.complete || img.naturalWidth === 0) return; // belum siap, tunggu onload
+
+        ctx.save();
+        ctx.translate(0, deltaScroll);
+        ctx.drawImage(img, 0, 0);
+        ctx.restore();
     }
 
     // ── RENDER STROKES KE CANVAS ──────────────────────────────
@@ -384,7 +387,7 @@ const DoodleSystem = (() => {
 
         strokes.forEach(stroke => {
             // ── Fill stroke: render snapshot dengan offset scroll ──
-            if (stroke.type === 'fill' && stroke._fillSnapshot) {
+            if (stroke.type === 'fill' && stroke.fillSnapshot) {
                 _renderFillStrokeToCtx(ctx, stroke, scrollTop);
                 return;
             }
@@ -670,8 +673,16 @@ const DoodleSystem = (() => {
                 hasPublished: published === true,
             });
 
+            // FIX: Strip _cachedImg (DOM Image) sebelum kirim ke Firebase
+            const strokesForFirebase = isBlank ? null : _myStrokes.map(s => {
+                if (s.type !== 'fill') return s;
+                const clean = Object.assign({}, s);
+                delete clean._cachedImg;
+                return clean;
+            });
+
             set(ref(_db, _drawPath(_myUid)), {
-                strokes  : isBlank ? null : _myStrokes,
+                strokes  : strokesForFirebase,
                 image    : imageData,
                 from     : _myUid,
                 ts       : Date.now(),
@@ -696,12 +707,12 @@ const DoodleSystem = (() => {
 
             strokes.forEach(stroke => {
                 // Fill stroke: render snapshot ke offscreen di posisi absolut
-                if (stroke.type === 'fill' && stroke._fillSnapshot) {
+                if (stroke.type === 'fill' && stroke.fillSnapshot) {
                     const img = new Image();
-                    img.src = stroke._fillSnapshot;
+                    img.src = stroke.fillSnapshot;
                     // Geser agar sesuai posisi absolut (undo efek scroll saat snapshot)
                     ctx.save();
-                    ctx.translate(0, stroke._fillScrollTop);
+                    ctx.translate(0, stroke.fillScrollTop);
                     ctx.drawImage(img, 0, 0);
                     ctx.restore();
                     return;
