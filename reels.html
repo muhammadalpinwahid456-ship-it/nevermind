@@ -26,6 +26,13 @@
             </div>
             
             <nav class="nav-buttons">
+                <button class="nav-btn notif-btn" onclick="toggleNotifPanel()" title="Notifikasi" id="notifNavBtn">
+                    <span class="nav-icon notif-icon-wrap">
+                        🔔
+                        <span class="notif-badge" id="notifBadge" style="display:none;">0</span>
+                    </span>
+                    <span>Notifikasi</span>
+                </button>
                 <button class="nav-btn" onclick="openUploadModal()" title="Upload">
                     <span class="nav-icon">➕</span>
                     <span>Upload</span>
@@ -159,6 +166,29 @@
         </div>
     </div>
 
+    <!-- NOTIFICATION PANEL -->
+    <div id="notifPanel" class="notif-panel" style="display:none;">
+        <div class="notif-panel-header">
+            <h3>Notifikasi</h3>
+            <div class="notif-header-actions">
+                <button class="notif-mark-all" onclick="markAllRead()">Tandai semua dibaca</button>
+                <button class="notif-close-btn" onclick="toggleNotifPanel()">✕</button>
+            </div>
+        </div>
+        <div class="notif-tabs">
+            <button class="notif-tab active" onclick="switchNotifTab('all', this)">Semua</button>
+            <button class="notif-tab" onclick="switchNotifTab('reels', this)">Reels</button>
+            <button class="notif-tab" onclick="switchNotifTab('notes', this)">Notes</button>
+        </div>
+        <div class="notif-list" id="notifList">
+            <div class="notif-empty">
+                <span>🔔</span>
+                <p>Belum ada notifikasi</p>
+            </div>
+        </div>
+    </div>
+    <div id="notifOverlay" class="notif-overlay" onclick="toggleNotifPanel()" style="display:none;"></div>
+
     <!-- FIREBASE & CLOUDINARY SCRIPTS -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -207,6 +237,243 @@
         let loadTimeout = null;
         let currentVideoElement = null;
 
+        // ===== NOTIFICATION SYSTEM =====
+        let notifUnsubscribes = [];
+        let allNotifications = [];
+        let currentNotifTab = 'all';
+        let seenNotifIds = new Set(JSON.parse(localStorage.getItem('seenNotifs') || '[]'));
+
+        window.toggleNotifPanel = function() {
+            const panel = document.getElementById('notifPanel');
+            const overlay = document.getElementById('notifOverlay');
+            const isOpen = panel.style.display !== 'none';
+            panel.style.display = isOpen ? 'none' : 'flex';
+            overlay.style.display = isOpen ? 'none' : 'block';
+            if (!isOpen) {
+                renderNotifList();
+            }
+        };
+
+        window.switchNotifTab = function(tab, btn) {
+            currentNotifTab = tab;
+            document.querySelectorAll('.notif-tab').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderNotifList();
+        };
+
+        window.markAllRead = function() {
+            allNotifications.forEach(n => seenNotifIds.add(n.id));
+            localStorage.setItem('seenNotifs', JSON.stringify([...seenNotifIds]));
+            updateNotifBadge();
+            renderNotifList();
+        };
+
+        function updateNotifBadge() {
+            const unseen = allNotifications.filter(n => !seenNotifIds.has(n.id));
+            const badge = document.getElementById('notifBadge');
+            if (unseen.length > 0) {
+                badge.style.display = 'flex';
+                badge.textContent = unseen.length > 9 ? '9+' : unseen.length;
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+
+        function timeAgo(ts) {
+            const diff = Date.now() - ts;
+            const m = Math.floor(diff / 60000);
+            if (m < 1) return 'baru saja';
+            if (m < 60) return m + 'm';
+            const h = Math.floor(m / 60);
+            if (h < 24) return h + 'j';
+            const d = Math.floor(h / 24);
+            if (d < 7) return d + 'h';
+            return Math.floor(d / 7) + 'mg';
+        }
+
+        function renderNotifList() {
+            const list = document.getElementById('notifList');
+            let filtered = allNotifications;
+            if (currentNotifTab === 'reels') filtered = allNotifications.filter(n => n.source === 'reels');
+            if (currentNotifTab === 'notes') filtered = allNotifications.filter(n => n.source === 'notes');
+
+            filtered.sort((a, b) => b.timestamp - a.timestamp);
+
+            if (filtered.length === 0) {
+                list.innerHTML = `<div class="notif-empty"><span>🔔</span><p>Belum ada notifikasi</p></div>`;
+                return;
+            }
+
+            list.innerHTML = filtered.map(n => {
+                const isNew = !seenNotifIds.has(n.id);
+                const icon = n.type === 'like' ? '❤️' : '💬';
+                const sourceTag = n.source === 'notes' 
+                    ? '<span class="notif-source-tag notes-tag">Notes</span>' 
+                    : '<span class="notif-source-tag reels-tag">Reels</span>';
+                return `
+                <div class="notif-item ${isNew ? 'notif-unread' : ''}" onclick="onNotifClick('${n.id}')">
+                    <div class="notif-avatar-wrap">
+                        <img src="${n.actorPhoto || 'https://via.placeholder.com/44'}" alt="" class="notif-avatar" onerror="this.src='https://via.placeholder.com/44'">
+                        <span class="notif-type-icon">${icon}</span>
+                    </div>
+                    <div class="notif-body">
+                        <p class="notif-text"><strong>${escapeHtml(n.actorName)}</strong> ${n.message}</p>
+                        <div class="notif-meta">
+                            <span class="notif-time">${timeAgo(n.timestamp)}</span>
+                            ${sourceTag}
+                        </div>
+                    </div>
+                    ${n.mediaUrl ? `<div class="notif-thumb"><img src="${n.mediaUrl}" alt="" onerror="this.style.display='none'"></div>` : ''}
+                    ${isNew ? '<div class="notif-dot"></div>' : ''}
+                </div>`;
+            }).join('');
+        }
+
+        window.onNotifClick = function(id) {
+            seenNotifIds.add(id);
+            localStorage.setItem('seenNotifs', JSON.stringify([...seenNotifIds]));
+            updateNotifBadge();
+            renderNotifList();
+        };
+
+        function loadNotifications(uid) {
+            // Clear existing listeners
+            notifUnsubscribes.forEach(u => u());
+            notifUnsubscribes = [];
+            allNotifications = [];
+
+            // Listen to all reels, look for likes & comments on MY reels
+            const reelsRef = ref(database, 'reels');
+            const reelsNotifUnsub = onValue(reelsRef, (snapshot) => {
+                // Remove old reels/notes notifs and rebuild
+                allNotifications = allNotifications.filter(n => n.source !== 'reels');
+
+                if (snapshot.exists()) {
+                    snapshot.forEach((childSnap) => {
+                        const reel = childSnap.val();
+                        const reelId = childSnap.key;
+
+                        // Only my reels
+                        if (reel.userId !== uid) return;
+
+                        const thumbUrl = reel.mediaType === 'image' ? reel.mediaUrl : null;
+
+                        // Likes
+                        const likes = reel.likes || {};
+                        Object.entries(likes).forEach(([likerId, val]) => {
+                            if (likerId === uid || !val) return;
+                            const notifId = `reels_like_${reelId}_${likerId}`;
+                            allNotifications.push({
+                                id: notifId,
+                                source: 'reels',
+                                type: 'like',
+                                actorName: likerId, // will be enriched later
+                                actorPhoto: 'https://via.placeholder.com/44',
+                                message: 'menyukai reels kamu',
+                                mediaUrl: thumbUrl,
+                                timestamp: reel.timestamp || Date.now(),
+                                likerId,
+                                reelId
+                            });
+                        });
+
+                        // Comments
+                        const comments = reel.comments || {};
+                        Object.entries(comments).forEach(([commentId, comment]) => {
+                            if (comment.userId === uid) return;
+                            const notifId = `reels_comment_${reelId}_${commentId}`;
+                            allNotifications.push({
+                                id: notifId,
+                                source: 'reels',
+                                type: 'comment',
+                                actorName: comment.userName || 'Seseorang',
+                                actorPhoto: comment.userPhoto || 'https://via.placeholder.com/44',
+                                message: `berkomentar: "${comment.text && comment.text.length > 30 ? comment.text.substring(0,30)+'...' : comment.text}"`,
+                                mediaUrl: thumbUrl,
+                                timestamp: comment.timestamp || reel.timestamp || Date.now(),
+                                reelId
+                            });
+                        });
+                    });
+                }
+
+                // Enrich actor names for likes from users table
+                enrichLikerNames(uid).then(() => {
+                    updateNotifBadge();
+                    if (document.getElementById('notifPanel').style.display !== 'none') {
+                        renderNotifList();
+                    }
+                });
+            });
+            notifUnsubscribes.push(reelsNotifUnsub);
+
+            // Listen to notes likes
+            const notesRef = ref(database, 'notes');
+            const notesNotifUnsub = onValue(notesRef, (snapshot) => {
+                allNotifications = allNotifications.filter(n => n.source !== 'notes');
+                if (!snapshot.exists()) {
+                    updateNotifBadge();
+                    return;
+                }
+                // notes structure: notes/{chatId}/{noteId} or notes/{userId}
+                // We listen broadly and check if note belongs to current user
+                snapshot.forEach((chatSnap) => {
+                    chatSnap.forEach((noteSnap) => {
+                        const note = noteSnap.val();
+                        if (!note) return;
+                        if (note.userId !== uid && note.from !== uid) return;
+                        const likes = note.likes || {};
+                        Object.entries(likes).forEach(([likerId, val]) => {
+                            if (likerId === uid || !val) return;
+                            const notifId = `notes_like_${noteSnap.key}_${likerId}`;
+                            allNotifications.push({
+                                id: notifId,
+                                source: 'notes',
+                                type: 'like',
+                                actorName: likerId,
+                                actorPhoto: 'https://via.placeholder.com/44',
+                                message: 'menyukai notes kamu',
+                                mediaUrl: null,
+                                timestamp: (typeof val === 'number' ? val : note.timestamp) || Date.now(),
+                                likerId
+                            });
+                        });
+                    });
+                });
+
+                enrichLikerNames(uid).then(() => {
+                    updateNotifBadge();
+                    if (document.getElementById('notifPanel').style.display !== 'none') {
+                        renderNotifList();
+                    }
+                });
+            });
+            notifUnsubscribes.push(notesNotifUnsub);
+        }
+
+        async function enrichLikerNames(currentUid) {
+            const likerIds = [...new Set(
+                allNotifications
+                    .filter(n => n.type === 'like' && n.likerId)
+                    .map(n => n.likerId)
+            )];
+
+            await Promise.all(likerIds.map(async (lid) => {
+                try {
+                    const snap = await get(ref(database, 'users/' + lid));
+                    if (snap.exists()) {
+                        const u = snap.val();
+                        allNotifications.forEach(n => {
+                            if (n.likerId === lid) {
+                                n.actorName = u.fullname || u.displayName || lid;
+                                n.actorPhoto = u.photoURL || 'https://via.placeholder.com/44';
+                            }
+                        });
+                    }
+                } catch(e) {}
+            }));
+        }
+
         // TIMEOUT PROTECTION
         const LOAD_TIMEOUT = 10000;
 
@@ -235,6 +502,7 @@
 
                 loadCurrentUser();
                 loadAllReels();
+                loadNotifications(user.uid);
             } else {
                 console.log('❌ User not logged in');
                 document.getElementById('authCheck').style.display = 'flex';
