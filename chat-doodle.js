@@ -612,6 +612,42 @@ const DoodleSystem = (() => {
         });
     }
 
+    // ── MUAT STROKES SENDIRI DARI FIREBASE (saat buka tanpa cache) ──
+    // Jika ada strokes lama di Firebase (published atau draft), restore
+    // agar user bisa melanjutkan / menambah coretan di atas gambar lama.
+    function _loadMyStrokesFromFirebase() {
+        if (!_db || !_myUid || !_partnerId) {
+            _myStrokes    = [];
+            _hasPublished = false;
+            _renderMyStrokes();
+            return;
+        }
+        const { ref, get } = _fb;
+        get(ref(_db, _drawPath(_myUid))).then(snap => {
+            if (snap.exists()) {
+                const data = snap.val();
+                if (data && !data.cleared && Array.isArray(data.strokes) && data.strokes.length > 0) {
+                    _myStrokes    = data.strokes;
+                    _hasPublished = false;   // siap tambah coretan baru
+                    // Update cache
+                    const s = _chatStates.get(_partnerId) || {};
+                    _chatStates.set(_partnerId, { ...s, myStrokes: _myStrokes, hasPublished: false });
+                } else {
+                    _myStrokes    = [];
+                    _hasPublished = false;
+                }
+            } else {
+                _myStrokes    = [];
+                _hasPublished = false;
+            }
+            _renderMyStrokes();
+        }).catch(() => {
+            _myStrokes    = [];
+            _hasPublished = false;
+            _renderMyStrokes();
+        });
+    }
+
     // ── HELPER ────────────────────────────────────────────────
     function _showPartnerIndicator() {
         const ind = document.getElementById('doodlePartnerIndicator');
@@ -655,8 +691,19 @@ const DoodleSystem = (() => {
         _overlay.classList.remove('doodle-view-only');
         document.getElementById('doodleToggleBtn')?.classList.add('active');
 
-        _hasPublished = false;
-        _myStrokes    = [];
+        // ── PERBAIKAN: JANGAN reset _myStrokes saat buka ulang ──
+        // Strokes lama tetap dipertahankan (dari cache atau Firebase).
+        // Hanya reset jika memang belum pernah ada data sama sekali.
+        const saved = _chatStates.get(_partnerId);
+        if (!saved || !saved.myStrokes || saved.myStrokes.length === 0) {
+            // Tidak ada cache → coba muat dari Firebase dulu
+            _loadMyStrokesFromFirebase();
+        } else {
+            // Ada cache → restore, user bisa lanjut menggambar
+            _myStrokes    = JSON.parse(JSON.stringify(saved.myStrokes));
+            _hasPublished = false;   // buka ulang = siap tambah gambar baru
+        }
+
         _undoStack    = [];
         _redoStack    = [];
         _refreshUndoRedo();
@@ -682,7 +729,7 @@ const DoodleSystem = (() => {
         _hasPublished = true;
         _syncMyStrokes(true);
 
-        // Update cache
+        // Update cache — strokes TETAP disimpan agar bisa di-append berikutnya
         const s = _chatStates.get(_partnerId) || {};
         _chatStates.set(_partnerId, {
             ...s,
@@ -697,7 +744,7 @@ const DoodleSystem = (() => {
             _overlay?.classList.remove('doodle-active');
             _overlay?.classList.add('doodle-view-only');
             document.getElementById('doodleToggleBtn')?.classList.remove('active');
-            if (btn) { btn.textContent = 'Selesai ✓'; btn.disabled = false; }
+            if (btn) { btn.textContent = 'Tambah Doodle ✏️'; btn.disabled = false; }
             // Pasang scroll listener agar doodle pengirim tetap ikut scroll
             _attachScrollForViewOnly();
             _listenSelfNode();
@@ -707,6 +754,13 @@ const DoodleSystem = (() => {
     // ── DISMISS ───────────────────────────────────────────────
     function _dismissDoodle() {
         if (!_overlay) return;
+
+        // Konfirmasi jika ada strokes yang belum di-publish
+        if (_myStrokes.length > 0) {
+            const ok = confirm('Hapus semua doodle dan tutup? Gambar yang belum dikirim akan hilang.');
+            if (!ok) return;
+        }
+
         _overlay.classList.remove('doodle-active', 'doodle-view-only');
         document.getElementById('doodleToggleBtn')?.classList.remove('active');
         _hidePartnerIndicator();
@@ -746,13 +800,20 @@ const DoodleSystem = (() => {
         const container = _getMessagesArea();
         if (container) container.removeEventListener('scroll', _onScroll);
 
-        if (wasActive && !_hasPublished) {
-            _myStrokes = [];
-            _renderMyStrokes();
-            _syncMyStrokes(false);
-            // Reset cache juga
+        // ── PERBAIKAN: saat close, simpan strokes ke cache (JANGAN hapus) ──
+        // Strokes hanya di-clear ke Firebase jika user belum pernah menggambar apapun.
+        if (wasActive) {
+            // Simpan draft ke cache agar bisa dilanjutkan nanti
             const s = _chatStates.get(_partnerId) || {};
-            _chatStates.set(_partnerId, { ...s, myStrokes: [], hasPublished: false });
+            _chatStates.set(_partnerId, {
+                ...s,
+                myStrokes   : JSON.parse(JSON.stringify(_myStrokes)),
+                hasPublished: _hasPublished,
+            });
+            // Sync draft ke Firebase jika ada strokes (tidak dikirim sebagai "published")
+            if (_myStrokes.length > 0) {
+                _syncMyStrokes(false);
+            }
         }
         _undoStack = [];
         _redoStack = [];
