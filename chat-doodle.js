@@ -102,7 +102,7 @@ const DoodleSystem = (() => {
         _overlay.innerHTML = `
             <canvas id="doodlePartnerCanvas"></canvas>
             <canvas id="doodleMyCanvas"></canvas>
-            <button id="doodleCloseBtn" title="Tutup">&#10005;</button>
+            <button id="doodleCloseBtn" title="Tutup" style="display:none!important">&#10005;</button>
             <div id="doodleLabel">&#9998;&#65039; Menggambar...
                 <span id="doodleLabelSub">Scroll ke area yang ingin digambar, lalu coret!</span>
             </div>
@@ -125,6 +125,7 @@ const DoodleSystem = (() => {
                 <button class="doodle-tool-btn" id="doodleRedoBtn" title="Redo" disabled>&#8618;</button>
                 <button class="doodle-tool-btn" id="doodleClearBtn" title="Hapus semua">&#128465;&#65039;</button>
                 <div class="doodle-divider"></div>
+                <button id="doodleCancelBtn" style="padding:6px 14px;border-radius:20px;border:none;background:rgba(239,68,68,0.18);color:#f87171;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">Batal</button>
                 <button id="doodleFinishBtn">Selesai &#10003;</button>
             </div>
         `;
@@ -286,16 +287,19 @@ const DoodleSystem = (() => {
         _syncMyStrokes(false);
     }
 
-    /** BFS flood fill langsung pada ImageData ctx */
+    /**
+     * Scanline flood fill — mengisi area secara sempurna termasuk garis anti-aliased.
+     * Lebih baik dari BFS sederhana untuk outline yang digambar dengan canvas (ada blur tepi).
+     * Toleransi dinaikkan ke 60 agar piksel semi-transparan pada tepi outline ikut terisi.
+     */
     function _floodFillBFS(ctx, startX, startY, fillColorHex, w, h) {
         const imgData = ctx.getImageData(0, 0, w, h);
         const data    = imgData.data;
 
-        // Parse target color
+        // Parse fill color
         const fr = parseInt(fillColorHex.slice(1, 3), 16);
         const fg = parseInt(fillColorHex.slice(3, 5), 16);
         const fb = parseInt(fillColorHex.slice(5, 7), 16);
-        const fa = 255;
 
         // Warna awal di titik klik
         const idx0 = (startY * w + startX) * 4;
@@ -304,46 +308,72 @@ const DoodleSystem = (() => {
         const tb = data[idx0 + 2];
         const ta = data[idx0 + 3];
 
-        // Jika warna target sama dengan warna fill → skip
-        if (tr === fr && tg === fg && tb === fb && ta === fa) return;
+        // Jika warna target sama dengan fill → skip
+        if (tr === fr && tg === fg && tb === fb && ta === 255) return;
 
-        const TOLERANCE = 30; // toleransi anti-aliasing
-        function _similar(i) {
+        // Toleransi lebih besar untuk mengatasi anti-aliasing tepi outline
+        const TOLERANCE = 80;
+
+        function _matchTarget(i) {
             return Math.abs(data[i]   - tr) <= TOLERANCE &&
                    Math.abs(data[i+1] - tg) <= TOLERANCE &&
                    Math.abs(data[i+2] - tb) <= TOLERANCE &&
                    Math.abs(data[i+3] - ta) <= TOLERANCE;
         }
 
-        const visited = new Uint8Array(w * h);
-        const queue   = [startX + startY * w];
-        visited[startX + startY * w] = 1;
-
-        while (queue.length > 0) {
-            const pos = queue.pop();
-            const px  = pos % w;
-            const py  = Math.floor(pos / w);
-            const i   = pos * 4;
-
+        function _setPixel(i) {
             data[i]   = fr;
             data[i+1] = fg;
             data[i+2] = fb;
-            data[i+3] = fa;
+            data[i+3] = 255;
+        }
 
-            const neighbors = [
-                px > 0     && pos - 1,
-                px < w - 1 && pos + 1,
-                py > 0     && pos - w,
-                py < h - 1 && pos + w,
-            ];
+        // Scanline stack-based fill: lebih cepat dan mengisi area outline lebih bersih
+        const visited = new Uint8Array(w * h);
+        const stack   = [[startX, startY]];
 
-            for (const n of neighbors) {
-                if (n !== false && !visited[n]) {
-                    visited[n] = 1;
-                    if (_similar(n * 4)) queue.push(n);
+        while (stack.length > 0) {
+            let [x, y] = stack.pop();
+
+            // Geser ke kiri sejauh mungkin di baris ini
+            while (x > 0 && _matchTarget((y * w + x - 1) * 4)) x--;
+
+            let spanAbove = false;
+            let spanBelow = false;
+
+            // Isi ke kanan sampai batas
+            while (x < w) {
+                const pos = y * w + x;
+                const i   = pos * 4;
+                if (!_matchTarget(i) || visited[pos]) break;
+
+                visited[pos] = 1;
+                _setPixel(i);
+
+                // Cek baris atas
+                if (y > 0) {
+                    const posUp = (y - 1) * w + x;
+                    if (!visited[posUp] && _matchTarget(posUp * 4)) {
+                        if (!spanAbove) { stack.push([x, y - 1]); spanAbove = true; }
+                    } else {
+                        spanAbove = false;
+                    }
                 }
+
+                // Cek baris bawah
+                if (y < h - 1) {
+                    const posDown = (y + 1) * w + x;
+                    if (!visited[posDown] && _matchTarget(posDown * 4)) {
+                        if (!spanBelow) { stack.push([x, y + 1]); spanBelow = true; }
+                    } else {
+                        spanBelow = false;
+                    }
+                }
+
+                x++;
             }
         }
+
         ctx.putImageData(imgData, 0, 0);
     }
 
@@ -458,8 +488,18 @@ const DoodleSystem = (() => {
 
     // ── BIND EVENTS ───────────────────────────────────────────
     function _bindEvents() {
-        document.getElementById('doodleCloseBtn').addEventListener('click', _dismissDoodle);
+        // Tombol X disembunyikan — doodle yang sudah dikirim bersifat permanen
+        // document.getElementById('doodleCloseBtn') — hidden via style
         document.getElementById('doodleFinishBtn').addEventListener('click', finishDoodle);
+
+        // Tombol Batal: tutup doodle tanpa simpan (buang draft)
+        document.getElementById('doodleCancelBtn')?.addEventListener('click', () => {
+            if (_myStrokes.length > 0) {
+                const ok = confirm('Batalkan doodle? Coretan yang belum dikirim akan hilang.');
+                if (!ok) return;
+            }
+            closeDoodle();
+        });
 
         document.getElementById('doodleEraserBtn').addEventListener('click', () => {
             _eraser = !_eraser;
@@ -1021,35 +1061,38 @@ const DoodleSystem = (() => {
         _listenPartnerNode();
     }
 
+    // closeDoodle: tutup overlay, buang draft (dipanggil dari tombol Batal)
     function closeDoodle() {
         if (!_overlay) return;
-        const wasActive = _overlay.classList.contains('doodle-active');
         _overlay.classList.remove('doodle-active', 'doodle-view-only');
         document.getElementById('doodleToggleBtn')?.classList.remove('active');
+        _hidePartnerIndicator();
+
+        // Buang draft dari memori dan cache
+        _myStrokes    = [];
+        _undoStack    = [];
+        _redoStack    = [];
+        _hasPublished = false;
+        _fillMode     = false;
+        _eraser       = false;
+        _renderMyStrokes();
+        _refreshUndoRedo();
+
+        // Hapus cache draft (jangan hapus partnerStrokes)
+        const s = _chatStates.get(_partnerId) || {};
+        _chatStates.set(_partnerId, { ...s, myStrokes: [], hasPublished: false });
+
+        // Clear draft di Firebase (bukan published, jadi tidak permanen)
+        if (_db && _myUid && _partnerId) {
+            const { ref, set } = _fb;
+            set(ref(_db, _drawPath(_myUid)), {
+                strokes: null, image: null, from: _myUid, ts: Date.now(),
+                cleared: true, published: false, viewedBy: {},
+            }).catch(() => {});
+        }
 
         const container = _getMessagesArea();
         if (container) container.removeEventListener('scroll', _onScroll);
-
-        // ── PERBAIKAN: saat close, simpan strokes ke cache (JANGAN hapus) ──
-        // Strokes hanya di-clear ke Firebase jika user belum pernah menggambar apapun.
-        if (wasActive) {
-            // Simpan draft ke cache agar bisa dilanjutkan nanti
-            const s = _chatStates.get(_partnerId) || {};
-            _chatStates.set(_partnerId, {
-                ...s,
-                myStrokes   : JSON.parse(JSON.stringify(_myStrokes)),
-                hasPublished: _hasPublished,
-            });
-            // Sync draft ke Firebase jika ada strokes (tidak dikirim sebagai "published")
-            if (_myStrokes.length > 0) {
-                _syncMyStrokes(false);
-            }
-        }
-        _undoStack = [];
-        _redoStack = [];
-        _fillMode  = false;
-        _eraser    = false;
-        _refreshUndoRedo();
     }
 
     // ── ON SELECT USER ────────────────────────────────────────
