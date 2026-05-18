@@ -54,10 +54,11 @@ const DoodleSystem = (() => {
     let _partnerCanvas = null;
     let _partnerCtx    = null;
 
-    let _listenerPartner = null;
-    let _listenerSelf    = null;
-    let _syncTimeout     = null;
-    let _scrollRAF       = null;
+    let _listenerPartner    = null;
+    let _listenerSelf       = null;
+    let _syncTimeout        = null;
+    let _scrollRAF          = null;
+    let _isRestoringFromLoad = true;   // true selama proses restore awal, cegah toast palsu
 
     // Simpan state per partner (mode, strokes, dll)
     const _chatStates = new Map();
@@ -752,7 +753,18 @@ const DoodleSystem = (() => {
 
     // ── LISTEN: node PARTNER ──────────────────────────────────
     function _listenPartnerNode() {
-        if (!_db || !_myUid || !_partnerId) return;
+        if (!_db || !_partnerId) return;
+        // Jika _myUid belum siap, tunggu dulu (kasus fresh page load)
+        if (!_myUid) {
+            const wait = setInterval(() => {
+                if (window._myUid) {
+                    _myUid = window._myUid;
+                    clearInterval(wait);
+                    _listenPartnerNode();
+                }
+            }, 200);
+            return;
+        }
         if (_listenerPartner) { _listenerPartner(); _listenerPartner = null; }
 
         const { ref, onValue } = _fb;
@@ -786,7 +798,8 @@ const DoodleSystem = (() => {
                 _hidePartnerIndicator();
                 if (!_overlay?.classList.contains('doodle-active')) {
                     _overlay?.classList.add('doodle-view-only');
-                    _showPublishToast();
+                    // Toast hanya saat baru publish, bukan saat restore setelah refresh
+                    if (!_isRestoringFromLoad) _showPublishToast();
                     // Pasang scroll listener agar doodle ikut scroll di view-only
                     _attachScrollForViewOnly();
                 }
@@ -832,13 +845,14 @@ const DoodleSystem = (() => {
             const data = snap.val();
             if (!data || !data.published || data.from !== _myUid) return;
             if (data.strokes) {
-                _myStrokes = data.strokes;
+                _myStrokes    = data.strokes;
+                // FIX: selalu set _hasPublished = true saat listener konfirmasi data published
+                _hasPublished = true;
                 // Simpan ke cache
                 const s = _chatStates.get(_partnerId) || {};
                 _chatStates.set(_partnerId, { ...s, myStrokes: data.strokes, hasPublished: true });
                 _renderMyStrokes();
                 _overlay?.classList.add('doodle-view-only');
-                // Scroll listener agar doodle pengirim juga ikut scroll di view-only
                 _attachScrollForViewOnly();
             }
         });
@@ -1125,51 +1139,43 @@ const DoodleSystem = (() => {
         }
 
         // ── Selalu sinkron dari Firebase (cache bisa stale) ──────────
-        // _restoreSelfDoodleOnLoad dipanggil baik ada cache maupun tidak,
-        // agar doodle yang sudah published tampil kembali tanpa perlu refresh.
-        _restoreSelfDoodleOnLoad();
+        // Jika _myUid belum siap (fresh page load), tunggu dulu baru restore.
+        _isRestoringFromLoad = true;
+        if (_myUid) {
+            _restoreSelfDoodleOnLoad();
+        } else {
+            const waitAndRestore = setInterval(() => {
+                if (window._myUid) {
+                    _myUid = window._myUid;
+                    clearInterval(waitAndRestore);
+                    if (_partnerId === userId) _restoreSelfDoodleOnLoad();
+                }
+            }, 200);
+        }
         _listenPartnerNode();
     }
 
     // ── RESTORE DOODLE SENDIRI DARI FIREBASE ─────────────────
-    // Selalu dipanggil saat onSelectUser — baik ada cache maupun tidak.
-    // Firebase adalah sumber kebenaran; cache hanya untuk render cepat sementara.
-    //
-    //   published=true  → tampilkan view-only overlay otomatis
-    //   published=false → muat ke _myStrokes diam-diam (overlay tetap hidden)
-    //   cleared / kosong → tidak ada yang dilakukan
+    // Dipanggil saat onSelectUser (termasuk setelah refresh halaman).
+    // Pakai get() one-shot — tidak ada race condition unsub.
+    // Setelah restore, _listenSelfNode() dipanggil agar update realtime tetap jalan.
     function _restoreSelfDoodleOnLoad() {
         if (!_db || !_myUid || !_partnerId) return;
-        const { ref, onValue } = _fb;
+        const { ref, get } = _fb;
         const guardPartnerId = _partnerId;
 
-        // Gunakan onValue (realtime) lalu unsubscribe setelah data pertama diterima.
-        // Ini memastikan data selalu fresh meski Firebase masih loading saat dipanggil.
-        let unsub = null;
-        unsub = onValue(ref(_db, _drawPath(_myUid)), (snap) => {
-            // Unsubscribe setelah pembacaan pertama (one-shot read via realtime)
-            if (unsub) { unsub(); unsub = null; }
-
+        get(ref(_db, _drawPath(_myUid))).then(snap => {
             // Guard: user sudah pindah ke chat lain → abaikan
             if (_partnerId !== guardPartnerId) return;
 
-            if (!snap.exists()) return;
+            if (!snap.exists()) {
+                // Tidak ada data → pastikan _hasPublished false
+                _hasPublished = false;
+                return;
+            }
             const data = snap.val();
-            if (!data || data.cleared || !Array.isArray(data.strokes) || data.strokes.length === 0) return;
-
-            // Jika data dari Firebase sama dengan yang sudah di cache → skip render ulang
-            const cached = _chatStates.get(_partnerId);
-            const alreadySynced = cached &&
-                cached.hasPublished === !!data.published &&
-                JSON.stringify(cached.myStrokes) === JSON.stringify(data.strokes);
-            if (alreadySynced) {
-                // Cache masih valid, tapi pastikan view-only overlay tampil jika published
-                if (data.published && _overlay &&
-                    !_overlay.classList.contains('doodle-active') &&
-                    !_overlay.classList.contains('doodle-view-only')) {
-                    _overlay.classList.add('doodle-view-only');
-                    _attachScrollForViewOnly();
-                }
+            if (!data || data.cleared || !Array.isArray(data.strokes) || data.strokes.length === 0) {
+                _hasPublished = false;
                 return;
             }
 
@@ -1193,18 +1199,24 @@ const DoodleSystem = (() => {
                     _positionOverlay();
                     _resizeCanvases();
                 }
-                // Jangan timpa mode active jika user sedang menggambar
                 if (!_overlay.classList.contains('doodle-active')) {
                     _overlay.classList.add('doodle-view-only');
                 }
                 _renderMyStrokes();
                 _attachScrollForViewOnly();
+                // Pasang realtime listener agar update berikutnya terpantau
                 _listenSelfNode();
             } else {
-                // Draft belum dikirim → render ke canvas, overlay tetap hidden
+                // Draft belum dikirim → render diam-diam, overlay hidden
                 if (_overlay) _renderMyStrokes();
             }
-        }, { onlyOnce: false });   // onValue biasa, tapi kita unsub manual setelah first emit
+            // Restore selesai → izinkan toast untuk publish berikutnya
+            setTimeout(() => { _isRestoringFromLoad = false; }, 1500);
+        }).catch(err => {
+            console.warn('[Doodle] _restoreSelfDoodleOnLoad error:', err);
+            _hasPublished = false;
+            _isRestoringFromLoad = false;
+        });
     }
 
     // ── VIEWER ────────────────────────────────────────────────
