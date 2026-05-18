@@ -431,15 +431,22 @@ body { background: #000 !important; overflow: hidden !important; }
         window.toggleNotifPanel = function() {
             const panel = document.getElementById('notifPanel');
             const overlay = document.getElementById('notifOverlay');
-            const carousel = document.querySelector('.reels-carousel');
             const isOpen = panel.style.display !== 'none';
             panel.style.display = isOpen ? 'none' : 'flex';
             overlay.style.display = isOpen ? 'none' : 'block';
-            // Nonaktifkan swipe reels saat panel terbuka agar tidak mengganggu scroll notif
-            if (carousel) {
-                carousel.style.pointerEvents = isOpen ? '' : 'none';
-                carousel.style.touchAction = isOpen ? '' : 'none';
+
+            // Saat panel TERBUKA: matikan semua pointer & touch event di area reels
+            // Video elemen di mobile bisa menangkap touch meski z-index lebih rendah
+            const reelsMain = document.querySelector('.reels-main');
+            if (reelsMain) {
+                reelsMain.style.pointerEvents = isOpen ? '' : 'none';
+                reelsMain.style.touchAction   = isOpen ? '' : 'none';
             }
+            // Juga matikan semua video & img di dalam reels
+            document.querySelectorAll('.reel-card, .reel-media, .reel-card video, .reel-card img').forEach(el => {
+                el.style.pointerEvents = isOpen ? '' : 'none';
+            });
+
             if (!isOpen) {
                 renderNotifList();
             }

@@ -430,13 +430,42 @@
     }
 
     /* ── Bubble pesan sent — Instagram biru ── */
+    /* Wrap: kontainer luar yang membatasi lebar total */
+    .message-bubble-wrap {
+        max-width: 78% !important;
+        min-width: 0 !important;
+    }
+
+    /* Bubble: ikut lebar wrap, tidak boleh meluap */
     .message-bubble {
         font-size: 0.92rem !important;
         line-height: 1.45 !important;
         padding: 10px 14px !important;
         border-radius: 22px !important;
-        max-width: 75% !important;
+        max-width: 100% !important;  /* relatif ke wrap, bukan layar */
+        min-width: 0 !important;
+        overflow: hidden !important;
         font-family: inherit !important;
+    }
+
+    /* Media di dalam bubble: HARUS responsif terhadap bubble-wrap */
+    .media-message {
+        max-width: 100% !important;
+        width: 100% !important;
+    }
+    .media-message img,
+    .media-message video {
+        max-width: 100% !important;   /* tidak boleh meluap bubble */
+        width: 100% !important;
+        height: auto !important;
+        border-radius: 14px !important;
+        display: block !important;
+        object-fit: cover !important;
+    }
+
+    /* Bubble yang berisi media — padding lebih kecil */
+    .message-bubble:has(.media-message) {
+        padding: 4px 4px 8px 4px !important;
     }
 
     .message.sent .message-bubble {
@@ -757,29 +786,10 @@
     }
 
     /* ================================================================
-       DOODLE TOOLBAR — lebih compact di mobile, naik di atas navbar
+       DOODLE TOOLBAR — lebih compact di mobile
        ================================================================ */
     #doodleToolbar {
-        bottom: calc(var(--ig-navbar-h) + var(--safe-bottom) + 12px) !important;
-        max-width: calc(100vw - 16px) !important;
-        overflow-x: auto !important;
-        flex-wrap: nowrap !important;
-        gap: 5px !important;
-        padding: 7px 10px !important;
-        /* Pastikan tombol Fill, Batal, Selesai tidak terpotong */
-        box-sizing: border-box !important;
-    }
-
-    /* Sembunyikan tombol yang tidak kritis agar muat di layar sempit */
-    #doodleToolbar .doodle-size-wrap {
-        display: none !important;
-    }
-
-    /* Paksa semua tombol tidak menyusut */
-    #doodleToolbar .doodle-tool-btn,
-    #doodleFinishBtn,
-    #doodleCancelBtn {
-        flex-shrink: 0 !important;
+        bottom: calc(var(--ig-navbar-h) + var(--safe-bottom) + 8px) !important;
     }
 
     /* ================================================================
@@ -846,10 +856,34 @@
    ================================================================ */
 
 /* ================================================================
-   BUGFIX: Notes Panel — pastikan tinggi penuh dan bisa di-scroll
+   BUGFIX: Doodle toolbar — tombol Fill/Batal/Selesai tidak terpotong
    ================================================================ */
 @media (max-width: 768px) {
-    /* Notes panel harus mengisi sisa tinggi sidebar */
+    #doodleToolbar {
+        bottom: calc(var(--ig-navbar-h) + var(--safe-bottom) + 12px) !important;
+        max-width: calc(100vw - 16px) !important;
+        overflow-x: auto !important;
+        flex-wrap: nowrap !important;
+        gap: 5px !important;
+        padding: 7px 10px !important;
+        box-sizing: border-box !important;
+        scrollbar-width: none !important;
+    }
+    #doodleToolbar::-webkit-scrollbar { display: none !important; }
+
+    #doodleToolbar .doodle-size-wrap { display: none !important; }
+
+    #doodleToolbar .doodle-tool-btn,
+    #doodleFinishBtn,
+    #doodleCancelBtn {
+        flex-shrink: 0 !important;
+    }
+}
+
+/* ================================================================
+   BUGFIX: Notes Panel — mengisi penuh sidebar dan bisa di-scroll
+   ================================================================ */
+@media (max-width: 768px) {
     #panelNotes {
         flex: 1 !important;
         overflow: hidden !important;
@@ -857,8 +891,10 @@
         flex-direction: column !important;
         min-height: 0 !important;
     }
-
-    /* Daftar notes teman: harus bisa di-scroll, beri ruang untuk navbar */
+    /* Override display:flex!important saat notes AKTIF agar panelPesan benar-benar tersembunyi */
+    #panelPesan.panel-hidden {
+        display: none !important;
+    }
     .notes-friends-list {
         flex: 1 !important;
         overflow-y: auto !important;
@@ -866,8 +902,6 @@
         min-height: 0 !important;
         padding-bottom: calc(var(--ig-navbar-h) + var(--safe-bottom) + 8px) !important;
     }
-
-    /* Scroll row notes juga jangan overflow ke luar sidebar */
     .notes-scroll-wrapper {
         flex-shrink: 0 !important;
         overflow: hidden !important;
