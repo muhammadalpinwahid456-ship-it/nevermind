@@ -201,15 +201,12 @@ const DoodleSystem = (() => {
 
     // ── FLOOD FILL (Paint Bucket) ─────────────────────────────
     /**
-     * Flood fill (BFS) pada _myCanvas di posisi klik (canvasX, canvasY).
-     * Hasilnya disimpan sebagai stroke bertipe "fill" agar bisa
-     * di-sync ke Firebase dan di-render ulang saat scroll.
-     *
-     * Stroke fill: { type:'fill', color, absX, absY, scrollTop, eraser:false }
-     * Saat render: gambar ulang hasil fill ke offscreen → copy ke canvas.
+     * Pendekatan MASK SHARP:
+     * 1. Render semua stroke ke offscreen mask TANPA anti-aliasing, garis +6px lebih tebal
+     * 2. BFS di mask (binary: putih=dalam, hitam=batas) → fill sempurna tanpa sisa
+     * 3. Terapkan fill ke _myCanvas dengan destination-over → fill di BAWAH stroke
      */
     function _doFloodFill(canvasX, canvasY, absX, absY) {
-        // Snapshot untuk undo
         _undoStack.push(JSON.parse(JSON.stringify(_myStrokes)));
         if (_undoStack.length > 40) _undoStack.shift();
         _redoStack = [];
@@ -217,198 +214,103 @@ const DoodleSystem = (() => {
 
         const container = _getMessagesArea();
         const scrollTop = container ? container.scrollTop : 0;
-
-        // Gabungkan dua canvas (partner + my) ke satu offscreen untuk sampling warna
         const w = _myCanvas.width;
         const h = _myCanvas.height;
 
-        // Buat offscreen gabungan: partner dulu, lalu my
-        const merged = document.createElement('canvas');
-        merged.width  = w;
-        merged.height = h;
-        const mCtx = merged.getContext('2d');
-        mCtx.drawImage(_partnerCanvas, 0, 0);
-        mCtx.drawImage(_myCanvas, 0, 0);
+        // Step 1: Render stroke ke mask SHARP (background putih, outline hitam tebal)
+        const maskCanvas = document.createElement('canvas');
+        maskCanvas.width  = w;
+        maskCanvas.height = h;
+        const mCtx = maskCanvas.getContext('2d');
+        mCtx.imageSmoothingEnabled = false;
+        mCtx.fillStyle = '#ffffff';
+        mCtx.fillRect(0, 0, w, h);
 
-        // ── FIX BUG 1: Snapshot "before" harus diambil SEBELUM BFS dijalankan ──
-        // Sebelumnya before diambil setelah BFS → before == filled → diff selalu kosong
-        const before = mCtx.getImageData(0, 0, w, h);
+        [[_partnerStrokes], [_myStrokes]].forEach(([strokes]) => {
+            strokes.forEach(stroke => {
+                if (stroke.type === 'fill' || !stroke.points || stroke.points.length < 2) return;
+                mCtx.save();
+                mCtx.strokeStyle = '#000000';
+                mCtx.lineWidth   = (stroke.lineWidth || 6) + 6;
+                mCtx.lineCap     = 'round';
+                mCtx.lineJoin    = 'round';
+                mCtx.beginPath();
+                stroke.points.forEach((pt, idx) => {
+                    const cy = pt.y - scrollTop;
+                    if (idx === 0) mCtx.moveTo(pt.x, cy);
+                    else mCtx.lineTo(pt.x, cy);
+                });
+                mCtx.stroke();
+                mCtx.restore();
+            });
+        });
 
-        // Jalankan BFS fill pada canvas gabungan
-        _floodFillBFS(mCtx, Math.round(canvasX), Math.round(canvasY), _color, w, h);
+        // Step 2: BFS di mask
+        const maskData = mCtx.getImageData(0, 0, w, h);
+        const md = maskData.data;
+        const sx = Math.round(canvasX);
+        const sy = Math.round(canvasY);
+        if (sx < 0 || sx >= w || sy < 0 || sy >= h) { _undoStack.pop(); _refreshUndoRedo(); return; }
 
-        // Ambil imageData hasil fill
-        const filled = mCtx.getImageData(0, 0, w, h);
+        if (md[(sy * w + sx) * 4] <= 128) { _undoStack.pop(); _refreshUndoRedo(); return; }
 
-        // Patch: gambar hanya area yang berubah ke _myCtx
-        const diff = _myCtx.createImageData(w, h);
-        const fd = filled.data;
-        const bd = before.data;
-        const dd = diff.data;
-        let hasDiff = false;
-        for (let i = 0; i < fd.length; i += 4) {
-            if (fd[i] !== bd[i] || fd[i+1] !== bd[i+1] || fd[i+2] !== bd[i+2] || fd[i+3] !== bd[i+3]) {
-                dd[i]   = fd[i];
-                dd[i+1] = fd[i+1];
-                dd[i+2] = fd[i+2];
-                dd[i+3] = fd[i+3];
-                hasDiff = true;
-            } else {
-                // Transparan (tidak diubah)
-                dd[i] = dd[i+1] = dd[i+2] = dd[i+3] = 0;
+        const filledMask = new Uint8Array(w * h);
+        const queue = [sx + sy * w];
+        const visited = new Uint8Array(w * h);
+        visited[sx + sy * w] = 1;
+
+        while (queue.length > 0) {
+            const pos = queue.pop();
+            const px  = pos % w;
+            const py  = (pos / w) | 0;
+            filledMask[pos] = 1;
+            const neighbors = [
+                px > 0     ? pos - 1 : -1,
+                px < w - 1 ? pos + 1 : -1,
+                py > 0     ? pos - w : -1,
+                py < h - 1 ? pos + w : -1,
+            ];
+            for (const n of neighbors) {
+                if (n < 0 || visited[n]) continue;
+                visited[n] = 1;
+                if (md[n * 4] > 128) queue.push(n);
             }
         }
 
-        if (!hasDiff) return; // Klik di area sudah sama warna
+        // Step 3: Buat fillCanvas dengan warna solid
+        const fillCanvas = document.createElement('canvas');
+        fillCanvas.width  = w;
+        fillCanvas.height = h;
+        const fCtx = fillCanvas.getContext('2d');
+        const fr = parseInt(_color.slice(1,3), 16);
+        const fg_c = parseInt(_color.slice(3,5), 16);
+        const fb = parseInt(_color.slice(5,7), 16);
+        const fillImgData = fCtx.createImageData(w, h);
+        const fd = fillImgData.data;
+        let hasFill = false;
+        for (let i = 0; i < filledMask.length; i++) {
+            if (filledMask[i]) {
+                fd[i*4]=fr; fd[i*4+1]=fg_c; fd[i*4+2]=fb; fd[i*4+3]=255;
+                hasFill = true;
+            }
+        }
+        if (!hasFill) { _undoStack.pop(); _refreshUndoRedo(); return; }
+        fCtx.putImageData(fillImgData, 0, 0);
 
-        // ── FIX BUG 2: putImageData menimpa seluruh canvas (termasuk stroke lain).
-        // Harus composite ke _myCtx dengan drawImage dari offscreen temp, bukan putImageData langsung.
-        const diffCanvas = document.createElement('canvas');
-        diffCanvas.width  = w;
-        diffCanvas.height = h;
-        diffCanvas.getContext('2d').putImageData(diff, 0, 0);
-        _myCtx.drawImage(diffCanvas, 0, 0);
+        // Step 4: Composite ke _myCanvas dengan destination-over (fill di BAWAH stroke)
+        _myCtx.save();
+        _myCtx.globalCompositeOperation = 'destination-over';
+        _myCtx.drawImage(fillCanvas, 0, 0);
+        _myCtx.restore();
 
-        // FIX BUG 3: gunakan diffCanvas yang sudah dibuat, tidak perlu canvas baru lagi
-        // FIX BUG 4: gunakan nama field tanpa underscore agar lolos Firebase rules/serialization
         const fillStroke = {
-            type         : 'fill',
-            color        : _color,
-            absX         : absX,
-            absY         : absY,
-            scrollTop    : scrollTop,
-            eraser       : false,
-            points       : [],
-            fillSnapshot : diffCanvas.toDataURL('image/png', 0.8),
+            type: 'fill', color: _color, absX, absY,
+            scrollTop, eraser: false, points: [],
+            fillSnapshot: fillCanvas.toDataURL('image/png', 0.85),
             fillScrollTop: scrollTop,
         };
-
         _myStrokes.push(fillStroke);
         _syncMyStrokes(false);
-    }
-
-    /**
-     * Flood fill dengan pendekatan GROW+SHRINK:
-     * 1. Fill area dengan toleransi TINGGI (tangkap semua piksel "mirip" di dalam area)
-     * 2. Setelah fill, "tumbuhkan" (dilate) area terisi ke piksel tetangga yang belum terisi
-     *    → ini menutup celah anti-aliasing pada garis outline tanpa bocor keluar
-     * Hasilnya: fill mulus tanpa garis sisa, tidak bocor ke luar outline.
-     */
-    function _floodFillBFS(ctx, startX, startY, fillColorHex, w, h) {
-        const imgData = ctx.getImageData(0, 0, w, h);
-        const data    = imgData.data;
-
-        // Parse fill color
-        const fr = parseInt(fillColorHex.slice(1, 3), 16);
-        const fg = parseInt(fillColorHex.slice(3, 5), 16);
-        const fb = parseInt(fillColorHex.slice(5, 7), 16);
-
-        // Warna awal di titik klik
-        const idx0 = (startY * w + startX) * 4;
-        const tr = data[idx0], tg = data[idx0+1], tb = data[idx0+2], ta = data[idx0+3];
-
-        // Jika warna target sama persis dengan fill → skip
-        if (tr === fr && tg === fg && tb === fb && ta === 255) return;
-
-        // ── LANGKAH 1: Scanline fill dengan toleransi sedang ─────────────────────
-        // Toleransi 40 cukup untuk piksel background/transparan tapi tidak menembus outline tebal
-        const FILL_TOLERANCE = 40;
-
-        function _matchFill(i) {
-            return Math.abs(data[i]   - tr) <= FILL_TOLERANCE &&
-                   Math.abs(data[i+1] - tg) <= FILL_TOLERANCE &&
-                   Math.abs(data[i+2] - tb) <= FILL_TOLERANCE &&
-                   Math.abs(data[i+3] - ta) <= FILL_TOLERANCE;
-        }
-
-        const filled = new Uint8Array(w * h); // bitmap piksel yang berhasil di-fill
-
-        function _setPixel(pos) {
-            const i = pos * 4;
-            data[i]   = fr;
-            data[i+1] = fg;
-            data[i+2] = fb;
-            data[i+3] = 255;
-            filled[pos] = 1;
-        }
-
-        // Scanline stack fill
-        const stack = [[startX, startY]];
-        const visited = new Uint8Array(w * h);
-        visited[startY * w + startX] = 1;
-
-        while (stack.length > 0) {
-            let [x, y] = stack.pop();
-
-            // Geser ke kiri
-            while (x > 0 && _matchFill((y * w + x - 1) * 4) && !visited[y * w + x - 1]) x--;
-
-            let spanAbove = false, spanBelow = false;
-
-            while (x < w) {
-                const pos = y * w + x;
-                if (!_matchFill(pos * 4) || visited[pos]) break;
-                visited[pos] = 1;
-                _setPixel(pos);
-
-                if (y > 0) {
-                    const up = (y-1)*w + x;
-                    if (!visited[up] && _matchFill(up * 4)) {
-                        if (!spanAbove) { stack.push([x, y-1]); spanAbove = true; }
-                    } else spanAbove = false;
-                }
-                if (y < h-1) {
-                    const dn = (y+1)*w + x;
-                    if (!visited[dn] && _matchFill(dn * 4)) {
-                        if (!spanBelow) { stack.push([x, y+1]); spanBelow = true; }
-                    } else spanBelow = false;
-                }
-                x++;
-            }
-        }
-
-        // ── LANGKAH 2: DILATE — tumbuhkan area filled ke piksel tetangga ──────────
-        // Ini menutup celah anti-aliasing: piksel tepi outline yang "setengah warna"
-        // akan ditimpa dengan warna fill, menghilangkan garis sisa.
-        // Kita lakukan 2 kali pass dilate untuk menutup outline yang lebih tebal.
-        const DILATE_PASSES = 3;
-        for (let pass = 0; pass < DILATE_PASSES; pass++) {
-            const toFill = [];
-            for (let py = 1; py < h-1; py++) {
-                for (let px = 1; px < w-1; px++) {
-                    const pos = py * w + px;
-                    if (filled[pos]) continue; // sudah terisi
-                    // Cek apakah ada tetangga yang sudah terisi
-                    const hasFilledNeighbor =
-                        filled[(py-1)*w + px] || filled[(py+1)*w + px] ||
-                        filled[py*w + px - 1] || filled[py*w + px + 1];
-                    if (!hasFilledNeighbor) continue;
-                    // Piksel ini di tepi area fill — cek apakah bukan bagian outline KERAS
-                    // (outline keras = alpha tinggi, warna jauh dari background)
-                    const i = pos * 4;
-                    const alpha = data[i+3];
-                    // Jika piksel hampir transparan atau warna masih mirip background → isi
-                    // Jika piksel sangat opak dan warnanya solid (outline) → lewati
-                    const brightness = data[i]*0.299 + data[i+1]*0.587 + data[i+2]*0.114;
-                    const bgBrightness = tr*0.299 + tg*0.587 + tb*0.114;
-                    const colorDiff = Math.abs(brightness - bgBrightness);
-                    // Hanya dilate ke piksel yang masih "dekat" dengan background atau semi-transparan
-                    if (alpha < 200 || colorDiff < 120) {
-                        toFill.push(pos);
-                    }
-                }
-            }
-            for (const pos of toFill) {
-                const i = pos * 4;
-                data[i]   = fr;
-                data[i+1] = fg;
-                data[i+2] = fb;
-                data[i+3] = 255;
-                filled[pos] = 1;
-            }
-        }
-
-        ctx.putImageData(imgData, 0, 0);
     }
 
     // ── RENDER STROKES (override untuk handle fill type) ─────
@@ -424,7 +326,6 @@ const DoodleSystem = (() => {
             const img = new Image();
             stroke._cachedImg = img;
             img.onload = () => {
-                // Gambar siap — render ulang agar urutan stroke tetap benar
                 _renderMyStrokes();
                 _renderPartnerStrokes();
             };
@@ -432,10 +333,13 @@ const DoodleSystem = (() => {
         }
 
         const img = stroke._cachedImg;
-        if (!img.complete || img.naturalWidth === 0) return; // belum siap, tunggu onload
+        if (!img.complete || img.naturalWidth === 0) return;
 
         ctx.save();
         ctx.translate(0, deltaScroll);
+        // Fill harus digambar di BAWAH stroke yang sudah ada di canvas
+        // Gunakan destination-over agar fill tidak menimpa garis
+        ctx.globalCompositeOperation = 'destination-over';
         ctx.drawImage(img, 0, 0);
         ctx.restore();
     }
