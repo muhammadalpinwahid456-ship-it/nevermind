@@ -106,14 +106,28 @@
                     <button class="cancel-reply-btn" onclick="cancelReply(event)">✕ Batal</button>
                 </div>
                 <div class="comment-input-area">
-                    <input 
-                        type="text" 
-                        id="commentInput" 
-                        placeholder="Tambahkan komentar..." 
-                        onkeypress="handleCommentKeyPress(event)"
-                        onclick="event.stopPropagation()"
-                    >
-                    <button onclick="sendComment(event)">Kirim</button>
+                    <div class="comment-photo-preview" id="commentPhotoPreview" style="display:none;">
+                        <img id="commentPhotoImg" src="" alt="preview foto">
+                        <button class="remove-comment-photo" onclick="removeCommentPhoto(event)" title="Hapus foto">✕</button>
+                    </div>
+                    <div class="comment-input-row">
+                        <button class="comment-photo-btn" onclick="triggerCommentPhotoInput(event)" title="Kirim foto">📷</button>
+                        <input 
+                            type="file" 
+                            id="commentPhotoInput" 
+                            accept="image/*" 
+                            style="display:none;"
+                            onchange="handleCommentPhotoSelect(event)"
+                        >
+                        <input 
+                            type="text" 
+                            id="commentInput" 
+                            placeholder="Tambahkan komentar..." 
+                            onkeypress="handleCommentKeyPress(event)"
+                            onclick="event.stopPropagation()"
+                        >
+                        <button onclick="sendComment(event)" id="sendCommentBtn">Kirim</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -891,6 +905,9 @@
                         const replyIsOwnerBadge = reply.userId === currentReel.userId
                             ? '<span class="owner-badge">Kreator</span>' : '';
                         const replyUserNameEsc = reply.userName.replace(/'/g, "\\'");
+                        const replyPhotoHtml = reply.photoUrl
+                            ? `<div class="comment-photo-attachment"><img src="${reply.photoUrl}" alt="foto komentar" onclick="openCommentPhoto('${reply.photoUrl}')" onerror="this.parentNode.style.display='none'"></div>`
+                            : '';
                         repliesHtml += '<div class="reply-item" id="reply-' + reply.id + '">' +
                             '<img src="' + (reply.userPhoto || 'https://via.placeholder.com/28') + '" alt="user" class="reply-avatar" onerror="this.src=\'https://via.placeholder.com/28\'">' +
                             '<div class="reply-body">' +
@@ -904,6 +921,7 @@
                                     (reply.replyToName ? '<span class="mention-tag">@' + escapeHtml(reply.replyToName) + '</span> ' : '') +
                                     escapeHtml(reply.text) +
                                 '</p>' +
+                                replyPhotoHtml +
                                 '<div class="comment-actions-row">' +
                                     '<button class="reply-btn" onclick="setReply(\'' + comment.id + '\', \'' + replyUserNameEsc + '\')">↩ Balas</button>' +
                                 '</div>' +
@@ -945,6 +963,7 @@
                                 (canDeleteComment ? '<button class="comment-delete-btn" onclick="deleteComment(\'' + comment.id + '\', false, null)">🗑</button>' : '') +
                             '</div>' +
                             '<p class="comment-text">' + escapeHtml(comment.text) + '</p>' +
+                            (comment.photoUrl ? '<div class="comment-photo-attachment"><img src="' + comment.photoUrl + '" alt="foto komentar" onclick="openCommentPhoto(\'' + comment.photoUrl.replace(/'/g, "\\'") + '\')" onerror="this.parentNode.style.display=\'none\'"></div>' : '') +
                             '<div class="comment-actions-row">' +
                                 '<button class="reply-btn" onclick="setReply(\'' + comment.id + '\', \'' + commentUserNameEsc + '\')">↩ Balas</button>' +
                             '</div>' +
@@ -981,8 +1000,60 @@
             panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
         };
 
+        // ===== COMMENT PHOTO HANDLING =====
+        let pendingCommentPhoto = null; // { file, dataUrl }
+
+        window.triggerCommentPhotoInput = function(event) {
+            if (event) event.stopPropagation();
+            document.getElementById('commentPhotoInput').click();
+        };
+
+        window.handleCommentPhotoSelect = function(event) {
+            event.stopPropagation();
+            const file = event.target.files[0];
+            if (!file) return;
+            if (!file.type.startsWith('image/')) {
+                alert('❌ Hanya file gambar yang diizinkan');
+                return;
+            }
+            if (file.size > 5 * 1024 * 1024) {
+                alert('❌ Ukuran foto maksimal 5MB');
+                event.target.value = '';
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                pendingCommentPhoto = { file, dataUrl: e.target.result };
+                document.getElementById('commentPhotoImg').src = e.target.result;
+                document.getElementById('commentPhotoPreview').style.display = 'flex';
+            };
+            reader.readAsDataURL(file);
+            event.target.value = '';
+        };
+
+        window.removeCommentPhoto = function(event) {
+            if (event) event.stopPropagation();
+            pendingCommentPhoto = null;
+            document.getElementById('commentPhotoImg').src = '';
+            document.getElementById('commentPhotoPreview').style.display = 'none';
+        };
+
+        async function uploadCommentPhotoToCloudinary(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+            formData.append('cloud_name', CLOUDINARY_CLOUD_NAME);
+            const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
+                method: 'POST',
+                body: formData
+            });
+            if (!response.ok) throw new Error('Upload foto gagal');
+            const data = await response.json();
+            return data.secure_url;
+        }
+
         // Send comment
-        window.sendComment = function(event) {
+        window.sendComment = async function(event) {
             if (event) event.stopPropagation();
             
             const currentReel = allReels[currentReelIndex];
@@ -994,8 +1065,8 @@
             const commentInput = document.getElementById('commentInput');
             const text = commentInput.value.trim();
 
-            if (!text) {
-                alert('⚠️ Komentar tidak boleh kosong');
+            if (!text && !pendingCommentPhoto) {
+                alert('⚠️ Tulis komentar atau pilih foto terlebih dahulu');
                 return;
             }
 
@@ -1004,55 +1075,70 @@
                 return;
             }
 
-            const newCommentRef = push(ref(database, 'reels/' + currentReel.id + '/comments'));
-            const commentData = {
-                userName: currentUserData.fullname || 'Unknown',
-                userPhoto: currentUserData.photoURL || 'https://via.placeholder.com/32',
-                text: text,
-                userId: currentUser.uid,
-                timestamp: Date.now()
-            };
+            const sendBtn = document.getElementById('sendCommentBtn');
+            sendBtn.disabled = true;
+            sendBtn.textContent = '...';
 
-            // If replying, add parentCommentId & replyToName
-            if (replyTo) {
-                commentData.parentCommentId = replyTo.commentId;
-                commentData.replyToName = replyTo.userName;
+            try {
+                let photoUrl = null;
+                if (pendingCommentPhoto) {
+                    photoUrl = await uploadCommentPhotoToCloudinary(pendingCommentPhoto.file);
+                }
+
+                const newCommentRef = push(ref(database, 'reels/' + currentReel.id + '/comments'));
+                const commentData = {
+                    userName: currentUserData.fullname || 'Unknown',
+                    userPhoto: currentUserData.photoURL || 'https://via.placeholder.com/32',
+                    text: text || '',
+                    userId: currentUser.uid,
+                    timestamp: Date.now()
+                };
+
+                if (photoUrl) {
+                    commentData.photoUrl = photoUrl;
+                }
+
+                // If replying, add parentCommentId & replyToName
+                if (replyTo) {
+                    commentData.parentCommentId = replyTo.commentId;
+                    commentData.replyToName = replyTo.userName;
+                }
+
+                await set(newCommentRef, commentData);
+                console.log('✅ Komentar berhasil ditambahkan');
+                commentInput.value = '';
+                removeCommentPhoto(null);
+
+                // Auto-expand replies if this is a reply
+                if (replyTo) {
+                    const repliesEl = document.getElementById('replies-' + replyTo.commentId);
+                    if (repliesEl) repliesEl.style.display = 'block';
+                    cancelReply(null);
+                }
+
+                commentInput.focus();
+
+                // Send notification to reel owner if commenter is not the owner
+                if (currentReel.userId !== currentUser.uid) {
+                    const notifRef = push(ref(database, 'notifications/' + currentReel.userId));
+                    set(notifRef, {
+                        type: 'reply_comment',
+                        actorName: currentUserData.fullname || 'Seseorang',
+                        actorPhoto: currentUserData.photoURL || '',
+                        actorId: currentUser.uid,
+                        reelId: currentReel.id,
+                        text: text.length > 40 ? text.substring(0,40)+'...' : (photoUrl ? '[foto]' : ''),
+                        timestamp: Date.now(),
+                        read: false
+                    }).catch(() => {});
+                }
+            } catch(error) {
+                console.error('❌ Error sending comment:', error);
+                alert('❌ Gagal mengirim komentar: ' + error.message);
+            } finally {
+                sendBtn.disabled = false;
+                sendBtn.textContent = 'Kirim';
             }
-
-            set(newCommentRef, commentData)
-                .then(() => {
-                    console.log('✅ Komentar berhasil ditambahkan');
-                    commentInput.value = '';
-
-                    // Auto-expand replies if this is a reply
-                    if (replyTo) {
-                        const repliesEl = document.getElementById('replies-' + replyTo.commentId);
-                        const toggleBtn = document.getElementById('toggle-replies-' + replyTo.commentId);
-                        if (repliesEl) repliesEl.style.display = 'block';
-                        cancelReply(null);
-                    }
-
-                    commentInput.focus();
-
-                    // Send notification to reel owner if commenter is not the owner
-                    if (currentReel.userId !== currentUser.uid) {
-                        const notifRef = push(ref(database, 'notifications/' + currentReel.userId));
-                        set(notifRef, {
-                            type: 'reply_comment',
-                            actorName: currentUserData.fullname || 'Seseorang',
-                            actorPhoto: currentUserData.photoURL || '',
-                            actorId: currentUser.uid,
-                            reelId: currentReel.id,
-                            text: text.length > 40 ? text.substring(0,40)+'...' : text,
-                            timestamp: Date.now(),
-                            read: false
-                        }).catch(() => {});
-                    }
-                })
-                .catch((error) => {
-                    console.error('❌ Error sending comment:', error);
-                    alert('❌ Gagal mengirim komentar: ' + error.message);
-                });
         };
 
         // Handle comment key press
@@ -1245,6 +1331,20 @@
                     window.location.href = 'index.html';
                 }).catch(err => alert('❌ Error: ' + err.message));
             }
+        };
+
+        // Open comment photo in lightbox
+        window.openCommentPhoto = function(url) {
+            const overlay = document.createElement('div');
+            overlay.className = 'comment-photo-lightbox';
+            overlay.innerHTML = `
+                <div class="lightbox-backdrop" onclick="this.parentNode.remove()"></div>
+                <div class="lightbox-content">
+                    <button class="lightbox-close" onclick="this.closest('.comment-photo-lightbox').remove()">✕</button>
+                    <img src="${url}" alt="foto komentar" onerror="this.src='https://via.placeholder.com/400?text=Gagal+memuat'">
+                </div>
+            `;
+            document.body.appendChild(overlay);
         };
 
         // Escape HTML

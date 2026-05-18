@@ -436,13 +436,20 @@ body {
 
 .comment-input-area {
     display: flex;
-    gap: 8px;
-    padding: 12px;
+    flex-direction: column;
+    gap: 0;
+    padding: 10px 12px;
     border-top: 1px solid #2d333b;
     background: #0d1117;
 }
 
-.comment-input-area input {
+.comment-input-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.comment-input-area input[type="text"] {
     flex: 1;
     background: #161b22;
     border: 1px solid #2d333b;
@@ -452,17 +459,17 @@ body {
     font-size: 0.9rem;
 }
 
-.comment-input-area input::placeholder {
+.comment-input-area input[type="text"]::placeholder {
     color: #6e7681;
 }
 
-.comment-input-area input:focus {
+.comment-input-area input[type="text"]:focus {
     outline: none;
     border-color: #3b82f6;
     box-shadow: 0 0 8px rgba(59, 130, 246, 0.2);
 }
 
-.comment-input-area button {
+.comment-input-area button:not(.comment-photo-btn):not(.remove-comment-photo) {
     background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
     color: white;
     border: none;
@@ -472,15 +479,155 @@ body {
     font-weight: 600;
     font-size: 0.9rem;
     transition: all 0.2s ease;
+    white-space: nowrap;
 }
 
-.comment-input-area button:hover:not(:disabled) {
+.comment-input-area button:not(.comment-photo-btn):not(.remove-comment-photo):hover:not(:disabled) {
     transform: translateY(-2px);
 }
 
-.comment-input-area button:disabled {
+.comment-input-area button:not(.comment-photo-btn):not(.remove-comment-photo):disabled {
     opacity: 0.6;
     cursor: not-allowed;
+}
+
+/* Photo button in comment area */
+.comment-photo-btn {
+    background: rgba(59, 130, 246, 0.15);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    color: #e0e6ed;
+    padding: 7px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1.1rem;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.comment-photo-btn:hover {
+    background: rgba(59, 130, 246, 0.3);
+    border-color: #3b82f6;
+    transform: scale(1.05);
+}
+
+/* Photo preview above input */
+.comment-photo-preview {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px 0;
+    margin-bottom: 6px;
+    position: relative;
+}
+
+.comment-photo-preview img {
+    max-width: 120px;
+    max-height: 90px;
+    border-radius: 8px;
+    object-fit: cover;
+    border: 2px solid #3b82f6;
+}
+
+.remove-comment-photo {
+    background: rgba(239, 68, 68, 0.85) !important;
+    border: none !important;
+    color: white !important;
+    width: 22px !important;
+    height: 22px !important;
+    border-radius: 50% !important;
+    cursor: pointer !important;
+    font-size: 0.75rem !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+    margin-top: 2px !important;
+    transition: background 0.2s ease !important;
+}
+
+.remove-comment-photo:hover {
+    background: rgba(220, 38, 38, 1) !important;
+}
+
+/* Photo in comments / replies */
+.comment-photo-attachment {
+    margin: 6px 0 4px;
+    display: inline-block;
+    cursor: pointer;
+}
+
+.comment-photo-attachment img {
+    max-width: 180px;
+    max-height: 140px;
+    border-radius: 8px;
+    object-fit: cover;
+    border: 2px solid #2d333b;
+    transition: border-color 0.2s ease, transform 0.2s ease;
+    display: block;
+}
+
+.comment-photo-attachment img:hover {
+    border-color: #3b82f6;
+    transform: scale(1.02);
+}
+
+/* Lightbox */
+.comment-photo-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.lightbox-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.88);
+    cursor: pointer;
+}
+
+.lightbox-content {
+    position: relative;
+    z-index: 1;
+    max-width: 90vw;
+    max-height: 90vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.lightbox-content img {
+    max-width: 90vw;
+    max-height: 85vh;
+    object-fit: contain;
+    border-radius: 10px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+}
+
+.lightbox-close {
+    position: absolute;
+    top: -40px;
+    right: 0;
+    background: rgba(255,255,255,0.15);
+    border: none;
+    color: white;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s ease;
+}
+
+.lightbox-close:hover {
+    background: rgba(239, 68, 68, 0.8);
 }
 
 /* ===== UPLOAD MODAL ===== */
