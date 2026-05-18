@@ -1579,3 +1579,82 @@ body {
     letter-spacing: 0.3px;
     text-transform: uppercase;
 }
+
+/* ===== FOLLOW BUTTON IN REEL ===== */
+.reel-user-avatar-wrap {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.reel-user-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid rgba(255, 255, 255, 0.8);
+    transition: border-color 0.2s, transform 0.2s;
+    display: block;
+}
+
+.reel-user-avatar-wrap:hover .reel-user-avatar {
+    border-color: #3b82f6;
+    transform: scale(1.08);
+}
+
+.reel-user-name {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: white;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+    transition: color 0.15s;
+}
+
+.reel-user-name:hover {
+    color: #93c5fd;
+}
+
+.reel-follow-btn {
+    background: transparent;
+    border: 1.5px solid rgba(255, 255, 255, 0.85);
+    color: white;
+    padding: 4px 14px;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(4px);
+    letter-spacing: 0.2px;
+    flex-shrink: 0;
+}
+
+.reel-follow-btn:hover {
+    background: white;
+    color: #111;
+    transform: scale(1.05);
+}
+
+.reel-follow-btn.following {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.4);
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.reel-follow-btn.following:hover {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: #ef4444;
+    color: #fca5a5;
+}
+
+/* Notification follow type */
+.notif-follow-tag {
+    background: rgba(139, 92, 246, 0.15);
+    color: #a78bfa;
+    border: 1px solid rgba(139, 92, 246, 0.25);
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 999px;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+}

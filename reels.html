@@ -656,6 +656,7 @@
                     document.getElementById('reelsMain').style.display = 'flex';
                     
                     displayReels();
+                    checkAllFollowStatuses();
                     
                     if (allReels.length > 0) {
                         setTimeout(() => playCurrentVideo(), 300);
@@ -696,14 +697,27 @@
                       </video>`
                     : `<img src="${reel.mediaUrl}" alt="reel" style="width: 100%; height: 100%; object-fit: contain;" onerror="handleImageError(this)">`
 
+                const isOwnReel = reel.userId === currentUser.uid;
                 reelElement.innerHTML = `
                     <div class="reel-media">
                         ${mediaHtml}
                     </div>
                     <div class="reel-info">
                         <div class="reel-user">
-                            <img src="${reel.userPhoto || 'https://via.placeholder.com/40'}" alt="user" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
-                            <h4>${escapeHtml(reel.userName)}</h4>
+                            <div class="reel-user-avatar-wrap" onclick="goToProfile('${reel.userId}')" style="cursor:pointer;">
+                                <img src="${reel.userPhoto || 'https://ui-avatars.com/api/?background=3b82f6&color=fff&size=40'}" 
+                                     alt="user" 
+                                     class="reel-user-avatar"
+                                     onerror="this.src='https://ui-avatars.com/api/?background=3b82f6&color=fff&size=40'">
+                            </div>
+                            <h4 class="reel-user-name" onclick="goToProfile('${reel.userId}')" style="cursor:pointer;">${escapeHtml(reel.userName)}</h4>
+                            ${!isOwnReel ? `<button 
+                                class="reel-follow-btn" 
+                                id="follow-btn-${reel.userId}" 
+                                onclick="toggleFollowReel(event, '${reel.userId}', this)"
+                                data-uid="${reel.userId}">
+                                Ikuti
+                            </button>` : ''}
                         </div>
                         <p class="reel-caption">${escapeHtml(reel.caption)}</p>
                     </div>
@@ -1317,6 +1331,85 @@
                 document.getElementById('uploadProgress').style.display = 'none';
             }
         };
+
+        // ===== PROFILE NAVIGATION =====
+        window.goToProfile = function(uid) {
+            if (!uid) return;
+            if (uid === currentUser.uid) {
+                window.location.href = 'profile.html';
+            } else {
+                window.location.href = 'profile.html?uid=' + uid;
+            }
+        };
+
+        // ===== FOLLOW FROM REELS =====
+        const followStatusCache = {};
+
+        async function checkAndApplyFollowStatus(uid) {
+            if (uid === currentUser.uid) return;
+            if (followStatusCache[uid] !== undefined) {
+                applyFollowUI(uid, followStatusCache[uid]);
+                return;
+            }
+            try {
+                const snap = await get(ref(database, `follows/${uid}/followers/${currentUser.uid}`));
+                followStatusCache[uid] = snap.exists();
+                applyFollowUI(uid, followStatusCache[uid]);
+            } catch(e) {}
+        }
+
+        function applyFollowUI(uid, isFollowing) {
+            document.querySelectorAll(`.reel-follow-btn[data-uid="${uid}"]`).forEach(btn => {
+                if (isFollowing) {
+                    btn.textContent = 'Mengikuti';
+                    btn.classList.add('following');
+                } else {
+                    btn.textContent = 'Ikuti';
+                    btn.classList.remove('following');
+                }
+            });
+        }
+
+        window.toggleFollowReel = async function(event, uid, btn) {
+            event.stopPropagation();
+            if (!uid || uid === currentUser.uid) return;
+            const isFollowing = followStatusCache[uid];
+            followStatusCache[uid] = !isFollowing;
+            applyFollowUI(uid, !isFollowing);
+            try {
+                if (isFollowing) {
+                    await Promise.all([
+                        remove(ref(database, `follows/${uid}/followers/${currentUser.uid}`)),
+                        remove(ref(database, `follows/${currentUser.uid}/following/${uid}`))
+                    ]);
+                } else {
+                    await Promise.all([
+                        set(ref(database, `follows/${uid}/followers/${currentUser.uid}`), true),
+                        set(ref(database, `follows/${currentUser.uid}/following/${uid}`), true)
+                    ]);
+                    if (currentUserData) {
+                        const notifRef = push(ref(database, 'notifications/' + uid));
+                        set(notifRef, {
+                            type: 'follow',
+                            actorName: currentUserData.fullname || 'Seseorang',
+                            actorPhoto: currentUserData.photoURL || '',
+                            actorId: currentUser.uid,
+                            message: 'mulai mengikuti kamu',
+                            timestamp: Date.now(),
+                            read: false
+                        }).catch(() => {});
+                    }
+                }
+            } catch(e) {
+                followStatusCache[uid] = isFollowing;
+                applyFollowUI(uid, isFollowing);
+            }
+        };
+
+        async function checkAllFollowStatuses() {
+            const uids = [...new Set(allReels.map(r => r.userId).filter(u => u !== currentUser.uid))];
+            await Promise.all(uids.map(uid => checkAndApplyFollowStatus(uid)));
+        }
 
         // Logout
         window.logoutReels = function() {
