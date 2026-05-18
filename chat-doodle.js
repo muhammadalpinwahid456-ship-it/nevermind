@@ -432,9 +432,17 @@ const DoodleSystem = (() => {
 
         // Tombol Batal: tutup doodle tanpa simpan (buang draft)
         document.getElementById('doodleCancelBtn')?.addEventListener('click', () => {
-            if (_myStrokes.length > 0) {
-                const ok = confirm('Batalkan doodle? Coretan yang belum dikirim akan hilang.');
-                if (!ok) return;
+            const cached = _chatStates.get(_partnerId) || {};
+            const hasPublished = cached.hasPublished && cached.myStrokes?.length > 0;
+            // Cek apakah ada coretan BARU yang belum dikirim (di luar yang sudah published)
+            const hasNewStrokes = hasPublished
+                ? _myStrokes.length > (cached.myStrokes?.length || 0)
+                : _myStrokes.length > 0;
+            if (hasNewStrokes) {
+                const msg = hasPublished
+                    ? 'Batalkan coretan baru? Doodle yang sudah dikirim tetap ada, hanya coretan baru yang hilang.'
+                    : 'Batalkan doodle? Coretan yang belum dikirim akan hilang.';
+                if (!confirm(msg)) return;
             }
             closeDoodle();
         });
@@ -999,38 +1007,55 @@ const DoodleSystem = (() => {
         _listenPartnerNode();
     }
 
-    // closeDoodle: tutup overlay, buang draft (dipanggil dari tombol Batal)
+    // closeDoodle: tutup overlay tanpa kirim (dipanggil dari tombol Batal)
+    // PENTING: jika sebelumnya sudah ada doodle yang dikirim (_hasPublished atau
+    // ada strokes published di cache), strokes itu harus TETAP ada — hanya
+    // strokes baru yang belum dikirim yang dibuang.
     function closeDoodle() {
         if (!_overlay) return;
-        _overlay.classList.remove('doodle-active', 'doodle-view-only');
+
+        // Ambil strokes yang sudah published dari cache sebelum reset
+        const cached = _chatStates.get(_partnerId) || {};
+        const publishedStrokes = (cached.hasPublished && cached.myStrokes?.length)
+            ? JSON.parse(JSON.stringify(cached.myStrokes))
+            : [];
+
+        _overlay.classList.remove('doodle-active');
         document.getElementById('doodleToggleBtn')?.classList.remove('active');
         _hidePartnerIndicator();
 
-        // Buang draft dari memori dan cache
-        _myStrokes    = [];
-        _undoStack    = [];
-        _redoStack    = [];
-        _hasPublished = false;
-        _fillMode     = false;
-        _eraser       = false;
-        _renderMyStrokes();
+        _undoStack = [];
+        _redoStack = [];
+        _fillMode  = false;
+        _eraser    = false;
         _refreshUndoRedo();
 
-        // Hapus cache draft (jangan hapus partnerStrokes)
-        const s = _chatStates.get(_partnerId) || {};
-        _chatStates.set(_partnerId, { ...s, myStrokes: [], hasPublished: false });
-
-        // Clear draft di Firebase (bukan published, jadi tidak permanen)
-        if (_db && _myUid && _partnerId) {
-            const { ref, set } = _fb;
-            set(ref(_db, _drawPath(_myUid)), {
-                strokes: null, image: null, from: _myUid, ts: Date.now(),
-                cleared: true, published: false, viewedBy: {},
-            }).catch(() => {});
+        if (publishedStrokes.length > 0) {
+            // Kembalikan ke state published: tampilkan doodle lama di view-only
+            _myStrokes    = publishedStrokes;
+            _hasPublished = true;
+            _renderMyStrokes();
+            _overlay.classList.add('doodle-view-only');
+            _attachScrollForViewOnly();
+            // Pastikan cache tetap benar
+            _chatStates.set(_partnerId, { ...cached, myStrokes: publishedStrokes, hasPublished: true });
+            // Tidak perlu ubah Firebase — data published tetap ada di sana
+        } else {
+            // Tidak ada doodle published → benar-benar batal, clear saja
+            _myStrokes    = [];
+            _hasPublished = false;
+            _renderMyStrokes();
+            _chatStates.set(_partnerId, { ...cached, myStrokes: [], hasPublished: false });
+            if (_db && _myUid && _partnerId) {
+                const { ref, set } = _fb;
+                set(ref(_db, _drawPath(_myUid)), {
+                    strokes: null, image: null, from: _myUid, ts: Date.now(),
+                    cleared: true, published: false, viewedBy: {},
+                }).catch(() => {});
+            }
+            const container = _getMessagesArea();
+            if (container) container.removeEventListener('scroll', _onScroll);
         }
-
-        const container = _getMessagesArea();
-        if (container) container.removeEventListener('scroll', _onScroll);
     }
 
     // ── ON SELECT USER ────────────────────────────────────────
