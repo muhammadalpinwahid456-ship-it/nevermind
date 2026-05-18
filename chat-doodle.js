@@ -277,7 +277,29 @@ const DoodleSystem = (() => {
             }
         }
 
-        // Step 3: Buat fillCanvas dengan warna solid
+        // Step 3: Dilate filledMask agar fill overlap ke piksel anti-aliased outline
+        // Ini kunci: fill perlu sedikit "masuk ke bawah" outline di canvas asli
+        // agar tidak ada celah putih/gelap antara fill dan garis.
+        // Radius dilate = setengah dari extra lineWidth yang dipakai di mask (6/2 = 3px).
+        const DILATE_R = 4;
+        const dilated = new Uint8Array(w * h);
+        for (let py = 0; py < h; py++) {
+            for (let px = 0; px < w; px++) {
+                if (!filledMask[py * w + px]) continue;
+                // Tandai semua piksel dalam radius sebagai terisi
+                const y0 = Math.max(0, py - DILATE_R);
+                const y1 = Math.min(h - 1, py + DILATE_R);
+                const x0 = Math.max(0, px - DILATE_R);
+                const x1 = Math.min(w - 1, px + DILATE_R);
+                for (let dy = y0; dy <= y1; dy++) {
+                    for (let dx = x0; dx <= x1; dx++) {
+                        dilated[dy * w + dx] = 1;
+                    }
+                }
+            }
+        }
+
+        // Step 4: Buat fillCanvas dengan warna solid dari dilated mask
         const fillCanvas = document.createElement('canvas');
         fillCanvas.width  = w;
         fillCanvas.height = h;
@@ -288,8 +310,8 @@ const DoodleSystem = (() => {
         const fillImgData = fCtx.createImageData(w, h);
         const fd = fillImgData.data;
         let hasFill = false;
-        for (let i = 0; i < filledMask.length; i++) {
-            if (filledMask[i]) {
+        for (let i = 0; i < dilated.length; i++) {
+            if (dilated[i]) {
                 fd[i*4]=fr; fd[i*4+1]=fg_c; fd[i*4+2]=fb; fd[i*4+3]=255;
                 hasFill = true;
             }
@@ -297,7 +319,10 @@ const DoodleSystem = (() => {
         if (!hasFill) { _undoStack.pop(); _refreshUndoRedo(); return; }
         fCtx.putImageData(fillImgData, 0, 0);
 
-        // Step 4: Composite ke _myCanvas dengan destination-over (fill di BAWAH stroke)
+        // Step 5: Composite ke _myCanvas dengan destination-over (fill di BAWAH stroke)
+        // destination-over: fill hanya mengisi piksel transparan/semi-transparan,
+        // stroke yang sudah solid tetap di atas — tapi karena fill sudah overlap ke outline,
+        // tidak ada celah yang tersisa.
         _myCtx.save();
         _myCtx.globalCompositeOperation = 'destination-over';
         _myCtx.drawImage(fillCanvas, 0, 0);
