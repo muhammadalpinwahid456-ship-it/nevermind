@@ -458,13 +458,17 @@ const DoodleSystem = (() => {
         // Tombol Batal: tutup doodle tanpa simpan (buang draft)
         document.getElementById('doodleCancelBtn')?.addEventListener('click', () => {
             const cached = _chatStates.get(_partnerId) || {};
-            const hasPublished = cached.hasPublished && cached.myStrokes?.length > 0;
+            // FIX: gunakan _hasPublished (variabel modul) sebagai sumber utama
+            const isPublished = _hasPublished || (cached.hasPublished === true);
+            const publishedLen = isPublished
+                ? (_myStrokes.length > 0 ? _myStrokes.length : (cached.myStrokes?.length || 0))
+                : 0;
             // Cek apakah ada coretan BARU yang belum dikirim (di luar yang sudah published)
-            const hasNewStrokes = hasPublished
-                ? _myStrokes.length > (cached.myStrokes?.length || 0)
+            const hasNewStrokes = isPublished
+                ? _myStrokes.length > publishedLen
                 : _myStrokes.length > 0;
             if (hasNewStrokes) {
-                const msg = hasPublished
+                const msg = isPublished
                     ? 'Batalkan coretan baru? Doodle yang sudah dikirim tetap ada, hanya coretan baru yang hilang.'
                     : 'Batalkan doodle? Coretan yang belum dikirim akan hilang.';
                 if (!confirm(msg)) return;
@@ -1039,11 +1043,24 @@ const DoodleSystem = (() => {
     function closeDoodle() {
         if (!_overlay) return;
 
-        // Ambil strokes yang sudah published dari cache sebelum reset
         const cached = _chatStates.get(_partnerId) || {};
-        const publishedStrokes = (cached.hasPublished && cached.myStrokes?.length)
-            ? JSON.parse(JSON.stringify(cached.myStrokes))
-            : [];
+
+        // FIX: Gunakan _hasPublished (variabel modul) sebagai sumber utama,
+        // lalu cache sebagai fallback — keduanya harus dipertimbangkan.
+        // Bug sebelumnya: hanya cek cached.hasPublished yang bisa belum ter-update
+        // saat finishDoodle() baru saja dipanggil.
+        const isPublished = _hasPublished || (cached.hasPublished === true);
+
+        // Ambil strokes published: prioritaskan _myStrokes saat ini jika sudah published,
+        // lalu fallback ke cache.
+        let publishedStrokes = [];
+        if (isPublished) {
+            if (_myStrokes.length > 0) {
+                publishedStrokes = JSON.parse(JSON.stringify(_myStrokes));
+            } else if (cached.myStrokes?.length > 0) {
+                publishedStrokes = JSON.parse(JSON.stringify(cached.myStrokes));
+            }
+        }
 
         _overlay.classList.remove('doodle-active');
         document.getElementById('doodleToggleBtn')?.classList.remove('active');
