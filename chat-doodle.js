@@ -457,22 +457,11 @@ const DoodleSystem = (() => {
 
         // Tombol Batal: tutup doodle tanpa simpan (buang draft)
         document.getElementById('doodleCancelBtn')?.addEventListener('click', () => {
-            const cached = _chatStates.get(_partnerId) || {};
-            // FIX: gunakan _hasPublished (variabel modul) sebagai sumber utama
-            const isPublished = _hasPublished || (cached.hasPublished === true);
-            const publishedLen = isPublished
-                ? (_myStrokes.length > 0 ? _myStrokes.length : (cached.myStrokes?.length || 0))
-                : 0;
-            // Cek apakah ada coretan BARU yang belum dikirim (di luar yang sudah published)
-            const hasNewStrokes = isPublished
-                ? _myStrokes.length > publishedLen
-                : _myStrokes.length > 0;
-            if (hasNewStrokes) {
-                const msg = isPublished
-                    ? 'Batalkan coretan baru? Doodle yang sudah dikirim tetap ada, hanya coretan baru yang hilang.'
-                    : 'Batalkan doodle? Coretan yang belum dikirim akan hilang.';
-                if (!confirm(msg)) return;
+            // Jika belum pernah publish dan ada coretan → konfirmasi dulu
+            if (!_hasPublished && _myStrokes.length > 0) {
+                if (!confirm('Batalkan doodle? Coretan yang belum dikirim akan hilang.')) return;
             }
+            // Jika sudah published → langsung tutup tanpa konfirmasi, gambar tetap aman
             closeDoodle();
         });
 
@@ -871,10 +860,11 @@ const DoodleSystem = (() => {
                 const data = snap.val();
                 if (data && !data.cleared && Array.isArray(data.strokes) && data.strokes.length > 0) {
                     _myStrokes    = data.strokes;
-                    _hasPublished = false;   // siap tambah coretan baru
+                    // FIX: baca status published dari Firebase, jangan selalu set false
+                    _hasPublished = !!data.published;
                     // Update cache
                     const s = _chatStates.get(_partnerId) || {};
-                    _chatStates.set(_partnerId, { ...s, myStrokes: _myStrokes, hasPublished: false });
+                    _chatStates.set(_partnerId, { ...s, myStrokes: _myStrokes, hasPublished: _hasPublished });
                 } else {
                     _myStrokes    = [];
                     _hasPublished = false;
@@ -942,9 +932,10 @@ const DoodleSystem = (() => {
             // Tidak ada cache → coba muat dari Firebase dulu
             _loadMyStrokesFromFirebase();
         } else {
-            // Ada cache → restore, user bisa lanjut menggambar
+            // Ada cache → restore termasuk status published-nya
             _myStrokes    = JSON.parse(JSON.stringify(saved.myStrokes));
-            _hasPublished = false;   // buka ulang = siap tambah gambar baru
+            // FIX: pertahankan status published dari cache, jangan paksa false
+            _hasPublished = saved.hasPublished || false;
         }
 
         _undoStack    = [];
@@ -1037,30 +1028,10 @@ const DoodleSystem = (() => {
     }
 
     // closeDoodle: tutup overlay tanpa kirim (dipanggil dari tombol Batal)
-    // PENTING: jika sebelumnya sudah ada doodle yang dikirim (_hasPublished atau
-    // ada strokes published di cache), strokes itu harus TETAP ada — hanya
-    // strokes baru yang belum dikirim yang dibuang.
+    // ATURAN UTAMA: jika _hasPublished === true, Firebase TIDAK PERNAH disentuh.
+    // Gambar yang sudah dikirim bersifat PERMANEN — tidak bisa dihapus via Batal.
     function closeDoodle() {
         if (!_overlay) return;
-
-        const cached = _chatStates.get(_partnerId) || {};
-
-        // FIX: Gunakan _hasPublished (variabel modul) sebagai sumber utama,
-        // lalu cache sebagai fallback — keduanya harus dipertimbangkan.
-        // Bug sebelumnya: hanya cek cached.hasPublished yang bisa belum ter-update
-        // saat finishDoodle() baru saja dipanggil.
-        const isPublished = _hasPublished || (cached.hasPublished === true);
-
-        // Ambil strokes published: prioritaskan _myStrokes saat ini jika sudah published,
-        // lalu fallback ke cache.
-        let publishedStrokes = [];
-        if (isPublished) {
-            if (_myStrokes.length > 0) {
-                publishedStrokes = JSON.parse(JSON.stringify(_myStrokes));
-            } else if (cached.myStrokes?.length > 0) {
-                publishedStrokes = JSON.parse(JSON.stringify(cached.myStrokes));
-            }
-        }
 
         _overlay.classList.remove('doodle-active');
         document.getElementById('doodleToggleBtn')?.classList.remove('active');
@@ -1072,21 +1043,25 @@ const DoodleSystem = (() => {
         _eraser    = false;
         _refreshUndoRedo();
 
-        if (publishedStrokes.length > 0) {
-            // Kembalikan ke state published: tampilkan doodle lama di view-only
-            _myStrokes    = publishedStrokes;
-            _hasPublished = true;
+        if (_hasPublished) {
+            // Sudah published → buang coretan draft baru, kembalikan ke strokes published
+            // Firebase TIDAK disentuh sama sekali — gambar tetap permanen
+            const cached = _chatStates.get(_partnerId) || {};
+            const restoredStrokes = cached.myStrokes?.length
+                ? JSON.parse(JSON.stringify(cached.myStrokes))
+                : _myStrokes;  // fallback: pakai _myStrokes saat ini (sudah published)
+
+            _myStrokes = restoredStrokes;
             _renderMyStrokes();
             _overlay.classList.add('doodle-view-only');
             _attachScrollForViewOnly();
-            // Pastikan cache tetap benar
-            _chatStates.set(_partnerId, { ...cached, myStrokes: publishedStrokes, hasPublished: true });
-            // Tidak perlu ubah Firebase — data published tetap ada di sana
+            _chatStates.set(_partnerId, { ...cached, myStrokes: restoredStrokes, hasPublished: true });
         } else {
-            // Tidak ada doodle published → benar-benar batal, clear saja
+            // Belum pernah publish → batal beneran, hapus draft dari Firebase
             _myStrokes    = [];
             _hasPublished = false;
             _renderMyStrokes();
+            const cached = _chatStates.get(_partnerId) || {};
             _chatStates.set(_partnerId, { ...cached, myStrokes: [], hasPublished: false });
             if (_db && _myUid && _partnerId) {
                 const { ref, set } = _fb;
