@@ -1161,16 +1161,53 @@ body {
 /* Responsive notif panel */
 @media (max-width: 768px) {
     .notif-panel {
-        left: 70px;
-        width: calc(100vw - 70px);
-        max-width: 360px;
+        left: 0 !important;
+        right: 0 !important;
+        top: auto !important;
+        bottom: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        height: 85dvh !important;
+        max-height: 85dvh !important;
+        border-radius: 20px 20px 0 0 !important;
+        border-right: none !important;
+        border-top: 1px solid rgba(59, 130, 246, 0.2) !important;
+        z-index: 2000 !important;
+        animation: slideUpNotifMobile 0.28s cubic-bezier(0.22, 1, 0.36, 1) !important;
+    }
+    @keyframes slideUpNotifMobile {
+        from { transform: translateY(100%); opacity: 0; }
+        to   { transform: translateY(0);    opacity: 1; }
+    }
+    .notif-overlay {
+        z-index: 1999 !important;
+        background: rgba(0,0,0,0.5) !important;
+    }
+    .notif-tabs {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        flex-wrap: nowrap !important;
+        padding-bottom: 0 !important;
+    }
+    .notif-tab {
+        white-space: nowrap !important;
+        flex-shrink: 0 !important;
+        font-size: 0.88rem !important;
+        padding: 10px 16px !important;
+        pointer-events: all !important;
+        -webkit-tap-highlight-color: rgba(59,130,246,0.2) !important;
+    }
+    .notif-list {
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        flex: 1 !important;
     }
 }
 
 @media (max-width: 480px) {
     .notif-panel {
-        left: 60px;
-        width: calc(100vw - 60px);
+        left: 0 !important;
+        width: 100% !important;
     }
 }
 

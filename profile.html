@@ -108,7 +108,7 @@ body { background: #000 !important; }
 <body>
 
 <!-- AUTH CHECK -->
-<div id="authCheck" class="auth-check">
+<div id="authCheck" class="auth-check" style="display:none;">
     <div class="auth-message">
         <div class="auth-icon">🔒</div>
         <h2>Login Diperlukan</h2>
@@ -116,6 +116,15 @@ body { background: #000 !important; }
         <button onclick="window.location.href='index.html'">Kembali ke Homepage</button>
     </div>
 </div>
+
+<!-- LOADING SPINNER (tampil sementara auth check berlangsung) -->
+<div id="profileLoading" style="display:flex;align-items:center;justify-content:center;min-height:100dvh;background:#000;flex-direction:column;gap:16px;">
+    <div style="width:36px;height:36px;border:3px solid #262626;border-top-color:#0095f6;border-radius:50%;animation:profileSpin 0.8s linear infinite;"></div>
+    <p style="color:#a8a8a8;font-size:0.85rem;margin:0;">Memuat profil...</p>
+</div>
+<style>
+@keyframes profileSpin { to { transform: rotate(360deg); } }
+</style>
 
 <!-- PROFILE CONTAINER -->
 <div id="profileContainer" class="profile-container" style="display:none;">
@@ -308,6 +317,10 @@ const urlParams = new URLSearchParams(window.location.search);
 const targetUid = urlParams.get('uid'); // null kalau profil sendiri
 
 onAuthStateChanged(auth, async (user) => {
+    // Sembunyikan loading spinner
+    const loadingEl = document.getElementById('profileLoading');
+    if (loadingEl) loadingEl.style.display = 'none';
+
     if (user) {
         currentUser = user;
         viewingUid = targetUid || user.uid;

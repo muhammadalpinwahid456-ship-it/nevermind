@@ -393,10 +393,19 @@
 
 /* Responsive Design */
 @media (max-width: 768px) {
+    .note-viewer-modal-instagram {
+        align-items: flex-end !important;
+        padding: 0 !important;
+    }
     .note-viewer-instagram {
-        max-width: 100%;
-        max-height: 100%;
-        border-radius: 0;
+        max-width: 100% !important;
+        width: 100% !important;
+        max-height: 95dvh !important;
+        height: 95dvh !important;
+        border-radius: 20px 20px 0 0 !important;
+        border-left: none !important;
+        border-right: none !important;
+        border-bottom: none !important;
     }
 
     .note-insta-content {
