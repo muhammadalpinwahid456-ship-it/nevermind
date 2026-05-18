@@ -288,9 +288,11 @@ const DoodleSystem = (() => {
     }
 
     /**
-     * Scanline flood fill — mengisi area secara sempurna termasuk garis anti-aliased.
-     * Lebih baik dari BFS sederhana untuk outline yang digambar dengan canvas (ada blur tepi).
-     * Toleransi dinaikkan ke 60 agar piksel semi-transparan pada tepi outline ikut terisi.
+     * Flood fill dengan pendekatan GROW+SHRINK:
+     * 1. Fill area dengan toleransi TINGGI (tangkap semua piksel "mirip" di dalam area)
+     * 2. Setelah fill, "tumbuhkan" (dilate) area terisi ke piksel tetangga yang belum terisi
+     *    → ini menutup celah anti-aliasing pada garis outline tanpa bocor keluar
+     * Hasilnya: fill mulus tanpa garis sisa, tidak bocor ke luar outline.
      */
     function _floodFillBFS(ctx, startX, startY, fillColorHex, w, h) {
         const imgData = ctx.getImageData(0, 0, w, h);
@@ -303,74 +305,106 @@ const DoodleSystem = (() => {
 
         // Warna awal di titik klik
         const idx0 = (startY * w + startX) * 4;
-        const tr = data[idx0];
-        const tg = data[idx0 + 1];
-        const tb = data[idx0 + 2];
-        const ta = data[idx0 + 3];
+        const tr = data[idx0], tg = data[idx0+1], tb = data[idx0+2], ta = data[idx0+3];
 
-        // Jika warna target sama dengan fill → skip
+        // Jika warna target sama persis dengan fill → skip
         if (tr === fr && tg === fg && tb === fb && ta === 255) return;
 
-        // Toleransi lebih besar untuk mengatasi anti-aliasing tepi outline
-        const TOLERANCE = 80;
+        // ── LANGKAH 1: Scanline fill dengan toleransi sedang ─────────────────────
+        // Toleransi 40 cukup untuk piksel background/transparan tapi tidak menembus outline tebal
+        const FILL_TOLERANCE = 40;
 
-        function _matchTarget(i) {
-            return Math.abs(data[i]   - tr) <= TOLERANCE &&
-                   Math.abs(data[i+1] - tg) <= TOLERANCE &&
-                   Math.abs(data[i+2] - tb) <= TOLERANCE &&
-                   Math.abs(data[i+3] - ta) <= TOLERANCE;
+        function _matchFill(i) {
+            return Math.abs(data[i]   - tr) <= FILL_TOLERANCE &&
+                   Math.abs(data[i+1] - tg) <= FILL_TOLERANCE &&
+                   Math.abs(data[i+2] - tb) <= FILL_TOLERANCE &&
+                   Math.abs(data[i+3] - ta) <= FILL_TOLERANCE;
         }
 
-        function _setPixel(i) {
+        const filled = new Uint8Array(w * h); // bitmap piksel yang berhasil di-fill
+
+        function _setPixel(pos) {
+            const i = pos * 4;
             data[i]   = fr;
             data[i+1] = fg;
             data[i+2] = fb;
             data[i+3] = 255;
+            filled[pos] = 1;
         }
 
-        // Scanline stack-based fill: lebih cepat dan mengisi area outline lebih bersih
+        // Scanline stack fill
+        const stack = [[startX, startY]];
         const visited = new Uint8Array(w * h);
-        const stack   = [[startX, startY]];
+        visited[startY * w + startX] = 1;
 
         while (stack.length > 0) {
             let [x, y] = stack.pop();
 
-            // Geser ke kiri sejauh mungkin di baris ini
-            while (x > 0 && _matchTarget((y * w + x - 1) * 4)) x--;
+            // Geser ke kiri
+            while (x > 0 && _matchFill((y * w + x - 1) * 4) && !visited[y * w + x - 1]) x--;
 
-            let spanAbove = false;
-            let spanBelow = false;
+            let spanAbove = false, spanBelow = false;
 
-            // Isi ke kanan sampai batas
             while (x < w) {
                 const pos = y * w + x;
-                const i   = pos * 4;
-                if (!_matchTarget(i) || visited[pos]) break;
-
+                if (!_matchFill(pos * 4) || visited[pos]) break;
                 visited[pos] = 1;
-                _setPixel(i);
+                _setPixel(pos);
 
-                // Cek baris atas
                 if (y > 0) {
-                    const posUp = (y - 1) * w + x;
-                    if (!visited[posUp] && _matchTarget(posUp * 4)) {
-                        if (!spanAbove) { stack.push([x, y - 1]); spanAbove = true; }
-                    } else {
-                        spanAbove = false;
-                    }
+                    const up = (y-1)*w + x;
+                    if (!visited[up] && _matchFill(up * 4)) {
+                        if (!spanAbove) { stack.push([x, y-1]); spanAbove = true; }
+                    } else spanAbove = false;
                 }
-
-                // Cek baris bawah
-                if (y < h - 1) {
-                    const posDown = (y + 1) * w + x;
-                    if (!visited[posDown] && _matchTarget(posDown * 4)) {
-                        if (!spanBelow) { stack.push([x, y + 1]); spanBelow = true; }
-                    } else {
-                        spanBelow = false;
-                    }
+                if (y < h-1) {
+                    const dn = (y+1)*w + x;
+                    if (!visited[dn] && _matchFill(dn * 4)) {
+                        if (!spanBelow) { stack.push([x, y+1]); spanBelow = true; }
+                    } else spanBelow = false;
                 }
-
                 x++;
+            }
+        }
+
+        // ── LANGKAH 2: DILATE — tumbuhkan area filled ke piksel tetangga ──────────
+        // Ini menutup celah anti-aliasing: piksel tepi outline yang "setengah warna"
+        // akan ditimpa dengan warna fill, menghilangkan garis sisa.
+        // Kita lakukan 2 kali pass dilate untuk menutup outline yang lebih tebal.
+        const DILATE_PASSES = 3;
+        for (let pass = 0; pass < DILATE_PASSES; pass++) {
+            const toFill = [];
+            for (let py = 1; py < h-1; py++) {
+                for (let px = 1; px < w-1; px++) {
+                    const pos = py * w + px;
+                    if (filled[pos]) continue; // sudah terisi
+                    // Cek apakah ada tetangga yang sudah terisi
+                    const hasFilledNeighbor =
+                        filled[(py-1)*w + px] || filled[(py+1)*w + px] ||
+                        filled[py*w + px - 1] || filled[py*w + px + 1];
+                    if (!hasFilledNeighbor) continue;
+                    // Piksel ini di tepi area fill — cek apakah bukan bagian outline KERAS
+                    // (outline keras = alpha tinggi, warna jauh dari background)
+                    const i = pos * 4;
+                    const alpha = data[i+3];
+                    // Jika piksel hampir transparan atau warna masih mirip background → isi
+                    // Jika piksel sangat opak dan warnanya solid (outline) → lewati
+                    const brightness = data[i]*0.299 + data[i+1]*0.587 + data[i+2]*0.114;
+                    const bgBrightness = tr*0.299 + tg*0.587 + tb*0.114;
+                    const colorDiff = Math.abs(brightness - bgBrightness);
+                    // Hanya dilate ke piksel yang masih "dekat" dengan background atau semi-transparan
+                    if (alpha < 200 || colorDiff < 120) {
+                        toFill.push(pos);
+                    }
+                }
+            }
+            for (const pos of toFill) {
+                const i = pos * 4;
+                data[i]   = fr;
+                data[i+1] = fg;
+                data[i+2] = fb;
+                data[i+3] = 255;
+                filled[pos] = 1;
             }
         }
 
