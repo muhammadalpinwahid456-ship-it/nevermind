@@ -6,6 +6,104 @@
     <title>ALVIN Profile</title>
     <link rel="stylesheet" href="profile.css">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+/* ================================================================
+   PROFILE — Instagram Mobile Style  (≤768px)
+================================================================ */
+@media (max-width: 768px) {
+
+body { background: #000 !important; }
+
+.top-nav {
+    background: #000 !important;
+    border-bottom: 1px solid #262626 !important;
+    padding: 0 16px !important;
+    height: 54px !important;
+    backdrop-filter: none !important;
+    position: sticky !important; top: 0 !important; z-index: 100 !important;
+    display: flex !important; align-items: center !important; justify-content: space-between !important;
+}
+.brand-name { font-size: 1rem !important; font-weight: 700 !important; letter-spacing: 1px !important; }
+.nav-link { font-size: 1.2rem !important; padding: 6px 8px !important; color: #fff !important; }
+.btn-logout { font-size: 0.78rem !important; padding: 5px 10px !important; border: 1px solid #363636 !important; border-radius: 8px !important; }
+
+.profile-main { padding: 16px 16px 0 !important; max-width: 100% !important; }
+
+.profile-header-section {
+    display: flex !important; flex-direction: row !important;
+    gap: 20px !important; align-items: flex-start !important;
+    margin-bottom: 16px !important; padding-bottom: 0 !important;
+}
+.avatar-wrap { flex-shrink: 0 !important; }
+.avatar-ring { width: 86px !important; height: 86px !important; }
+.avatar-img { width: 80px !important; height: 80px !important; }
+.btn-change-photo { width: 26px !important; height: 26px !important; font-size: 0.7rem !important; }
+
+.profile-info { flex: 1 !important; min-width: 0 !important; }
+.profile-name-row { flex-direction: column !important; align-items: flex-start !important; gap: 8px !important; margin-bottom: 10px !important; }
+.profile-username { font-size: 1rem !important; font-weight: 600 !important; }
+
+.stats-row { display: flex !important; gap: 0 !important; justify-content: space-around !important; margin-bottom: 12px !important; }
+.stat-item { display: flex !important; flex-direction: column !important; align-items: center !important; gap: 2px !important; flex: 1 !important; }
+.stat-num { font-size: 1rem !important; font-weight: 700 !important; color: #fff !important; }
+.stat-lbl { font-size: 0.72rem !important; color: #a8a8a8 !important; }
+
+.btn-action { width: 100% !important; padding: 7px 12px !important; font-size: 0.85rem !important; font-weight: 600 !important; border-radius: 8px !important; }
+.btn-edit { background: #262626 !important; border: none !important; color: #fff !important; }
+.btn-follow { background: #0095f6 !important; border: none !important; color: #fff !important; }
+
+.bio-section { max-width: 100% !important; margin-top: 4px !important; }
+.bio-name { font-size: 0.85rem !important; font-weight: 700 !important; }
+.bio-text { font-size: 0.82rem !important; line-height: 1.4 !important; }
+
+.profile-tabs {
+    border-top: 1px solid #262626 !important; border-bottom: none !important;
+    margin: 12px -16px 0 !important; display: flex !important;
+}
+.tab-btn {
+    flex: 1 !important; padding: 12px 0 !important; font-size: 0.8rem !important;
+    border-radius: 0 !important; background: none !important; border: none !important;
+    border-top: 2px solid transparent !important; color: #a8a8a8 !important; font-weight: 600 !important;
+}
+.tab-btn.active { border-top-color: #fff !important; color: #fff !important; }
+
+.posts-grid { gap: 2px !important; margin: 2px -16px 0 !important; grid-template-columns: repeat(3, 1fr) !important; }
+
+.post-modal-inner {
+    flex-direction: column !important; width: 100% !important;
+    max-width: 100vw !important; max-height: 95dvh !important;
+    border-radius: 16px 16px 0 0 !important;
+    position: fixed !important; bottom: 0 !important; left: 0 !important; right: 0 !important; margin: 0 !important;
+}
+.post-media-side { max-height: 45vh !important; border-radius: 16px 16px 0 0 !important; }
+.post-info-side { width: 100% !important; border-left: none !important; border-top: 1px solid #262626 !important; padding: 12px 16px !important; }
+
+.side-modal { position: fixed !important; inset: 0 !important; z-index: 9999 !important; display: flex !important; align-items: flex-end !important; }
+.side-modal-content { width: 100% !important; border-radius: 16px 16px 0 0 !important; background: #1c1c1c !important; padding: 20px 16px 32px !important; max-height: 85dvh !important; overflow-y: auto !important; }
+
+#igNavBar {
+    display: flex !important; align-items: center !important; justify-content: space-around !important;
+    background: #000 !important; border-top: 1px solid #262626 !important;
+    height: calc(49px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+    position: fixed !important; bottom: 0 !important; left: 0 !important; right: 0 !important; z-index: 300 !important;
+}
+.ig-nav-btn {
+    flex: 1 !important; height: 100% !important;
+    display: flex !important; align-items: center !important; justify-content: center !important;
+    background: none !important; border: none !important; cursor: pointer !important;
+    font-size: 1.5rem !important; color: #fff !important; position: relative !important; padding-top: 4px !important;
+}
+.ig-nav-btn:active { opacity: 0.5 !important; }
+.ig-nav-btn.active::after {
+    content: '' !important; position: absolute !important; bottom: 6px !important;
+    left: 50% !important; transform: translateX(-50%) !important;
+    width: 5px !important; height: 5px !important; border-radius: 50% !important; background: #fff !important;
+}
+#profileContainer { padding-bottom: calc(49px + env(safe-area-inset-bottom, 0px)) !important; }
+
+} /* END @media */
+    </style>
 </head>
 <body>
 
@@ -579,6 +677,28 @@ function escapeHtml(t) {
     d.textContent = t;
     return d.innerHTML;
 }
+</script>
+
+<!-- MOBILE INSTAGRAM NAV -->
+<script>
+(function(){
+    if (window.innerWidth > 768) return;
+    function inject() {
+        if (document.getElementById('igNavBar')) return;
+        var container = document.getElementById('profileContainer') || document.body;
+        var nav = document.createElement('div');
+        nav.id = 'igNavBar';
+        nav.innerHTML =
+            '<button class="ig-nav-btn" onclick="window.location.href=\'index.html\'">🏠</button>' +
+            '<button class="ig-nav-btn" onclick="window.location.href=\'reels.html\'">▶️</button>' +
+            '<button class="ig-nav-btn" onclick="window.location.href=\'chat.html\'">✉️</button>' +
+            '<button class="ig-nav-btn" onclick="window.location.href=\'index.html\'">🔍</button>' +
+            '<button class="ig-nav-btn active" onclick="window.location.href=\'profile.html\'">👤</button>';
+        document.body.appendChild(nav);
+    }
+    if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', inject); }
+    else { inject(); }
+})();
 </script>
 </body>
 </html>

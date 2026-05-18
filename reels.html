@@ -5,6 +5,170 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ALVIN Reels</title>
     <link rel="stylesheet" href="reels.css">
+    <style>
+/* ================================================================
+   REELS — Instagram Mobile Style  (≤768px)
+================================================================ */
+@media (max-width: 768px) {
+
+body { background: #000 !important; overflow: hidden !important; }
+
+.reels-container {
+    background: #000 !important;
+    flex-direction: column !important;
+    height: 100dvh !important;
+}
+
+/* ── Sidebar nav → bottom bar (disembunyikan, diganti igNavBar) ── */
+.reels-sidebar-nav {
+    display: none !important;
+}
+
+/* ── Reels main full screen ── */
+.reels-main {
+    width: 100% !important;
+    height: 100dvh !important;
+    position: relative !important;
+}
+
+.reels-viewer {
+    width: 100% !important;
+    height: 100% !important;
+    position: relative !important;
+}
+
+.reels-carousel {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* ── Reel item full screen ── */
+.reel-item {
+    width: 100vw !important;
+    height: 100dvh !important;
+}
+
+/* ── Reel info (caption, username) ── */
+.reel-info {
+    position: absolute !important;
+    bottom: calc(60px + env(safe-area-inset-bottom, 0px)) !important;
+    left: 0 !important;
+    right: 70px !important;
+    padding: 0 14px 14px !important;
+    z-index: 10 !important;
+}
+.reel-user h4 { font-size: 0.9rem !important; font-weight: 700 !important; }
+.reel-caption { font-size: 0.82rem !important; line-height: 1.4 !important; }
+
+/* ── Action buttons — kanan tengah ── */
+.reels-actions-sidebar {
+    position: absolute !important;
+    right: 10px !important;
+    bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important;
+    gap: 18px !important;
+    z-index: 10 !important;
+}
+.action-btn {
+    width: 44px !important;
+    height: 44px !important;
+    background: rgba(0,0,0,0.3) !important;
+}
+.action-btn .icon { font-size: 1.4rem !important; }
+.action-btn .count { font-size: 0.65rem !important; }
+
+/* ── Comments panel — bottom sheet ── */
+.comments-panel {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    height: 65dvh !important;
+    max-height: 65dvh !important;
+    border-radius: 16px 16px 0 0 !important;
+    border-left: none !important;
+    border-top: 1px solid #363636 !important;
+    background: #1c1c1c !important;
+    z-index: 500 !important;
+}
+
+/* ── Upload modal ── */
+.modal-content {
+    width: 96% !important;
+    max-height: 88dvh !important;
+    border-radius: 16px !important;
+    background: #1c1c1c !important;
+    border: 1px solid #363636 !important;
+}
+.modal-close {
+    color: #fff !important;
+    background: rgba(255,255,255,0.1) !important;
+    border: none !important;
+    border-radius: 50% !important;
+    width: 30px !important; height: 30px !important;
+}
+
+/* ── Notif panel ── */
+.notif-panel {
+    width: 100% !important;
+    right: 0 !important;
+    border-left: none !important;
+    border-top: 1px solid #363636 !important;
+    border-radius: 0 !important;
+    max-height: 70dvh !important;
+    bottom: 0 !important;
+    top: auto !important;
+    position: fixed !important;
+    z-index: 400 !important;
+}
+
+/* ── Bottom navbar ── */
+#igNavBar {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-around !important;
+    background: rgba(0,0,0,0.85) !important;
+    border-top: 1px solid rgba(255,255,255,0.1) !important;
+    height: calc(49px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+    position: fixed !important;
+    bottom: 0 !important; left: 0 !important; right: 0 !important;
+    z-index: 300 !important;
+    backdrop-filter: blur(10px) !important;
+}
+.ig-nav-btn {
+    flex: 1 !important; height: 100% !important;
+    display: flex !important; align-items: center !important; justify-content: center !important;
+    background: none !important; border: none !important; cursor: pointer !important;
+    font-size: 1.5rem !important; color: #fff !important;
+    position: relative !important; padding-top: 4px !important;
+    transition: opacity 0.15s !important;
+}
+.ig-nav-btn:active { opacity: 0.5 !important; }
+.ig-nav-btn.active { color: #fff !important; }
+.ig-nav-btn.active::after {
+    content: '' !important; position: absolute !important; bottom: 6px !important;
+    left: 50% !important; transform: translateX(-50%) !important;
+    width: 5px !important; height: 5px !important; border-radius: 50% !important; background: #fff !important;
+}
+
+/* Notif badge di nav */
+.nav-notif-badge {
+    position: absolute !important;
+    top: 6px !important; right: 50% !important;
+    margin-right: -18px !important;
+    background: #ef4444 !important;
+    color: #fff !important;
+    font-size: 0.55rem !important;
+    font-weight: 700 !important;
+    min-width: 16px !important; height: 16px !important;
+    border-radius: 8px !important;
+    display: flex !important; align-items: center !important; justify-content: center !important;
+    padding: 0 4px !important;
+}
+
+} /* END @media */
+    </style>
 </head>
 <body>
     <!-- AUTH CHECK -->
@@ -1583,5 +1747,52 @@
             imgElement.parentNode.appendChild(errorDiv);
         };
     </script>
+
+<!-- MOBILE INSTAGRAM NAV -->
+<script>
+(function(){
+    if (window.innerWidth > 768) return;
+    function inject() {
+        if (document.getElementById('igNavBar')) return;
+        var nav = document.createElement('div');
+        nav.id = 'igNavBar';
+        // Cek notif badge
+        var notifCount = document.getElementById('notifBadge');
+        var badgeNum = notifCount ? notifCount.textContent : '';
+        var badgeHtml = (badgeNum && badgeNum !== '0') ?
+            '<span class="nav-notif-badge">' + badgeNum + '</span>' : '';
+        nav.innerHTML =
+            '<button class="ig-nav-btn" onclick="window.location.href=\'index.html\'">🏠</button>' +
+            '<button class="ig-nav-btn active">▶️</button>' +
+            '<button class="ig-nav-btn" onclick="window.location.href=\'chat.html\'">✉️</button>' +
+            '<button class="ig-nav-btn" style="position:relative" onclick="toggleNotifPanel()">' +
+                '🔔' + badgeHtml +
+            '</button>' +
+            '<button class="ig-nav-btn" onclick="window.location.href=\'profile.html\'">👤</button>';
+        document.body.appendChild(nav);
+
+        // Sync badge dengan notifBadge asli
+        var origBadge = document.getElementById('notifBadge');
+        if (origBadge) {
+            var observer = new MutationObserver(function() {
+                var nb = nav.querySelector('.nav-notif-badge');
+                var val = origBadge.textContent;
+                if (val && val !== '0') {
+                    if (!nb) {
+                        var notifBtn = nav.querySelectorAll('.ig-nav-btn')[3];
+                        var s = document.createElement('span');
+                        s.className = 'nav-notif-badge';
+                        s.textContent = val;
+                        notifBtn.appendChild(s);
+                    } else { nb.textContent = val; }
+                } else if (nb) { nb.remove(); }
+            });
+            observer.observe(origBadge, { childList: true, characterData: true, subtree: true });
+        }
+    }
+    if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', inject); }
+    else { inject(); }
+})();
+</script>
 </body>
 </html>

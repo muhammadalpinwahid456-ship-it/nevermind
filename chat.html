@@ -9,6 +9,482 @@
     <link rel="stylesheet" href="chat-streak.css">
     <link rel="stylesheet" href="chat-doodle.css">
     <link rel="stylesheet" href="chat-theme.css">
+    <link rel="stylesheet" href="chat-mobile.css">
+    <style id="mobileInlineStyle">
+/* ================================================================
+   MOBILE INSTAGRAM DM STYLE — Inline override
+   Aktif hanya di layar <= 768px
+================================================================ */
+@media (max-width: 768px) {
+
+/* ── Base ── */
+body {
+    background: #000 !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+}
+
+/* ── Container ── */
+#chatContainer {
+    background: #000 !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+    position: fixed !important;
+    inset: 0 !important;
+}
+
+/* ── HEADER UTAMA ── */
+.chat-header {
+    background: #000 !important;
+    border-bottom: 1px solid #262626 !important;
+    padding: 0 16px !important;
+    height: 56px !important;
+    min-height: 56px !important;
+    flex-shrink: 0 !important;
+    box-shadow: none !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+}
+.header-left .logo {
+    font-size: 1.2rem !important;
+    font-weight: 700 !important;
+    color: #fff !important;
+}
+.header-right { gap: 8px !important; }
+#myAvatar {
+    width: 32px !important;
+    height: 32px !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+.user-name { font-size: 0.82rem !important; color: #fff !important; }
+.btn-logout-chat {
+    background: none !important;
+    border: 1px solid #363636 !important;
+    color: #fff !important;
+    padding: 5px 12px !important;
+    border-radius: 8px !important;
+    font-size: 0.78rem !important;
+    font-weight: 600 !important;
+    box-shadow: none !important;
+}
+
+/* ── WRAPPER ── */
+.chat-wrapper {
+    flex: 1 !important;
+    min-height: 0 !important;
+    position: relative !important;
+    overflow: hidden !important;
+    /* Hapus flex-direction column dari media query lama */
+    flex-direction: row !important;
+}
+
+/* ── SIDEBAR — jadi DM list full screen ── */
+.chat-sidebar {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    background: #000 !important;
+    border: none !important;
+    z-index: 10 !important;
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    flex-shrink: 0 !important;
+    overflow: hidden !important;
+}
+.chat-sidebar.ig-hidden {
+    transform: translateX(-100%) !important;
+    pointer-events: none !important;
+}
+
+/* ── Sidebar Header ── */
+.sidebar-header {
+    background: #000 !important;
+    border-bottom: 1px solid #262626 !important;
+    padding: 14px 16px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    flex-shrink: 0 !important;
+}
+.sidebar-tabs { gap: 0 !important; }
+.sidebar-tab {
+    background: none !important;
+    border: none !important;
+    color: #a8a8a8 !important;
+    font-size: 0.88rem !important;
+    font-weight: 600 !important;
+    padding: 6px 14px !important;
+    border-radius: 20px !important;
+    cursor: pointer !important;
+    transition: all 0.2s !important;
+}
+.sidebar-tab.active {
+    background: #262626 !important;
+    color: #fff !important;
+}
+.btn-back-reels {
+    background: none !important;
+    border: 1px solid #363636 !important;
+    color: #a8a8a8 !important;
+    font-size: 0.78rem !important;
+    padding: 5px 10px !important;
+    border-radius: 8px !important;
+    gap: 4px !important;
+}
+
+/* ── Search ── */
+.search-box {
+    padding: 10px 14px !important;
+    background: #000 !important;
+    border: none !important;
+    flex-shrink: 0 !important;
+}
+.search-box input {
+    background: #1c1c1c !important;
+    border: none !important;
+    border-radius: 12px !important;
+    color: #fff !important;
+    padding: 9px 16px !important;
+    font-size: 0.88rem !important;
+    width: 100% !important;
+    font-family: inherit !important;
+}
+.search-box input:focus {
+    outline: none !important;
+    box-shadow: none !important;
+    border: none !important;
+}
+.search-box input::placeholder { color: #a8a8a8 !important; }
+
+/* ── Panel Pesan ── */
+#panelPesan {
+    flex: 1 !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 0 !important;
+}
+.users-list {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: 4px 0 0 !important;
+}
+.users-list::-webkit-scrollbar { display: none !important; }
+
+/* ── User item ── */
+.user-item {
+    padding: 10px 16px !important;
+    border-left: none !important;
+    gap: 14px !important;
+    background: transparent !important;
+    transition: background 0.12s !important;
+    display: flex !important;
+    align-items: center !important;
+}
+.user-item:hover, .user-item:active {
+    background: rgba(255,255,255,0.05) !important;
+    border-left-color: transparent !important;
+}
+.user-item-avatar {
+    width: 56px !important;
+    height: 56px !important;
+    font-size: 1.6rem !important;
+    border-radius: 50% !important;
+    background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #bc1888) !important;
+    flex-shrink: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+.user-item-info h4 {
+    font-size: 0.93rem !important;
+    font-weight: 600 !important;
+    color: #f5f5f5 !important;
+    margin-bottom: 2px !important;
+}
+.user-email {
+    font-size: 0.78rem !important;
+    color: #a8a8a8 !important;
+    max-width: 180px !important;
+}
+.unread-badge {
+    background: #0095f6 !important;
+    box-shadow: none !important;
+    font-size: 0.6rem !important;
+    min-width: 18px !important;
+    height: 18px !important;
+    border-radius: 9px !important;
+    right: 14px !important;
+    padding: 0 5px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* ── CHAT MAIN — slide dari kanan ── */
+.chat-main {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    z-index: 20 !important;
+    background: #000 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    transform: translateX(100%) !important;
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    pointer-events: none !important;
+}
+.chat-main.ig-open {
+    transform: translateX(0) !important;
+    pointer-events: all !important;
+}
+
+#welcomeMessage { display: none !important; }
+
+/* ── Chat Window ── */
+#chatWindow {
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 0 !important;
+    background: #000 !important;
+}
+
+/* ── Chat Window Header ── */
+.chat-window-header {
+    background: #000 !important;
+    border-bottom: 1px solid #262626 !important;
+    padding: 10px 12px !important;
+    min-height: 60px !important;
+    box-shadow: none !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    flex-shrink: 0 !important;
+}
+.btn-close-chat {
+    background: none !important;
+    border: none !important;
+    color: #fff !important;
+    font-size: 1.4rem !important;
+    padding: 4px 8px !important;
+    cursor: pointer !important;
+    flex-shrink: 0 !important;
+    line-height: 1 !important;
+}
+.user-info { gap: 10px !important; flex: 1 !important; min-width: 0 !important; }
+.user-info .user-avatar {
+    width: 38px !important;
+    height: 38px !important;
+    border: 2px solid #0095f6 !important;
+    box-shadow: none !important;
+}
+.user-details h3 {
+    font-size: 0.92rem !important;
+    font-weight: 700 !important;
+    color: #fff !important;
+}
+.user-status { font-size: 0.75rem !important; color: #a8a8a8 !important; }
+
+/* ── Messages ── */
+.messages-area {
+    flex: 1 !important;
+    background: #000 !important;
+    background-image: none !important;
+    padding: 12px !important;
+    gap: 4px !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    min-height: 0 !important;
+}
+.messages-area::-webkit-scrollbar { display: none !important; }
+
+.message-bubble {
+    max-width: 78% !important;
+    font-size: 0.93rem !important;
+    line-height: 1.45 !important;
+    padding: 10px 14px !important;
+    border-radius: 22px !important;
+    font-family: inherit !important;
+}
+.message.sent .message-bubble {
+    background: #3797f0 !important;
+    color: #fff !important;
+    border-radius: 22px 22px 6px 22px !important;
+    border: none !important;
+}
+.message.received .message-bubble {
+    background: #262626 !important;
+    color: #f5f5f5 !important;
+    border-radius: 22px 22px 22px 6px !important;
+    border: none !important;
+}
+
+/* ── Input area ── */
+.input-area {
+    background: #000 !important;
+    border-top: 1px solid #262626 !important;
+    padding: 8px 12px !important;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+    gap: 8px !important;
+    min-height: 56px !important;
+    flex-shrink: 0 !important;
+    align-items: center !important;
+    display: flex !important;
+}
+.message-input {
+    background: transparent !important;
+    border: 1.5px solid #363636 !important;
+    border-radius: 24px !important;
+    color: #fff !important;
+    padding: 9px 16px !important;
+    font-size: 0.92rem !important;
+    font-family: inherit !important;
+    min-height: 40px !important;
+    flex: 1 !important;
+    transition: border-color 0.2s !important;
+}
+.message-input:focus {
+    outline: none !important;
+    border-color: #a8a8a8 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+}
+.message-input::placeholder { color: #a8a8a8 !important; }
+
+.btn-send {
+    background: #0095f6 !important;
+    border: none !important;
+    border-radius: 50% !important;
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    padding: 0 !important;
+    color: #fff !important;
+    font-size: 0.85rem !important;
+    font-weight: 700 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+    box-shadow: 0 2px 8px rgba(0,149,246,0.4) !important;
+    transition: transform 0.12s, opacity 0.12s !important;
+}
+.btn-send:active { transform: scale(0.9) !important; }
+
+.btn-attachment, #doodleToggleBtn {
+    background: none !important;
+    border: none !important;
+    color: #fff !important;
+    font-size: 1.3rem !important;
+    padding: 6px !important;
+    flex-shrink: 0 !important;
+    border-radius: 50% !important;
+    transition: background 0.15s !important;
+}
+
+/* ── Message menu ── */
+.message-menu {
+    border-radius: 16px 16px 0 0 !important;
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    background: #1c1c1c !important;
+    border: none !important;
+    border-top: 1px solid #363636 !important;
+    padding: 8px 0 20px !important;
+    box-shadow: 0 -8px 32px rgba(0,0,0,0.6) !important;
+    z-index: 9999 !important;
+}
+.menu-item {
+    padding: 14px 22px !important;
+    font-size: 0.95rem !important;
+    color: #f5f5f5 !important;
+    width: 100% !important;
+    text-align: left !important;
+    background: none !important;
+    border: none !important;
+    cursor: pointer !important;
+    display: block !important;
+}
+.menu-item:active { background: rgba(255,255,255,0.06) !important; }
+
+/* ── Modal ── */
+.modal-content {
+    background: #1c1c1c !important;
+    border: 1px solid #363636 !important;
+    border-radius: 16px !important;
+    width: 94% !important;
+    max-height: 85dvh !important;
+}
+.modal-header {
+    background: #1c1c1c !important;
+    border-bottom: 1px solid #363636 !important;
+    border-radius: 16px 16px 0 0 !important;
+    padding: 14px 16px !important;
+}
+.modal-header h3 { color: #fff !important; }
+
+/* ── Doodle toolbar offset ── */
+#doodleToolbar { bottom: 66px !important; }
+
+/* ── Streak header ── */
+#chatStreakHeader {
+    font-size: 0.72rem !important;
+    padding: 2px 7px !important;
+}
+
+/* ── Bottom nav bar ── */
+#igNavBar {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-around !important;
+    background: #000 !important;
+    border-top: 1px solid #262626 !important;
+    height: calc(49px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+    flex-shrink: 0 !important;
+    z-index: 300 !important;
+}
+.ig-nav-btn {
+    flex: 1 !important;
+    height: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: none !important;
+    border: none !important;
+    cursor: pointer !important;
+    font-size: 1.5rem !important;
+    color: #fff !important;
+    position: relative !important;
+    transition: opacity 0.15s !important;
+    padding-top: 4px !important;
+}
+.ig-nav-btn:active { opacity: 0.5 !important; }
+.ig-nav-btn.active::after {
+    content: '' !important;
+    position: absolute !important;
+    bottom: 6px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    width: 5px !important;
+    height: 5px !important;
+    border-radius: 50% !important;
+    background: #fff !important;
+}
+
+} /* END @media */
+    </style>
     <style>
         /* Auto-delete 24 jam: badge sisa waktu */
         .note-expires {
@@ -2986,5 +3462,159 @@
     <script src="chat-streak.js"></script>
     <script src="chat-doodle.js"></script>
     <script src="chat-theme.js"></script>
-</body>
+
+    <!-- ============================================================
+         MOBILE INSTAGRAM LAYOUT SCRIPT — inline
+    ============================================================ -->
+    <script>
+    (function() {
+        'use strict';
+
+        function isMobile() { return window.innerWidth <= 768; }
+
+        /* ── Inject bottom nav bar ── */
+        function injectNavBar() {
+            if (document.getElementById('igNavBar')) return;
+            var container = document.getElementById('chatContainer');
+            if (!container) return;
+
+            var nav = document.createElement('div');
+            nav.id = 'igNavBar';
+            nav.innerHTML =
+                '<button class="ig-nav-btn" id="igNavHome" title="Home">🏠</button>' +
+                '<button class="ig-nav-btn" id="igNavReels" title="Reels">▶️</button>' +
+                '<button class="ig-nav-btn active" id="igNavDM" title="Pesan">✉️</button>' +
+                '<button class="ig-nav-btn" id="igNavSearch" title="Cari">🔍</button>' +
+                '<button class="ig-nav-btn" id="igNavProfile" title="Profil">👤</button>';
+            container.appendChild(nav);
+
+            nav.querySelectorAll('.ig-nav-btn').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    nav.querySelectorAll('.ig-nav-btn').forEach(function(b){ b.classList.remove('active'); });
+                    btn.classList.add('active');
+                });
+            });
+
+            document.getElementById('igNavDM').addEventListener('click', showSidebar);
+            document.getElementById('igNavHome').addEventListener('click', showSidebar);
+            document.getElementById('igNavReels').addEventListener('click', function() {
+                window.location.href = 'reels.html';
+            });
+            document.getElementById('igNavProfile').addEventListener('click', function() {
+                window.location.href = 'profile.html';
+            });
+        }
+
+        /* ── Show sidebar (DM list), hide chat ── */
+        function showSidebar() {
+            if (!isMobile()) return;
+            var sidebar = document.querySelector('.chat-sidebar');
+            var chatMain = document.querySelector('.chat-main');
+            if (sidebar) sidebar.classList.remove('ig-hidden');
+            if (chatMain) chatMain.classList.remove('ig-open');
+        }
+
+        /* ── Show chat, hide sidebar ── */
+        function showChat() {
+            if (!isMobile()) return;
+            var sidebar = document.querySelector('.chat-sidebar');
+            var chatMain = document.querySelector('.chat-main');
+            if (sidebar) sidebar.classList.add('ig-hidden');
+            if (chatMain) chatMain.classList.add('ig-open');
+        }
+
+        /* ── Bind user-item clicks ── */
+        function bindUserItems() {
+            document.querySelectorAll('.user-item').forEach(function(item) {
+                if (item._igBound) return;
+                item._igBound = true;
+                item.addEventListener('click', function() {
+                    if (isMobile()) showChat();
+                });
+            });
+        }
+
+        /* ── Bind back/close button ── */
+        function bindCloseBtn() {
+            var btn = document.querySelector('.btn-close-chat');
+            if (btn && !btn._igBound) {
+                btn._igBound = true;
+                btn.addEventListener('click', function() {
+                    if (isMobile()) showSidebar();
+                });
+            }
+        }
+
+        /* ── Observe new user items injected by Firebase ── */
+        var observer = new MutationObserver(function() {
+            if (isMobile()) { bindUserItems(); bindCloseBtn(); }
+        });
+
+        function startObserver() {
+            var target = document.getElementById('usersList') ||
+                         document.querySelector('.chat-sidebar') ||
+                         document.querySelector('.chat-main');
+            if (target) observer.observe(target, { childList: true, subtree: true });
+        }
+
+        /* ── Also watch for chatWindow becoming visible ── */
+        function watchChatWindow() {
+            var chatWin = document.getElementById('chatWindow');
+            if (!chatWin) return;
+            var winObserver = new MutationObserver(function(mutations) {
+                mutations.forEach(function(m) {
+                    if (m.attributeName === 'style' && isMobile()) {
+                        var isVisible = chatWin.style.display !== 'none' && chatWin.style.display !== '';
+                        if (isVisible) showChat();
+                    }
+                });
+            });
+            winObserver.observe(chatWin, { attributes: true });
+        }
+
+        /* ── Reset for desktop ── */
+        function resetDesktop() {
+            var sidebar = document.querySelector('.chat-sidebar');
+            var chatMain = document.querySelector('.chat-main');
+            if (sidebar) sidebar.classList.remove('ig-hidden');
+            if (chatMain) chatMain.classList.remove('ig-open');
+            var nav = document.getElementById('igNavBar');
+            if (nav) nav.remove();
+        }
+
+        /* ── Init ── */
+        function init() {
+            if (!isMobile()) return;
+            injectNavBar();
+            bindUserItems();
+            bindCloseBtn();
+            startObserver();
+            watchChatWindow();
+        }
+
+        /* ── Run after DOM + slight delay for Firebase ── */
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                init();
+                setTimeout(function() { if(isMobile()) bindUserItems(); }, 800);
+                setTimeout(function() { if(isMobile()) bindUserItems(); }, 2000);
+            });
+        } else {
+            init();
+            setTimeout(function() { if(isMobile()) bindUserItems(); }, 800);
+            setTimeout(function() { if(isMobile()) bindUserItems(); }, 2000);
+        }
+
+        /* ── Resize handler ── */
+        var resizeTimer;
+        window.addEventListener('resize', function() {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(function() {
+                if (isMobile()) { init(); }
+                else { resetDesktop(); }
+            }, 200);
+        });
+
+    })();
+    </script>
 </html>
