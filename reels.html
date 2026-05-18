@@ -349,7 +349,7 @@ body { background: #000 !important; overflow: hidden !important; }
     </div>
 
     <!-- NOTIFICATION PANEL -->
-    <div id="notifPanel" class="notif-panel" style="display:none;">
+    <div id="notifPanel" class="notif-panel" style="display:none;" onclick="event.stopPropagation()" ontouchstart="event.stopPropagation()" ontouchmove="event.stopPropagation()">
         <div class="notif-panel-header">
             <h3>Notifikasi</h3>
             <div class="notif-header-actions">
@@ -358,12 +358,12 @@ body { background: #000 !important; overflow: hidden !important; }
             </div>
         </div>
         <div class="notif-tabs">
-            <button class="notif-tab active" onclick="switchNotifTab('all', this)">Semua</button>
-            <button class="notif-tab" onclick="switchNotifTab('reels', this)">Reels</button>
-            <button class="notif-tab" onclick="switchNotifTab('follows', this)">Pengikut</button>
-            <button class="notif-tab" onclick="switchNotifTab('notes', this)">Notes</button>
+            <button class="notif-tab active" onclick="event.stopPropagation(); switchNotifTab('all', this)">Semua</button>
+            <button class="notif-tab" onclick="event.stopPropagation(); switchNotifTab('reels', this)">Reels</button>
+            <button class="notif-tab" onclick="event.stopPropagation(); switchNotifTab('follows', this)">Pengikut</button>
+            <button class="notif-tab" onclick="event.stopPropagation(); switchNotifTab('notes', this)">Notes</button>
         </div>
-        <div class="notif-list" id="notifList">
+        <div class="notif-list" id="notifList" ontouchstart="event.stopPropagation()" ontouchmove="event.stopPropagation()">
             <div class="notif-empty">
                 <span>🔔</span>
                 <p>Belum ada notifikasi</p>
@@ -431,9 +431,15 @@ body { background: #000 !important; overflow: hidden !important; }
         window.toggleNotifPanel = function() {
             const panel = document.getElementById('notifPanel');
             const overlay = document.getElementById('notifOverlay');
+            const carousel = document.querySelector('.reels-carousel');
             const isOpen = panel.style.display !== 'none';
             panel.style.display = isOpen ? 'none' : 'flex';
             overlay.style.display = isOpen ? 'none' : 'block';
+            // Nonaktifkan swipe reels saat panel terbuka agar tidak mengganggu scroll notif
+            if (carousel) {
+                carousel.style.pointerEvents = isOpen ? '' : 'none';
+                carousel.style.touchAction = isOpen ? '' : 'none';
+            }
             if (!isOpen) {
                 renderNotifList();
             }

@@ -757,10 +757,29 @@
     }
 
     /* ================================================================
-       DOODLE TOOLBAR — lebih compact di mobile
+       DOODLE TOOLBAR — lebih compact di mobile, naik di atas navbar
        ================================================================ */
     #doodleToolbar {
-        bottom: calc(var(--ig-navbar-h) + var(--safe-bottom) + 8px) !important;
+        bottom: calc(var(--ig-navbar-h) + var(--safe-bottom) + 12px) !important;
+        max-width: calc(100vw - 16px) !important;
+        overflow-x: auto !important;
+        flex-wrap: nowrap !important;
+        gap: 5px !important;
+        padding: 7px 10px !important;
+        /* Pastikan tombol Fill, Batal, Selesai tidak terpotong */
+        box-sizing: border-box !important;
+    }
+
+    /* Sembunyikan tombol yang tidak kritis agar muat di layar sempit */
+    #doodleToolbar .doodle-size-wrap {
+        display: none !important;
+    }
+
+    /* Paksa semua tombol tidak menyusut */
+    #doodleToolbar .doodle-tool-btn,
+    #doodleFinishBtn,
+    #doodleCancelBtn {
+        flex-shrink: 0 !important;
     }
 
     /* ================================================================
@@ -825,3 +844,32 @@
    window.addEventListener('resize', applyMobileLayout);
 
    ================================================================ */
+
+/* ================================================================
+   BUGFIX: Notes Panel — pastikan tinggi penuh dan bisa di-scroll
+   ================================================================ */
+@media (max-width: 768px) {
+    /* Notes panel harus mengisi sisa tinggi sidebar */
+    #panelNotes {
+        flex: 1 !important;
+        overflow: hidden !important;
+        display: flex !important;
+        flex-direction: column !important;
+        min-height: 0 !important;
+    }
+
+    /* Daftar notes teman: harus bisa di-scroll, beri ruang untuk navbar */
+    .notes-friends-list {
+        flex: 1 !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        min-height: 0 !important;
+        padding-bottom: calc(var(--ig-navbar-h) + var(--safe-bottom) + 8px) !important;
+    }
+
+    /* Scroll row notes juga jangan overflow ke luar sidebar */
+    .notes-scroll-wrapper {
+        flex-shrink: 0 !important;
+        overflow: hidden !important;
+    }
+}
