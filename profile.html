@@ -5,412 +5,580 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ALVIN Profile</title>
     <link rel="stylesheet" href="profile.css">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <!-- AUTH CHECK -->
-    <div id="authCheck" class="auth-check">
-        <div class="auth-message">
-            <h2>⚠️ Silakan Login Terlebih Dahulu</h2>
-            <p>Anda harus login untuk mengakses halaman profile</p>
-            <button onclick="window.location.href='index.html'">Kembali ke Homepage</button>
-        </div>
+
+<!-- AUTH CHECK -->
+<div id="authCheck" class="auth-check">
+    <div class="auth-message">
+        <div class="auth-icon">🔒</div>
+        <h2>Login Diperlukan</h2>
+        <p>Silakan login terlebih dahulu untuk mengakses halaman profil</p>
+        <button onclick="window.location.href='index.html'">Kembali ke Homepage</button>
     </div>
+</div>
 
-    <!-- PROFILE CONTAINER -->
-    <div id="profileContainer" class="profile-container" style="display: none;">
-        <!-- HEADER -->
-        <header class="profile-header">
-            <div class="header-left">
-                <h1 class="logo">👤 ALVIN Profile</h1>
-            </div>
-            <div class="header-right">
-                <a href="reels.html" class="btn-reels">🎬 Reels</a>
-                <a href="chat.html" class="btn-chat">💬 Chat</a>
-                <a href="index.html" class="btn-home">🏠 Home</a>
-                <button class="btn-logout-profile" onclick="logoutProfile()">Logout</button>
-            </div>
-        </header>
+<!-- PROFILE CONTAINER -->
+<div id="profileContainer" class="profile-container" style="display:none;">
 
-        <!-- PROFILE SECTION -->
-        <div class="profile-content">
-            <!-- PROFILE HEADER -->
-            <div class="profile-header-section">
-                <div class="profile-pic-wrapper">
-                    <img id="profilePic" class="profile-pic" src="https://via.placeholder.com/150" alt="Profile">
-                    <button class="btn-edit-pic" onclick="openEditPhoto()">📷</button>
+    <!-- TOP NAV -->
+    <header class="top-nav">
+        <div class="nav-brand">
+            <span class="brand-icon">▲</span>
+            <span class="brand-name">ALVIN</span>
+        </div>
+        <nav class="nav-links">
+            <a href="index.html" class="nav-link">🏠</a>
+            <a href="reels.html" class="nav-link">🎬</a>
+            <a href="chat.html" class="nav-link">💬</a>
+            <button class="nav-link btn-logout" onclick="logoutProfile()">Keluar</button>
+        </nav>
+    </header>
+
+    <!-- PROFILE BODY -->
+    <main class="profile-main">
+
+        <!-- PROFILE HEADER -->
+        <section class="profile-header-section">
+            <!-- Avatar -->
+            <div class="avatar-wrap">
+                <div class="avatar-ring">
+                    <img id="profilePic" class="avatar-img" src="https://ui-avatars.com/api/?background=3b82f6&color=fff&size=150" alt="Profile">
                 </div>
-                <input type="file" id="photoUpload" accept="image/*" style="display: none;">
+                <button class="btn-change-photo" onclick="document.getElementById('photoUpload').click()" title="Ganti foto">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                </button>
+                <input type="file" id="photoUpload" accept="image/*" style="display:none;">
+            </div>
 
-                <div class="profile-info">
-                    <h2 id="profileName">User Name</h2>
-                    <p id="profileDesc" class="profile-desc">Belum ada deskripsi</p>
-                    
-                    <div class="profile-stats">
-                        <div class="stat">
-                            <span class="stat-value" id="totalLikes">0</span>
-                            <span class="stat-label">Total Likes</span>
-                        </div>
-                        <div class="stat">
-                            <span class="stat-value" id="totalReels">0</span>
-                            <span class="stat-label">Reels</span>
-                        </div>
+            <!-- Info -->
+            <div class="profile-info">
+                <div class="profile-name-row">
+                    <h1 id="profileName" class="profile-username">username</h1>
+                    <button id="btnEditProfile" class="btn-action btn-edit" onclick="openEditModal()">Edit Profil</button>
+                    <!-- tombol ini muncul saat lihat profil orang lain -->
+                    <button id="btnFollowUser" class="btn-action btn-follow" onclick="toggleFollow()" style="display:none;">Ikuti</button>
+                </div>
+
+                <!-- Stats Row -->
+                <div class="stats-row">
+                    <div class="stat-item">
+                        <span class="stat-num" id="totalPosts">0</span>
+                        <span class="stat-lbl">kiriman</span>
                     </div>
-
-                    <button class="btn-edit-profile" onclick="openEditModal()">Edit Profile</button>
-                </div>
-            </div>
-
-            <!-- GALLERY SECTION -->
-            <div class="gallery-section">
-                <h3>Reels Saya</h3>
-                <div class="gallery-grid" id="galleryGrid">
-                    <!-- Gallery items akan ditampilkan di sini -->
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- EDIT PROFILE MODAL -->
-    <div id="editModal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <button class="modal-close" onclick="closeEditModal()">✕</button>
-            <h2>Edit Profile</h2>
-            
-            <form id="editForm">
-                <div class="form-group">
-                    <label for="editName">Nama Lengkap</label>
-                    <input 
-                        type="text" 
-                        id="editName" 
-                        placeholder="Masukkan nama Anda" 
-                        required 
-                        maxlength="100"
-                    >
-                </div>
-
-                <div class="form-group">
-                    <label for="editDesc">Deskripsi</label>
-                    <textarea 
-                        id="editDesc" 
-                        placeholder="Tulis deskripsi tentang Anda" 
-                        maxlength="150"
-                        rows="3"
-                    ></textarea>
-                    <span class="char-count"><span id="descCount">0</span>/150</span>
-                </div>
-
-                <button type="submit" class="btn-save">Simpan Perubahan</button>
-            </form>
-        </div>
-    </div>
-
-    <!-- FIREBASE SCRIPTS -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import {
-            getAuth,
-            onAuthStateChanged,
-            signOut
-        } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-        import {
-            getDatabase,
-            ref,
-            onValue,
-            get,
-            update,
-            remove
-        } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyDzDRaHEASBWO0dDKOIlvlku3lN01b89iw",
-            authDomain: "alvin-f573e.firebaseapp.com",
-            projectId: "alvin-f573e",
-            storageBucket: "alvin-f573e.firebasestorage.app",
-            messagingSenderId: "718704784181",
-            appId: "1:718704784181:web:db5fe912a3cb3b0675d27c",
-            measurementId: "G-NHLWBMV307",
-            databaseURL: "https://alvin-f573e-default-rtdb.asia-southeast1.firebasedatabase.app"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const database = getDatabase(app);
-
-        let currentUser = null;
-        let userReels = [];
-        let userProfileUnsubscribe = null;
-        let userReelsUnsubscribe = null;
-
-        // ===== AUTH CHECK =====
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                currentUser = user;
-                document.getElementById('authCheck').style.display = 'none';
-                document.getElementById('profileContainer').style.display = 'block';
-                loadUserProfile();
-                loadUserReels();
-            } else {
-                document.getElementById('authCheck').style.display = 'flex';
-                document.getElementById('profileContainer').style.display = 'none';
-                if (userProfileUnsubscribe) userProfileUnsubscribe();
-                if (userReelsUnsubscribe) userReelsUnsubscribe();
-            }
-        });
-
-        // Load user profile (DIPERBAIKI: Realtime listener)
-        function loadUserProfile() {
-            const userRef = ref(database, 'users/' + currentUser.uid);
-            
-            if (userProfileUnsubscribe) userProfileUnsubscribe();
-            
-            userProfileUnsubscribe = onValue(userRef, (snapshot) => {
-                if (snapshot.exists()) {
-                    const userData = snapshot.val();
-                    document.getElementById('profileName').textContent = userData.fullname || 'User';
-                    document.getElementById('profileDesc').textContent = userData.description || 'Belum ada deskripsi';
-                    
-                    if (userData.photoURL) {
-                        document.getElementById('profilePic').src = userData.photoURL;
-                    }
-
-                    document.getElementById('editName').value = userData.fullname || '';
-                    document.getElementById('editDesc').value = userData.description || '';
-                    document.getElementById('descCount').textContent = (userData.description || '').length;
-                    
-                    console.log('✅ Profile loaded:', userData.fullname);
-                }
-            }, (error) => {
-                console.error('❌ Error loading profile:', error);
-            });
-        }
-
-        // Load user reels (DIPERBAIKI: Realtime listener dengan filter)
-        function loadUserReels() {
-            const reelsRef = ref(database, 'reels');
-            
-            if (userReelsUnsubscribe) userReelsUnsubscribe();
-            
-            userReelsUnsubscribe = onValue(reelsRef, (snapshot) => {
-                userReels = [];
-                if (snapshot.exists()) {
-                    snapshot.forEach((childSnapshot) => {
-                        const reelData = childSnapshot.val();
-                        // Filter hanya reels milik user ini
-                        if (reelData.userId === currentUser.uid && reelData.mediaUrl) {
-                            userReels.push({
-                                id: childSnapshot.key,
-                                ...reelData
-                            });
-                        }
-                    });
-                    // Sort by timestamp (terbaru dulu)
-                    userReels.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-                    console.log('✅ User reels loaded:', userReels.length);
-                }
-                displayUserReels();
-                updateStats();
-            }, (error) => {
-                console.error('❌ Error loading reels:', error);
-            });
-        }
-
-        // Display user reels
-        function displayUserReels() {
-            const gallery = document.getElementById('galleryGrid');
-            gallery.innerHTML = '';
-
-            if (userReels.length === 0) {
-                gallery.innerHTML = '<p class="no-reels">Anda belum upload reels. <a href="reels.html">Upload sekarang!</a></p>';
-                return;
-            }
-
-            userReels.forEach(reel => {
-                const galleryItem = document.createElement('div');
-                galleryItem.className = 'gallery-item';
-                galleryItem.dataset.reelId = reel.id;
-
-                const mediaHtml = reel.mediaType === 'video'
-                    ? `<video src="${reel.mediaUrl}" controls preload="metadata" style="width: 100%; height: 100%; object-fit: cover;" onerror="handleVideoError(this)"></video>`
-                    : `<img src="${reel.mediaUrl}" alt="reel" style="width: 100%; height: 100%; object-fit: cover;" onerror="handleImageError(this)">`;
-
-                const likeCount = Object.keys(reel.likes || {}).length;
-                const commentCount = Object.keys(reel.comments || {}).length;
-
-                galleryItem.innerHTML = `
-                    <div class="gallery-media">
-                        ${mediaHtml}
-                        <div class="gallery-overlay">
-                            <div class="gallery-stats">
-                                <span>❤️ ${likeCount}</span>
-                                <span>💬 ${commentCount}</span>
-                            </div>
-                        </div>
-                        <button class="btn-delete-reel" title="Hapus Reel" onclick="confirmDeleteReel('${reel.id}', this)">🗑️</button>
+                    <div class="stat-item clickable" onclick="showFollowersList()">
+                        <span class="stat-num" id="totalFollowers">0</span>
+                        <span class="stat-lbl">pengikut</span>
                     </div>
-                    <p class="gallery-caption">${escapeHtml(reel.caption)}</p>
-                `;
+                    <div class="stat-item clickable" onclick="showFollowingList()">
+                        <span class="stat-num" id="totalFollowing">0</span>
+                        <span class="stat-lbl">mengikuti</span>
+                    </div>
+                </div>
 
-                gallery.appendChild(galleryItem);
-            });
+                <!-- Bio -->
+                <div class="bio-section">
+                    <span class="bio-name" id="bioName"></span>
+                    <p id="profileDesc" class="bio-text">Belum ada deskripsi</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- TABS -->
+        <div class="profile-tabs">
+            <button class="tab-btn active" id="tabPosts" onclick="switchTab('posts')">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                KIRIMAN
+            </button>
+            <button class="tab-btn" id="tabLiked" onclick="switchTab('liked')">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                DISUKAI
+            </button>
+        </div>
+
+        <!-- GRID -->
+        <div class="posts-grid" id="galleryGrid"></div>
+        <div class="posts-grid" id="likedGrid" style="display:none;"></div>
+
+    </main>
+</div>
+
+<!-- ===== POST VIEWER MODAL ===== -->
+<div id="postModal" class="post-modal" onclick="closePostModal(event)">
+    <button class="modal-x" onclick="closePostModal()">✕</button>
+    <div class="post-modal-inner" onclick="event.stopPropagation()">
+        <!-- MEDIA SIDE -->
+        <div class="post-media-side" id="postMediaSide">
+            <!-- video/img injected here -->
+        </div>
+        <!-- INFO SIDE -->
+        <div class="post-info-side">
+            <!-- author -->
+            <div class="post-author-bar">
+                <img id="modalAuthorPic" class="post-author-pic" src="" alt="">
+                <div>
+                    <span id="modalAuthorName" class="post-author-name"></span>
+                    <span id="modalPostDate" class="post-date"></span>
+                </div>
+                <button id="modalDeleteBtn" class="btn-modal-delete" onclick="confirmDeleteReelModal()" title="Hapus">🗑️</button>
+            </div>
+            <!-- caption -->
+            <p id="modalCaption" class="post-caption"></p>
+            <!-- stats bar -->
+            <div class="modal-stats-bar">
+                <span id="modalLikes" class="modal-stat">❤️ <b>0</b> suka</span>
+                <span id="modalComments" class="modal-stat">💬 <b>0</b> komentar</span>
+            </div>
+            <!-- comments list -->
+            <div class="comments-list" id="commentsList"></div>
+            <!-- like + comment actions -->
+            <div class="post-actions-bar">
+                <button class="post-action-btn" id="btnModalLike" onclick="toggleLikeModal()">
+                    <span id="likeIcon">🤍</span>
+                </button>
+                <div class="comment-input-wrap">
+                    <input type="text" id="commentInput" class="comment-input" placeholder="Tambahkan komentar…" maxlength="200">
+                    <button class="btn-send-comment" onclick="postComment()">Kirim</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== EDIT PROFILE MODAL ===== -->
+<div id="editModal" class="side-modal" style="display:none;">
+    <div class="side-modal-content">
+        <div class="side-modal-header">
+            <h2>Edit Profil</h2>
+            <button class="modal-x-sm" onclick="closeEditModal()">✕</button>
+        </div>
+        <div class="form-group">
+            <label>Nama Lengkap</label>
+            <input type="text" id="editName" placeholder="Nama kamu" maxlength="100">
+        </div>
+        <div class="form-group">
+            <label>Bio <span id="descCount" class="char-count">0</span>/150</label>
+            <textarea id="editDesc" placeholder="Ceritakan tentang dirimu…" maxlength="150" rows="3"></textarea>
+        </div>
+        <button class="btn-save" onclick="saveProfile()">Simpan</button>
+    </div>
+</div>
+
+<!-- ===== FOLLOWERS/FOLLOWING MODAL ===== -->
+<div id="peopleModal" class="side-modal" style="display:none;">
+    <div class="side-modal-content">
+        <div class="side-modal-header">
+            <h2 id="peopleModalTitle">Pengikut</h2>
+            <button class="modal-x-sm" onclick="closePeopleModal()">✕</button>
+        </div>
+        <div id="peopleList" class="people-list"></div>
+    </div>
+</div>
+
+<!-- FIREBASE -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getDatabase, ref, onValue, get, set, update, remove, push, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyDzDRaHEASBWO0dDKOIlvlku3lN01b89iw",
+    authDomain: "alvin-f573e.firebaseapp.com",
+    projectId: "alvin-f573e",
+    storageBucket: "alvin-f573e.firebasestorage.app",
+    messagingSenderId: "718704784181",
+    appId: "1:718704784181:web:db5fe912a3cb3b0675d27c",
+    measurementId: "G-NHLWBMV307",
+    databaseURL: "https://alvin-f573e-default-rtdb.asia-southeast1.firebasedatabase.app"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
+
+let currentUser = null;
+let viewingUid = null; // uid profil yang sedang dilihat (bisa sendiri atau orang lain)
+let userReels = [];
+let currentReelId = null;
+let followersCache = {};
+let followingCache = {};
+let unsubs = [];
+
+// ---- Parse ?uid= from URL ----
+const urlParams = new URLSearchParams(window.location.search);
+const targetUid = urlParams.get('uid'); // null kalau profil sendiri
+
+onAuthStateChanged(auth, async (user) => {
+    if (user) {
+        currentUser = user;
+        viewingUid = targetUid || user.uid;
+
+        document.getElementById('authCheck').style.display = 'none';
+        document.getElementById('profileContainer').style.display = 'block';
+
+        loadProfile(viewingUid);
+        loadReels(viewingUid);
+
+        if (viewingUid !== currentUser.uid) {
+            // Lihat profil orang lain
+            document.getElementById('btnEditProfile').style.display = 'none';
+            document.getElementById('btnFollowUser').style.display = 'inline-flex';
+            checkFollowStatus();
         }
+    } else {
+        document.getElementById('authCheck').style.display = 'flex';
+        document.getElementById('profileContainer').style.display = 'none';
+    }
+});
 
-        // Confirm & delete reel
-        window.confirmDeleteReel = async function(reelId, btnEl) {
-            if (!confirm('⚠️ Yakin ingin menghapus reel ini?\nReel yang dihapus tidak dapat dikembalikan.')) return;
+// ======== LOAD PROFILE ========
+function loadProfile(uid) {
+    const userRef = ref(db, 'users/' + uid);
+    const unsub = onValue(userRef, async (snap) => {
+        if (!snap.exists()) return;
+        const d = snap.val();
+        const name = d.fullname || 'User';
+        document.getElementById('profileName').textContent = name;
+        document.getElementById('bioName').textContent = name;
+        document.getElementById('profileDesc').textContent = d.description || '';
+        if (d.photoURL) document.getElementById('profilePic').src = d.photoURL;
+        document.getElementById('editName').value = name;
+        document.getElementById('editDesc').value = d.description || '';
+        document.getElementById('descCount').textContent = (d.description || '').length;
+    });
+    unsubs.push(unsub);
 
-            btnEl.disabled = true;
-            btnEl.textContent = '⏳';
+    // Followers count
+    const folRef = ref(db, 'follows/' + uid + '/followers');
+    const unsub2 = onValue(folRef, snap => {
+        followersCache = snap.val() || {};
+        document.getElementById('totalFollowers').textContent = formatCount(Object.keys(followersCache).length);
+    });
+    unsubs.push(unsub2);
 
-            try {
-                const reelRef = ref(database, 'reels/' + reelId);
-                await remove(reelRef);
+    // Following count
+    const fngRef = ref(db, 'follows/' + uid + '/following');
+    const unsub3 = onValue(fngRef, snap => {
+        followingCache = snap.val() || {};
+        document.getElementById('totalFollowing').textContent = formatCount(Object.keys(followingCache).length);
+    });
+    unsubs.push(unsub3);
+}
 
-                // Hapus card dari DOM langsung (tidak perlu tunggu listener)
-                const card = document.querySelector(`.gallery-item[data-reel-id="${reelId}"]`);
-                if (card) {
-                    card.style.transition = 'opacity 0.3s, transform 0.3s';
-                    card.style.opacity = '0';
-                    card.style.transform = 'scale(0.85)';
-                    setTimeout(() => card.remove(), 320);
+// ======== LOAD REELS ========
+function loadReels(uid) {
+    const reelsRef = ref(db, 'reels');
+    const unsub = onValue(reelsRef, async (snap) => {
+        const all = [];
+        snap.forEach(child => {
+            const d = child.val();
+            if (d.userId === uid) all.push({ id: child.key, ...d });
+        });
+        all.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        userReels = all;
+        document.getElementById('totalPosts').textContent = all.length;
+        renderGrid(all, 'galleryGrid', uid === currentUser.uid);
+        loadLikedPosts();
+    });
+    unsubs.push(unsub);
+}
+
+function renderGrid(reels, gridId, isOwner) {
+    const grid = document.getElementById(gridId);
+    grid.innerHTML = '';
+    if (!reels.length) {
+        grid.innerHTML = '<p class="empty-state">' + (isOwner ? 'Belum ada kiriman. <a href="reels.html">Upload sekarang!</a>' : 'Belum ada kiriman.') + '</p>';
+        return;
+    }
+    reels.forEach(reel => {
+        const likeCount = Object.keys(reel.likes || {}).length;
+        const commentCount = Object.keys(reel.comments || {}).length;
+        const isVideo = reel.mediaType === 'video';
+
+        const item = document.createElement('div');
+        item.className = 'grid-item';
+        item.onclick = () => openPostModal(reel.id);
+
+        item.innerHTML = `
+            <div class="grid-thumb">
+                ${isVideo
+                    ? `<video src="${reel.mediaUrl}" preload="metadata" muted></video><span class="video-badge">▶</span>`
+                    : `<img src="${reel.mediaUrl}" alt="" onerror="this.src='https://via.placeholder.com/300x300/161b22/555?text=Error'">`
                 }
+                <div class="grid-hover">
+                    <span>❤️ ${formatCount(likeCount)}</span>
+                    <span>💬 ${formatCount(commentCount)}</span>
+                </div>
+                ${isOwner ? `<button class="grid-delete-btn" onclick="event.stopPropagation(); confirmDeleteReel('${reel.id}')">✕</button>` : ''}
+            </div>
+        `;
+        grid.appendChild(item);
+    });
+}
 
-                console.log('✅ Reel dihapus:', reelId);
-            } catch (error) {
-                alert('❌ Gagal menghapus reel: ' + error.message);
-                btnEl.disabled = false;
-                btnEl.textContent = '🗑️';
-                console.error('Delete reel error:', error);
-            }
-        };
+async function loadLikedPosts() {
+    if (!currentUser) return;
+    // only show liked tab for own profile
+    if (viewingUid !== currentUser.uid) {
+        document.querySelector('[onclick="switchTab(\'liked\')"]').style.display = 'none';
+        return;
+    }
+    const snap = await get(ref(db, 'reels'));
+    const liked = [];
+    snap.forEach(child => {
+        const d = child.val();
+        if (d.likes && d.likes[currentUser.uid]) liked.push({ id: child.key, ...d });
+    });
+    renderGrid(liked, 'likedGrid', false);
+}
 
-        // Update stats
-        function updateStats() {
-            let totalLikes = 0;
-            userReels.forEach(reel => {
-                totalLikes += Object.keys(reel.likes || {}).length;
-            });
+// ======== POST MODAL ========
+window.openPostModal = async function(reelId) {
+    currentReelId = reelId;
+    const snap = await get(ref(db, 'reels/' + reelId));
+    if (!snap.exists()) return;
+    const reel = { id: reelId, ...snap.val() };
 
-            document.getElementById('totalLikes').textContent = totalLikes;
-            document.getElementById('totalReels').textContent = userReels.length;
-            
-            console.log('📊 Stats updated - Reels:', userReels.length, 'Likes:', totalLikes);
-        }
+    // media
+    const mediaSide = document.getElementById('postMediaSide');
+    if (reel.mediaType === 'video') {
+        mediaSide.innerHTML = `<video src="${reel.mediaUrl}" controls autoplay class="modal-media"></video>`;
+    } else {
+        mediaSide.innerHTML = `<img src="${reel.mediaUrl}" class="modal-media" alt="">`;
+    }
 
-        // Open edit photo
-        window.openEditPhoto = function() {
-            document.getElementById('photoUpload').click();
-        };
+    // author
+    const authorSnap = await get(ref(db, 'users/' + reel.userId));
+    const author = authorSnap.val() || {};
+    document.getElementById('modalAuthorPic').src = author.photoURL || 'https://ui-avatars.com/api/?background=3b82f6&color=fff&size=40';
+    document.getElementById('modalAuthorName').textContent = author.fullname || 'User';
 
-        // Photo upload
-        document.getElementById('photoUpload').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                if (file.size > 5 * 1024 * 1024) {
-                    alert('❌ File terlalu besar! Max 5MB');
-                    return;
-                }
-                
-                const reader = new FileReader();
-                reader.onload = async (event) => {
-                    try {
-                        const photoURL = event.target.result;
-                        const userRef = ref(database, 'users/' + currentUser.uid);
-                        await update(userRef, { photoURL: photoURL });
-                        document.getElementById('profilePic').src = photoURL;
-                        alert('✅ Foto profil berhasil diperbarui!');
-                        console.log('✅ Photo updated');
-                    } catch (error) {
-                        alert('❌ Error: ' + error.message);
-                        console.error('Photo upload error:', error);
-                    }
-                };
-                reader.readAsDataURL(file);
-            }
-        });
+    const date = reel.createdAt ? new Date(reel.createdAt).toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' }) : '';
+    document.getElementById('modalPostDate').textContent = date;
+    document.getElementById('modalCaption').textContent = reel.caption || '';
 
-        // Open edit modal
-        window.openEditModal = function() {
-            document.getElementById('editModal').style.display = 'flex';
-        };
+    const likeCount = Object.keys(reel.likes || {}).length;
+    const commentCount = Object.keys(reel.comments || {}).length;
+    document.getElementById('modalLikes').innerHTML = `❤️ <b>${formatCount(likeCount)}</b> suka`;
+    document.getElementById('modalComments').innerHTML = `💬 <b>${formatCount(commentCount)}</b> komentar`;
 
-        // Close edit modal
-        window.closeEditModal = function() {
-            document.getElementById('editModal').style.display = 'none';
-        };
+    // delete btn
+    const delBtn = document.getElementById('modalDeleteBtn');
+    delBtn.style.display = (reel.userId === currentUser.uid) ? 'flex' : 'none';
 
-        // Description counter
-        document.getElementById('editDesc').addEventListener('input', function() {
-            document.getElementById('descCount').textContent = this.value.length;
-        });
+    // like status
+    const liked = reel.likes && reel.likes[currentUser.uid];
+    document.getElementById('likeIcon').textContent = liked ? '❤️' : '🤍';
 
-        // Edit form submit
-        document.getElementById('editForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
+    // comments
+    renderComments(reel.comments || {});
 
-            const name = document.getElementById('editName').value.trim();
-            const description = document.getElementById('editDesc').value.trim();
+    document.getElementById('postModal').style.display = 'flex';
+};
 
-            if (!name) {
-                alert('❌ Nama tidak boleh kosong');
-                return;
-            }
+function renderComments(comments) {
+    const list = document.getElementById('commentsList');
+    list.innerHTML = '';
+    const sorted = Object.entries(comments).sort((a,b) => (a[1].createdAt||0)-(b[1].createdAt||0));
+    sorted.forEach(([id, c]) => {
+        const div = document.createElement('div');
+        div.className = 'comment-item';
+        div.innerHTML = `<span class="comment-author">${escapeHtml(c.userName||'User')}</span> <span class="comment-text">${escapeHtml(c.text||'')}</span>`;
+        list.appendChild(div);
+    });
+}
 
-            try {
-                const userRef = ref(database, 'users/' + currentUser.uid);
-                await update(userRef, {
-                    fullname: name,
-                    description: description
-                });
+window.closePostModal = function(e) {
+    if (e && e.target !== document.getElementById('postModal') && !document.querySelector('.modal-x')) return;
+    if (e && e.currentTarget === document.getElementById('postModal') && e.target !== e.currentTarget) return;
+    document.getElementById('postModal').style.display = 'none';
+    currentReelId = null;
+    // stop video
+    const v = document.querySelector('#postMediaSide video');
+    if (v) v.pause();
+};
 
-                alert('✅ Profile berhasil diperbarui!');
-                closeEditModal();
-                console.log('✅ Profile updated');
-            } catch (error) {
-                alert('❌ Error: ' + error.message);
-                console.error('Profile update error:', error);
-            }
-        });
+window.toggleLikeModal = async function() {
+    if (!currentReelId) return;
+    const likeRef = ref(db, `reels/${currentReelId}/likes/${currentUser.uid}`);
+    const snap = await get(likeRef);
+    if (snap.exists()) {
+        await remove(likeRef);
+        document.getElementById('likeIcon').textContent = '🤍';
+    } else {
+        await set(likeRef, true);
+        document.getElementById('likeIcon').textContent = '❤️';
+    }
+    // refresh counts
+    const reelSnap = await get(ref(db, 'reels/' + currentReelId));
+    const reel = reelSnap.val() || {};
+    document.getElementById('modalLikes').innerHTML = `❤️ <b>${formatCount(Object.keys(reel.likes||{}).length)}</b> suka`;
+};
 
-        // Logout
-        window.logoutProfile = function() {
-            if (confirm('Apakah Anda yakin ingin logout?')) {
-                if (userProfileUnsubscribe) userProfileUnsubscribe();
-                if (userReelsUnsubscribe) userReelsUnsubscribe();
-                signOut(auth).then(() => {
-                    window.location.href = 'index.html';
-                }).catch(err => {
-                    alert('❌ Error: ' + err.message);
-                    console.error('Logout error:', err);
-                });
-            }
-        };
+window.postComment = async function() {
+    const input = document.getElementById('commentInput');
+    const text = input.value.trim();
+    if (!text || !currentReelId) return;
 
-        // Escape HTML
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
+    const userSnap = await get(ref(db, 'users/' + currentUser.uid));
+    const userData = userSnap.val() || {};
 
-        // Handle video error
-        window.handleVideoError = function(videoElement) {
-            console.error('Video failed to load:', videoElement.src);
-            videoElement.style.display = 'none';
-            const errorDiv = document.createElement('div');
-            errorDiv.className = 'media-error';
-            errorDiv.innerHTML = '❌ Video gagal dimuat';
-            videoElement.parentNode.appendChild(errorDiv);
-        };
+    const commentsRef = ref(db, `reels/${currentReelId}/comments`);
+    await push(commentsRef, {
+        userId: currentUser.uid,
+        userName: userData.fullname || 'User',
+        text,
+        createdAt: Date.now()
+    });
+    input.value = '';
 
-        // Handle image error
-        window.handleImageError = function(imgElement) {
-            console.error('Image failed to load:', imgElement.src);
-            imgElement.style.display = 'none';
-            const errorDiv = document.createElement('div');
-            errorDiv.className = 'media-error';
-            errorDiv.innerHTML = '❌ Gambar gagal dimuat';
-            imgElement.parentNode.appendChild(errorDiv);
-        };
-    </script>
+    // refresh
+    const reelSnap = await get(ref(db, 'reels/' + currentReelId));
+    const reel = reelSnap.val() || {};
+    renderComments(reel.comments || {});
+    document.getElementById('modalComments').innerHTML = `💬 <b>${formatCount(Object.keys(reel.comments||{}).length)}</b> komentar`;
+};
+
+// ======== FOLLOW ========
+async function checkFollowStatus() {
+    if (!currentUser) return;
+    const snap = await get(ref(db, `follows/${viewingUid}/followers/${currentUser.uid}`));
+    const btn = document.getElementById('btnFollowUser');
+    if (snap.exists()) {
+        btn.textContent = 'Mengikuti';
+        btn.classList.add('following');
+    } else {
+        btn.textContent = 'Ikuti';
+        btn.classList.remove('following');
+    }
+}
+
+window.toggleFollow = async function() {
+    if (!currentUser || viewingUid === currentUser.uid) return;
+    const snap = await get(ref(db, `follows/${viewingUid}/followers/${currentUser.uid}`));
+    if (snap.exists()) {
+        // Unfollow
+        await remove(ref(db, `follows/${viewingUid}/followers/${currentUser.uid}`));
+        await remove(ref(db, `follows/${currentUser.uid}/following/${viewingUid}`));
+    } else {
+        // Follow
+        await set(ref(db, `follows/${viewingUid}/followers/${currentUser.uid}`), true);
+        await set(ref(db, `follows/${currentUser.uid}/following/${viewingUid}`), true);
+    }
+    checkFollowStatus();
+};
+
+// ======== FOLLOWERS/FOLLOWING MODAL ========
+window.showFollowersList = async function() {
+    document.getElementById('peopleModalTitle').textContent = 'Pengikut';
+    const snap = await get(ref(db, `follows/${viewingUid}/followers`));
+    const uids = snap.val() ? Object.keys(snap.val()) : [];
+    populatePeopleList(uids);
+    document.getElementById('peopleModal').style.display = 'flex';
+};
+
+window.showFollowingList = async function() {
+    document.getElementById('peopleModalTitle').textContent = 'Mengikuti';
+    const snap = await get(ref(db, `follows/${viewingUid}/following`));
+    const uids = snap.val() ? Object.keys(snap.val()) : [];
+    populatePeopleList(uids);
+    document.getElementById('peopleModal').style.display = 'flex';
+};
+
+async function populatePeopleList(uids) {
+    const list = document.getElementById('peopleList');
+    list.innerHTML = '<p class="loading-text">Memuat…</p>';
+    if (!uids.length) { list.innerHTML = '<p class="empty-state">Tidak ada.</p>'; return; }
+    const items = await Promise.all(uids.map(async uid => {
+        const snap = await get(ref(db, 'users/' + uid));
+        const u = snap.val() || {};
+        return { uid, name: u.fullname || 'User', photo: u.photoURL || '' };
+    }));
+    list.innerHTML = '';
+    items.forEach(u => {
+        const div = document.createElement('div');
+        div.className = 'people-item';
+        div.innerHTML = `
+            <img src="${u.photo || `https://ui-avatars.com/api/?background=3b82f6&color=fff&size=40&name=${encodeURIComponent(u.name)}`}" class="people-pic" alt="">
+            <span class="people-name">${escapeHtml(u.name)}</span>
+            <a href="profile.html?uid=${u.uid}" class="people-visit">Lihat</a>
+        `;
+        list.appendChild(div);
+    });
+}
+
+window.closePeopleModal = function() { document.getElementById('peopleModal').style.display = 'none'; };
+
+// ======== EDIT PROFILE ========
+window.openEditModal = function() { document.getElementById('editModal').style.display = 'flex'; };
+window.closeEditModal = function() { document.getElementById('editModal').style.display = 'none'; };
+
+document.getElementById('editDesc').addEventListener('input', function() {
+    document.getElementById('descCount').textContent = this.value.length;
+});
+
+window.saveProfile = async function() {
+    const name = document.getElementById('editName').value.trim();
+    const desc = document.getElementById('editDesc').value.trim();
+    if (!name) { alert('Nama tidak boleh kosong'); return; }
+    try {
+        await update(ref(db, 'users/' + currentUser.uid), { fullname: name, description: desc });
+        closeEditModal();
+    } catch(e) { alert('Error: ' + e.message); }
+};
+
+// ======== PHOTO ========
+document.getElementById('photoUpload').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { alert('File terlalu besar! Maks 5MB'); return; }
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+        await update(ref(db, 'users/' + currentUser.uid), { photoURL: ev.target.result });
+        document.getElementById('profilePic').src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+});
+
+// ======== DELETE REEL ========
+window.confirmDeleteReel = async function(reelId) {
+    if (!confirm('Hapus kiriman ini?')) return;
+    await remove(ref(db, 'reels/' + reelId));
+};
+window.confirmDeleteReelModal = async function() {
+    if (!currentReelId) return;
+    if (!confirm('Hapus kiriman ini?')) return;
+    await remove(ref(db, 'reels/' + currentReelId));
+    closePostModal();
+};
+
+// ======== TABS ========
+window.switchTab = function(tab) {
+    document.getElementById('galleryGrid').style.display = tab === 'posts' ? 'grid' : 'none';
+    document.getElementById('likedGrid').style.display = tab === 'liked' ? 'grid' : 'none';
+    document.getElementById('tabPosts').classList.toggle('active', tab === 'posts');
+    document.getElementById('tabLiked').classList.toggle('active', tab === 'liked');
+};
+
+// ======== LOGOUT ========
+window.logoutProfile = function() {
+    if (!confirm('Logout?')) return;
+    unsubs.forEach(u => u && u());
+    signOut(auth).then(() => window.location.href = 'index.html').catch(e => alert(e.message));
+};
+
+// ======== UTILS ========
+function formatCount(n) {
+    if (n >= 1000000) return (n/1000000).toFixed(1).replace(/\.0$/,'') + ' jt';
+    if (n >= 1000) return (n/1000).toFixed(1).replace(/\.0$/,'') + ' rb';
+    return n;
+}
+function escapeHtml(t) {
+    const d = document.createElement('div');
+    d.textContent = t;
+    return d.innerHTML;
+}
+</script>
 </body>
 </html>
