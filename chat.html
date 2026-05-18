@@ -165,14 +165,9 @@ body {
 #panelPesan {
     flex: 1 !important;
     overflow: hidden !important;
+    display: flex !important;
     flex-direction: column !important;
     min-height: 0 !important;
-    /* display dikontrol oleh JS — jangan pakai !important di sini */
-    display: flex;
-}
-/* Class helper: saat notes aktif, sembunyikan pesan */
-#panelPesan.panel-hidden {
-    display: none !important;
 }
 .users-list {
     flex: 1 !important;
@@ -2808,15 +2803,12 @@ body {
             if (tab === 'pesan') {
                 tabPesan.classList.add('active');
                 tabNotes.classList.remove('active');
-                // Gunakan class .panel-hidden agar tidak bentrok dengan CSS !important
-                panelPesan.classList.remove('panel-hidden');
-                panelPesan.style.display = '';
+                panelPesan.style.display = 'block';
                 panelNotes.style.display = 'none';
             } else {
                 tabPesan.classList.remove('active');
                 tabNotes.classList.add('active');
-                // Sembunyikan panel pesan via class
-                panelPesan.classList.add('panel-hidden');
+                panelPesan.style.display = 'none';
                 panelNotes.style.display = 'flex';
                 loadNotesPanel();
             }

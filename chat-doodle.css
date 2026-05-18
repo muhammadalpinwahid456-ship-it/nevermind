@@ -405,52 +405,16 @@
 /* ── Mobile ── */
 @media (max-width: 600px) {
     #doodleToolbar {
-        /* Naik lebih tinggi agar tidak tertutup navbar (49px) + safe area */
-        bottom: calc(49px + env(safe-area-inset-bottom, 0px) + 14px);
-        gap: 4px;
-        padding: 6px 8px;
-        max-width: calc(100vw - 12px);
-        border-radius: 20px;
-        /* Scroll horizontal jika konten tidak muat */
+        gap: 5px;
+        padding: 7px 10px;
+        bottom: 70px;
         overflow-x: auto;
-        overflow-y: hidden;
-        -webkit-overflow-scrolling: touch;
-        flex-wrap: nowrap;
-        /* Sembunyikan scrollbar */
-        scrollbar-width: none;
+        max-width: calc(100vw - 16px);
+        border-radius: 20px;
     }
-    #doodleToolbar::-webkit-scrollbar { display: none; }
-
-    /* Perkecil swatch warna */
-    .doodle-color-swatch { width: 18px; height: 18px; }
-    #doodleColorPicker { width: 18px; height: 18px; }
-
-    /* Sembunyikan slider ukuran agar muat di layar kecil */
-    .doodle-size-wrap { display: none !important; }
-
-    /* Divider lebih ramping */
-    .doodle-divider { height: 18px; }
-
-    /* Pastikan tombol aksi utama SELALU tampil dan tidak menyusut */
-    #doodleFillBtn,
-    #doodleEraserBtn,
-    #doodleUndoBtn,
-    #doodleClearBtn,
-    #doodleCancelBtn,
-    #doodleFinishBtn {
-        flex-shrink: 0 !important;
-    }
-
-    /* Tombol Batal & Selesai — sedikit lebih kecil tapi tetap readable */
-    #doodleCancelBtn {
-        padding: 5px 12px;
-        font-size: 0.72rem;
-    }
-    #doodleFinishBtn {
-        padding: 5px 14px;
-        font-size: 0.72rem;
-    }
-
+    .doodle-color-swatch { width: 16px; height: 16px; }
+    #doodleSizeSlider { width: 46px; }
+    #doodleColorPicker { width: 16px; height: 16px; }
     #doodleCloseBtn { display: none !important; }
     #doodleLabel { font-size: 0.68rem; }
     #doodleLabelSub { display: none; }

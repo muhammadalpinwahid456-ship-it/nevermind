@@ -349,7 +349,7 @@ body { background: #000 !important; overflow: hidden !important; }
     </div>
 
     <!-- NOTIFICATION PANEL -->
-    <div id="notifPanel" class="notif-panel" style="display:none;" onclick="event.stopPropagation()" ontouchstart="event.stopPropagation()" ontouchmove="event.stopPropagation()">
+    <div id="notifPanel" class="notif-panel" style="display:none;">
         <div class="notif-panel-header">
             <h3>Notifikasi</h3>
             <div class="notif-header-actions">
@@ -358,12 +358,12 @@ body { background: #000 !important; overflow: hidden !important; }
             </div>
         </div>
         <div class="notif-tabs">
-            <button class="notif-tab active" onclick="event.stopPropagation(); switchNotifTab('all', this)">Semua</button>
-            <button class="notif-tab" onclick="event.stopPropagation(); switchNotifTab('reels', this)">Reels</button>
-            <button class="notif-tab" onclick="event.stopPropagation(); switchNotifTab('follows', this)">Pengikut</button>
-            <button class="notif-tab" onclick="event.stopPropagation(); switchNotifTab('notes', this)">Notes</button>
+            <button class="notif-tab active" onclick="switchNotifTab('all', this)">Semua</button>
+            <button class="notif-tab" onclick="switchNotifTab('reels', this)">Reels</button>
+            <button class="notif-tab" onclick="switchNotifTab('follows', this)">Pengikut</button>
+            <button class="notif-tab" onclick="switchNotifTab('notes', this)">Notes</button>
         </div>
-        <div class="notif-list" id="notifList" ontouchstart="event.stopPropagation()" ontouchmove="event.stopPropagation()">
+        <div class="notif-list" id="notifList">
             <div class="notif-empty">
                 <span>🔔</span>
                 <p>Belum ada notifikasi</p>
@@ -434,19 +434,6 @@ body { background: #000 !important; overflow: hidden !important; }
             const isOpen = panel.style.display !== 'none';
             panel.style.display = isOpen ? 'none' : 'flex';
             overlay.style.display = isOpen ? 'none' : 'block';
-
-            // Saat panel TERBUKA: matikan semua pointer & touch event di area reels
-            // Video elemen di mobile bisa menangkap touch meski z-index lebih rendah
-            const reelsMain = document.querySelector('.reels-main');
-            if (reelsMain) {
-                reelsMain.style.pointerEvents = isOpen ? '' : 'none';
-                reelsMain.style.touchAction   = isOpen ? '' : 'none';
-            }
-            // Juga matikan semua video & img di dalam reels
-            document.querySelectorAll('.reel-card, .reel-media, .reel-card video, .reel-card img').forEach(el => {
-                el.style.pointerEvents = isOpen ? '' : 'none';
-            });
-
             if (!isOpen) {
                 renderNotifList();
             }
