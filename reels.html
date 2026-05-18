@@ -196,6 +196,7 @@
         <div class="notif-tabs">
             <button class="notif-tab active" onclick="switchNotifTab('all', this)">Semua</button>
             <button class="notif-tab" onclick="switchNotifTab('reels', this)">Reels</button>
+            <button class="notif-tab" onclick="switchNotifTab('follows', this)">Pengikut</button>
             <button class="notif-tab" onclick="switchNotifTab('notes', this)">Notes</button>
         </div>
         <div class="notif-list" id="notifList">
@@ -316,6 +317,7 @@
             let filtered = allNotifications;
             if (currentNotifTab === 'reels') filtered = allNotifications.filter(n => n.source === 'reels');
             if (currentNotifTab === 'notes') filtered = allNotifications.filter(n => n.source === 'notes');
+            if (currentNotifTab === 'follows') filtered = allNotifications.filter(n => n.source === 'follows');
 
             filtered.sort((a, b) => b.timestamp - a.timestamp);
 
@@ -329,20 +331,27 @@
                 let icon = '💬';
                 if (n.type === 'like') icon = '❤️';
                 else if (n.type === 'reply') icon = '↩️';
+                else if (n.type === 'follow') icon = '👤';
 
                 let sourceTag = '<span class="notif-source-tag reels-tag">Reels</span>';
                 if (n.source === 'notes') sourceTag = '<span class="notif-source-tag notes-tag">Notes</span>';
                 else if (n.type === 'reply') sourceTag = '<span class="notif-source-tag reply-tag">Balasan</span>';
+                else if (n.source === 'follows') sourceTag = '<span class="notif-source-tag follow-tag">Pengikut</span>';
 
                 const thumbHtml = n.mediaUrl
                     ? `<div class="notif-thumb"><img src="${n.mediaUrl}" alt="" onerror="this.style.display='none'"></div>`
-                    : '';
+                    : (n.source === 'follows'
+                        ? `<button class="notif-follow-back-btn" id="nfb-${n.followerId}" onclick="toggleFollowBack(event,'${n.followerId}','${(n.actorName||'').replace(/'/g,"\\'")}')">Ikuti Balik</button>`
+                        : '');
                 const dotHtml = isNew ? '<div class="notif-dot"></div>' : '';
                 const unreadClass = isNew ? 'notif-unread' : '';
                 const safeId = (n.id || '').replace(/'/g, "\\'");
-                const safePhoto = (n.actorPhoto || 'https://via.placeholder.com/44').replace(/'/g, "\\'");
 
-                return `<div class="notif-item ${unreadClass}" onclick="onNotifClick('${safeId}')">
+                const clickAction = n.source === 'follows' && n.followerId
+                    ? `goToProfileFromNotif('${n.followerId}')`
+                    : `onNotifClick('${safeId}')`;
+
+                return `<div class="notif-item ${unreadClass}" onclick="${clickAction}; onNotifClick('${safeId}')">
                     <div class="notif-avatar-wrap">
                         <img src="${n.actorPhoto || 'https://via.placeholder.com/44'}" alt="" class="notif-avatar" onerror="this.src='https://via.placeholder.com/44'">
                         <span class="notif-type-icon">${icon}</span>
@@ -358,6 +367,11 @@
                     ${dotHtml}
                 </div>`;
             }).join('');
+
+            // Apply follow-back button states
+            allNotifications.filter(n => n.source === 'follows').forEach(n => {
+                if (n.followerId) applyFollowBackUI(n.followerId, followStatusCache[n.followerId]);
+            });
         }
 
         window.onNotifClick = function(id) {
@@ -514,6 +528,49 @@
                 });
             });
             notifUnsubscribes.push(notesNotifUnsub);
+
+            // ===== FOLLOW NOTIFICATIONS =====
+            // Listen realtime ke follows/{uid}/followers — tiap follower baru = notif
+            const followersRef = ref(database, `follows/${uid}/followers`);
+            const followNotifUnsub = onValue(followersRef, async (snapshot) => {
+                allNotifications = allNotifications.filter(n => n.source !== 'follows');
+
+                if (!snapshot.exists()) {
+                    updateNotifBadge();
+                    if (document.getElementById('notifPanel').style.display !== 'none') renderNotifList();
+                    return;
+                }
+
+                const followerIds = Object.keys(snapshot.val() || {}).filter(fid => fid !== uid);
+
+                await Promise.all(followerIds.map(async (followerId) => {
+                    try {
+                        const userSnap = await get(ref(database, 'users/' + followerId));
+                        const userData = userSnap.val() || {};
+                        const notifId = `follow_${uid}_${followerId}`;
+                        allNotifications.push({
+                            id: notifId,
+                            source: 'follows',
+                            type: 'follow',
+                            actorName: userData.fullname || 'Seseorang',
+                            actorPhoto: userData.photoURL || 'https://via.placeholder.com/44',
+                            message: 'mulai mengikuti kamu',
+                            mediaUrl: null,
+                            timestamp: Date.now(),
+                            followerId
+                        });
+                        // Pre-check if we're already following back
+                        if (followStatusCache[followerId] === undefined) {
+                            const backSnap = await get(ref(database, `follows/${followerId}/followers/${uid}`));
+                            followStatusCache[followerId] = backSnap.exists();
+                        }
+                    } catch(e) {}
+                }));
+
+                updateNotifBadge();
+                if (document.getElementById('notifPanel').style.display !== 'none') renderNotifList();
+            });
+            notifUnsubscribes.push(followNotifUnsub);
         }
 
         async function enrichLikerNames(currentUid) {
@@ -1410,6 +1467,65 @@
             const uids = [...new Set(allReels.map(r => r.userId).filter(u => u !== currentUser.uid))];
             await Promise.all(uids.map(uid => checkAndApplyFollowStatus(uid)));
         }
+
+        // ===== NOTIF: KUNJUNGI PROFIL DARI NOTIFIKASI =====
+        window.goToProfileFromNotif = function(uid) {
+            if (!uid) return;
+            window.location.href = uid === currentUser.uid ? 'profile.html' : 'profile.html?uid=' + uid;
+        };
+
+        // ===== NOTIF: IKUTI BALIK =====
+        function applyFollowBackUI(followerId, isFollowingBack) {
+            const btn = document.getElementById('nfb-' + followerId);
+            if (!btn) return;
+            if (isFollowingBack) {
+                btn.textContent = 'Mengikuti';
+                btn.classList.add('following-back');
+            } else {
+                btn.textContent = 'Ikuti Balik';
+                btn.classList.remove('following-back');
+            }
+        }
+
+        window.toggleFollowBack = async function(event, followerId, actorName) {
+            event.stopPropagation();
+            if (!followerId || followerId === currentUser.uid) return;
+            const isFollowing = followStatusCache[followerId];
+            followStatusCache[followerId] = !isFollowing;
+            applyFollowBackUI(followerId, !isFollowing);
+            applyFollowUI(followerId, !isFollowing); // juga update tombol di reel kalau ada
+
+            try {
+                if (isFollowing) {
+                    await Promise.all([
+                        remove(ref(database, `follows/${followerId}/followers/${currentUser.uid}`)),
+                        remove(ref(database, `follows/${currentUser.uid}/following/${followerId}`))
+                    ]);
+                } else {
+                    await Promise.all([
+                        set(ref(database, `follows/${followerId}/followers/${currentUser.uid}`), true),
+                        set(ref(database, `follows/${currentUser.uid}/following/${followerId}`), true)
+                    ]);
+                    // Kirim notif balik ke si follower
+                    if (currentUserData) {
+                        const notifRef = push(ref(database, 'notifications/' + followerId));
+                        set(notifRef, {
+                            type: 'follow',
+                            actorName: currentUserData.fullname || 'Seseorang',
+                            actorPhoto: currentUserData.photoURL || '',
+                            actorId: currentUser.uid,
+                            message: 'mulai mengikuti kamu',
+                            timestamp: Date.now(),
+                            read: false
+                        }).catch(() => {});
+                    }
+                }
+            } catch(e) {
+                followStatusCache[followerId] = isFollowing;
+                applyFollowBackUI(followerId, isFollowing);
+                applyFollowUI(followerId, isFollowing);
+            }
+        };
 
         // Logout
         window.logoutReels = function() {

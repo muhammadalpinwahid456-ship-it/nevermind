@@ -1658,3 +1658,53 @@ body {
     letter-spacing: 0.3px;
     text-transform: uppercase;
 }
+
+/* ===== FOLLOW NOTIFICATION ===== */
+.follow-tag {
+    background: rgba(139, 92, 246, 0.15);
+    color: #a78bfa;
+    border: 1px solid rgba(139, 92, 246, 0.25);
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 999px;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+}
+
+.notif-follow-back-btn {
+    flex-shrink: 0;
+    align-self: center;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    font-family: inherit;
+}
+
+.notif-follow-back-btn:hover {
+    background: #2563eb;
+    transform: scale(1.05);
+}
+
+.notif-follow-back-btn.following-back {
+    background: rgba(255, 255, 255, 0.1);
+    color: #8b949e;
+    border: 1px solid #2d333b;
+}
+
+.notif-follow-back-btn.following-back:hover {
+    background: rgba(239, 68, 68, 0.15);
+    color: #fca5a5;
+    border-color: #ef4444;
+}
+
+.notif-item {
+    cursor: pointer;
+}
