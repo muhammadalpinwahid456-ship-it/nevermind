@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ALVINVN — Premium Music Player</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #080B12;
+  --panel: #0E1220;
+  --card: #141928;
+  --hover: #1A2035;
+  --border: rgba(255,255,255,0.07);
+  --green: #1D6BDB;
+  --green-dim: rgba(29,107,219,0.12);
+  --green-glow: 0 0 30px rgba(29,107,219,0.25);
+  --teal: #3D9DD6;
+  --text: #EEF2FF;
+  --sub: #7B8DB0;
+  --muted: #3A4560;
+  --r: 14px;
+  --rs: 9px;
+  --f: 'Outfit', sans-serif;
+  --fm: 'DM Mono', monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden}
+body{
+  font-family:var(--f);
+  background:var(--bg);
+  color:var(--text);
+  display:grid;
+  grid-template-columns:270px 1fr 320px;
+  grid-template-rows:1fr 88px;
+  grid-template-areas:"side main lyr" "bar bar bar";
+}
+body::after{
+  content:'';position:fixed;inset:0;
+  background:
+    radial-gradient(ellipse 500px 350px at 15% 85%,rgba(29,107,219,0.07) 0%,transparent 65%),
+    radial-gradient(ellipse 350px 500px at 85% 15%,rgba(61,157,214,0.04) 0%,transparent 65%);
+  pointer-events:none;z-index:0;
+}
+
+/* AUTH OVERLAY */
+#auth-overlay{
+  position:fixed;inset:0;z-index:9999;
+  background:rgba(8,11,18,0.97);
+  display:flex;align-items:center;justify-content:center;
+  flex-direction:column;gap:16px;
+}
+.auth-box{
+  background:var(--panel);border:1px solid var(--border);
+  border-radius:20px;padding:40px 36px;text-align:center;
+  max-width:380px;width:90%;
+}
+.auth-box h2{font-size:1.3rem;font-weight:800;margin-bottom:8px;
+  background:linear-gradient(130deg,#fff 30%,var(--sub));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.auth-box p{font-size:.83rem;color:var(--sub);margin-bottom:22px;line-height:1.6}
+.auth-btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+.btn-login{background:var(--green);border:none;border-radius:50px;padding:10px 26px;
+  color:#fff;font-family:var(--f);font-weight:700;font-size:.85rem;cursor:pointer;
+  transition:all .2s;text-decoration:none;display:inline-flex;align-items:center;gap:6px;}
+.btn-login:hover{box-shadow:var(--green-glow);transform:translateY(-1px)}
+.btn-back{background:var(--card);border:1px solid var(--border);border-radius:50px;
+  padding:10px 22px;color:var(--sub);font-family:var(--f);font-size:.85rem;cursor:pointer;
+  transition:all .2s;text-decoration:none;display:inline-flex;align-items:center;gap:6px;}
+.btn-back:hover{color:var(--text);border-color:var(--green)}
+.auth-user-info{display:flex;align-items:center;gap:10px;background:var(--card);
+  border:1px solid var(--border);border-radius:50px;padding:8px 16px;margin-bottom:20px;}
+.auth-user-avatar{width:32px;height:32px;border-radius:50%;object-fit:cover;background:var(--hover);}
+.auth-user-name{font-size:.82rem;font-weight:600;color:var(--text)}
+.auth-sync-note{font-size:.72rem;color:var(--muted);margin-top:4px;}
+
+/* SIDEBAR */
+#side{grid-area:side;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;z-index:1}
+.logo{padding:22px 18px 14px;display:flex;align-items:center;gap:10px}
+.logo-mark{width:34px;height:34px;background:var(--green);border-radius:10px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 18px rgba(29,107,219,0.5);flex-shrink:0}
+.logo-mark svg{width:18px;height:18px;color:#000}
+.logo-name{font-size:1.35rem;font-weight:800;letter-spacing:-0.5px;background:linear-gradient(130deg,#fff 30%,#7B8DB0);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.nav{padding:4px 10px;display:flex;flex-direction:column;gap:2px}
+.nav-i{display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:var(--rs);cursor:pointer;transition:all .18s;font-size:.85rem;font-weight:500;color:var(--sub)}
+.nav-i:hover,.nav-i.on{background:var(--hover);color:var(--text)}
+.nav-i.on{color:var(--green)}
+.nav-i svg{width:16px;height:16px;flex-shrink:0}
+.sec-label{padding:18px 18px 6px;font-size:.65rem;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--muted)}
+#pl-list{flex:1;overflow-y:auto;padding:0 10px 10px;scrollbar-width:thin;scrollbar-color:var(--hover) transparent}
+.pl-item{display:flex;align-items:center;gap:9px;padding:7px 8px;border-radius:var(--rs);cursor:pointer;transition:all .18s;position:relative}
+.pl-item:hover{background:var(--hover)}
+.pl-item.now{background:var(--green-dim)}
+.pl-thumb{width:40px;height:40px;border-radius:8px;object-fit:cover;background:var(--card);flex-shrink:0}
+.pl-ph{width:40px;height:40px;border-radius:8px;background:var(--hover);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0}
+.pl-info{flex:1;min-width:0}
+.pl-name{font-size:.78rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pl-art{font-size:.7rem;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pl-item.now .pl-name{color:var(--green)}
+.bars{display:none;gap:2px;align-items:flex-end;height:13px;flex-shrink:0}
+.pl-item.now .bars{display:flex}
+.bars b{width:3px;background:var(--green);border-radius:2px;animation:ba .75s ease-in-out infinite}
+.bars b:nth-child(2){animation-delay:.15s}.bars b:nth-child(3){animation-delay:.3s}
+@keyframes ba{0%,100%{height:3px}50%{height:13px}}
+.pl-acts{display:flex;gap:2px;opacity:0;transition:opacity .15s;flex-shrink:0}
+.pl-item:hover .pl-acts{opacity:1}
+.ic-btn{background:none;border:none;color:var(--sub);cursor:pointer;padding:3px;border-radius:5px;font-size:.8rem;transition:all .15s;display:flex;align-items:center;justify-content:center}
+.ic-btn:hover{color:var(--text);background:var(--card)}
+.ic-btn.del:hover{color:#ff5555;background:rgba(255,85,85,.1)}
+.pl-empty{padding:28px 10px;text-align:center;color:var(--muted);font-size:.78rem;line-height:1.7}
+.pl-empty span{display:block;font-size:2rem;margin-bottom:8px}
+
+/* Sidebar bottom nav */
+.side-bottom{padding:10px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:4px;}
+.side-nav-btn{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:var(--rs);
+  cursor:pointer;border:none;background:none;color:var(--sub);font-family:var(--f);
+  font-size:.83rem;font-weight:500;width:100%;transition:all .18s;text-align:left;}
+.side-nav-btn:hover{background:var(--hover);color:var(--text)}
+.side-nav-btn svg{width:16px;height:16px;flex-shrink:0}
+.cloud-indicator{display:flex;align-items:center;gap:6px;padding:7px 10px;font-size:.7rem;color:var(--muted);}
+.cloud-dot{width:6px;height:6px;border-radius:50%;background:var(--muted);flex-shrink:0;}
+.cloud-dot.synced{background:#3dda6e;box-shadow:0 0 6px rgba(61,218,110,0.4);}
+.cloud-dot.saving{background:var(--green);animation:pulse .8s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* MAIN */
+#main{grid-area:main;overflow-y:auto;padding:22px 22px 16px;z-index:1;scrollbar-width:thin;scrollbar-color:var(--hover) transparent}
+.search-wrap{position:relative;margin-bottom:24px}
+.search-wrap svg{position:absolute;left:15px;top:50%;transform:translateY(-50%);color:var(--sub);width:17px;height:17px;pointer-events:none}
+#q{width:100%;background:var(--card);border:1px solid var(--border);border-radius:50px;padding:13px 110px 13px 44px;color:var(--text);font-family:var(--f);font-size:.88rem;outline:none;transition:all .25s}
+#q::placeholder{color:var(--muted)}
+#q:focus{border-color:var(--green);box-shadow:0 0 0 3px var(--green-dim)}
+#btn-search{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:var(--green);border:none;border-radius:50px;padding:8px 20px;color:#fff;font-family:var(--f);font-weight:700;font-size:.8rem;cursor:pointer;transition:all .2s}
+#btn-search:hover{box-shadow:var(--green-glow);transform:translateY(-50%) scale(1.04)}
+#btn-search:disabled{opacity:.5;cursor:not-allowed;transform:translateY(-50%)}
+
+/* Hero */
+#np-hero{display:none;margin-bottom:22px}
+.hero-card{background:linear-gradient(135deg,var(--card),var(--hover));border:1px solid var(--border);border-radius:18px;padding:20px;display:flex;gap:18px;align-items:center;position:relative;overflow:hidden}
+.hero-card::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 260px 180px at 0% 100%,rgba(29,107,219,0.09),transparent 60%);pointer-events:none}
+.hero-img{width:90px;height:90px;border-radius:11px;object-fit:cover;flex-shrink:0;box-shadow:0 6px 20px rgba(0,0,0,0.4);background:var(--hover)}
+.hero-ph{width:90px;height:90px;border-radius:11px;background:var(--hover);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:2.2rem}
+.hero-info{flex:1;min-width:0}
+.hero-label{font-size:.62rem;letter-spacing:2px;text-transform:uppercase;color:var(--green);font-weight:700;margin-bottom:5px}
+.hero-title{font-size:1.25rem;font-weight:800;letter-spacing:-.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px}
+.hero-artist{font-size:.83rem;color:var(--sub);margin-bottom:12px}
+.hero-btns{display:flex;gap:8px;flex-wrap:wrap}
+.hbtn{background:var(--bg);border:1px solid var(--border);border-radius:50px;padding:5px 14px;color:var(--sub);font-size:.73rem;font-family:var(--f);cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:5px}
+.hbtn:hover{border-color:var(--green);color:var(--green)}
+.hbtn svg{width:11px;height:11px}
+
+/* Results */
+#res-section{display:none}
+.s-title{font-size:1rem;font-weight:700;margin-bottom:13px;letter-spacing:-.2px}
+#res-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:12px;margin-bottom:24px}
+.r-card{background:var(--card);border-radius:var(--r);padding:12px;cursor:pointer;transition:all .22s;border:1px solid transparent;position:relative;overflow:hidden}
+.r-card:hover{background:var(--hover);border-color:var(--border);transform:translateY(-2px);box-shadow:0 10px 30px rgba(0,0,0,.3)}
+.r-img{width:100%;aspect-ratio:1;border-radius:8px;object-fit:cover;margin-bottom:8px;background:var(--hover);display:block}
+.r-play-ov{position:absolute;top:12px;left:12px;width:calc(100% - 24px);aspect-ratio:1;border-radius:8px;background:rgba(0,0,.45);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s}
+.r-card:hover .r-play-ov{opacity:1}
+.r-play-ov svg{width:36px;height:36px;background:var(--green);border-radius:50%;padding:9px;color:#000;box-shadow:0 3px 16px rgba(29,107,219,.5)}
+.r-name{font-size:.78rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px}
+.r-art{font-size:.7rem;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.r-add{position:absolute;bottom:10px;right:10px;width:26px;height:26px;background:var(--green);border:none;border-radius:50%;color:#fff;font-size:1.1rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0;transition:all .2s;box-shadow:0 3px 10px rgba(29,107,219,.4)}
+.r-card:hover .r-add{opacity:1}
+.r-add:hover{transform:scale(1.15)}
+.sk{background:linear-gradient(90deg,var(--card) 25%,var(--hover) 50%,var(--card) 75%);background-size:200% 100%;animation:sk 1.4s infinite;border-radius:8px}
+@keyframes sk{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.sk-card{background:var(--card);border-radius:var(--r);padding:12px;display:flex;flex-direction:column;gap:7px}
+.sk-img{width:100%;aspect-ratio:1}.sk-l{height:9px;width:80%}.sk-l.s{width:55%}
+.empty{text-align:center;padding:70px 30px;color:var(--muted)}
+.empty i{display:block;font-size:3.2rem;margin-bottom:14px;font-style:normal}
+.empty h3{font-size:1.15rem;font-weight:700;color:var(--sub);margin-bottom:7px}
+.empty p{font-size:.8rem;line-height:1.75}
+.err-box{background:rgba(255,70,70,.07);border:1px solid rgba(255,70,70,.2);border-radius:var(--r);padding:18px 20px;font-size:.83rem;color:#ff8888;line-height:1.65;grid-column:1/-1}
+
+/* LYRICS */
+#lyr{grid-area:lyr;background:var(--panel);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;z-index:1}
+.lyr-head{padding:18px 18px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.lyr-ttl{font-size:.88rem;font-weight:700;display:flex;align-items:center;gap:8px}
+.lyr-badge{background:var(--green-dim);border:1px solid rgba(29,185,84,.3);color:var(--green);font-size:.6rem;font-weight:700;letter-spacing:1px;padding:2px 8px;border-radius:50px;text-transform:uppercase}
+.lyr-body{flex:1;position:relative;overflow:hidden;display:flex;flex-direction:column}
+.lyr-fade-t{position:absolute;top:0;left:0;right:0;height:55px;background:linear-gradient(to bottom,var(--panel),transparent);pointer-events:none;z-index:2}
+.lyr-fade-b{position:absolute;bottom:0;left:0;right:0;height:70px;background:linear-gradient(to top,var(--panel),transparent);pointer-events:none;z-index:2}
+#lyr-lines{flex:1;overflow-y:auto;padding:18px;scrollbar-width:thin;scrollbar-color:var(--hover) transparent}
+.ll{font-size:.88rem;line-height:1.75;padding:4px 0;transition:all .35s;cursor:pointer;font-weight:400}
+.ll.past{color:var(--muted);font-size:.78rem}
+.ll.upcoming{color:var(--sub)}
+.ll.active{color:var(--text);font-size:1.05rem;font-weight:700;text-shadow:0 0 18px rgba(29,107,219,.28)}
+.lyr-empty{text-align:center;padding:50px 18px;color:var(--muted);font-size:.82rem;line-height:1.8}
+.lyr-empty i{display:block;font-size:2.2rem;margin-bottom:10px;font-style:normal}
+
+/* PLAYER BAR */
+#bar{grid-area:bar;background:rgba(8,11,18,.96);backdrop-filter:blur(20px);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 22px;gap:20px;z-index:10}
+.bar-track{display:flex;align-items:center;gap:12px;width:250px;flex-shrink:0}
+.bar-thumb{width:50px;height:50px;border-radius:8px;object-fit:cover;background:var(--card);flex-shrink:0}
+.bar-ph{width:50px;height:50px;border-radius:8px;background:var(--card);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.25rem}
+.bar-info{flex:1;min-width:0}
+.bar-title{font-size:.8rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar-artist{font-size:.72rem;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar-ctrl{flex:1;display:flex;flex-direction:column;align-items:center;gap:7px}
+.ctrl-btns{display:flex;align-items:center;gap:16px}
+.c-btn{background:none;border:none;color:var(--sub);cursor:pointer;transition:all .18s;padding:4px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.c-btn:hover{color:var(--text);transform:scale(1.1)}
+.c-btn svg{width:17px;height:17px}
+#btn-play{width:42px;height:42px;background:var(--text);border:none;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
+#btn-play:hover{transform:scale(1.08);background:#fff;box-shadow:var(--green-glow)}
+#btn-play svg{width:19px;height:19px;color:#000}
+.prog-wrap{width:100%;display:flex;align-items:center;gap:9px}
+.t-lbl{font-size:.67rem;color:var(--muted);width:34px;font-family:var(--fm);flex-shrink:0}
+.t-lbl.r{text-align:right}
+#prog-track{flex:1;height:4px;background:var(--hover);border-radius:4px;position:relative;cursor:pointer;transition:height .15s;overflow:hidden}
+#prog-track:hover{height:6px}
+#prog-fill{height:100%;background:linear-gradient(90deg,var(--green),var(--teal));border-radius:4px;width:0%;transition:width .25s linear}
+.bar-r{display:flex;align-items:center;gap:10px;width:190px;justify-content:flex-end;flex-shrink:0}
+.vol-wrap{display:flex;align-items:center;gap:7px}
+.vol-wrap svg{width:15px;height:15px;color:var(--sub)}
+#vol{-webkit-appearance:none;width:75px;height:3px;background:var(--hover);border-radius:4px;outline:none;cursor:pointer}
+#vol::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;background:var(--text);border-radius:50%;cursor:pointer}
+
+/* MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:1000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(5px);animation:fi .2s ease}
+@keyframes fi{from{opacity:0}to{opacity:1}}
+.modal{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:26px;width:320px;animation:su .22s ease}
+@keyframes su{from{transform:translateY(18px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal h3{font-size:1rem;font-weight:700;margin-bottom:4px}
+.modal p{font-size:.78rem;color:var(--sub);margin-bottom:18px}
+.drop-z{border:2px dashed var(--border);border-radius:var(--r);padding:28px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:14px}
+.drop-z:hover{border-color:var(--green);background:var(--green-dim)}
+.drop-z i{display:block;font-size:1.8rem;margin-bottom:7px;font-style:normal}
+.drop-z small{font-size:.73rem;color:var(--sub)}
+#ph-inp{display:none}
+.mbtns{display:flex;gap:8px;justify-content:flex-end}
+.btn-s{background:var(--card);border:1px solid var(--border);border-radius:50px;padding:7px 18px;color:var(--sub);font-family:var(--f);font-size:.78rem;cursor:pointer;transition:all .2s}
+.btn-s:hover{color:var(--text)}
+.btn-p{background:var(--green);border:none;border-radius:50px;padding:7px 18px;color:#fff;font-family:var(--f);font-weight:700;font-size:.78rem;cursor:pointer;transition:all .2s}
+.btn-p:hover{transform:scale(1.04);box-shadow:var(--green-glow)}
+
+/* TOAST */
+#toast{position:fixed;bottom:105px;left:50%;transform:translateX(-50%) translateY(12px);background:var(--card);border:1px solid var(--border);border-radius:50px;padding:9px 18px;font-size:.8rem;color:var(--text);z-index:9999;opacity:0;transition:all .28s;pointer-events:none;white-space:nowrap}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-thumb{background:var(--hover);border-radius:4px}
+
+@media(max-width:1050px){body{grid-template-columns:240px 1fr;grid-template-areas:"side main""bar bar"}#lyr{display:none}}
+@media(max-width:660px){body{grid-template-columns:1fr;grid-template-areas:"main""bar"}#side{display:none}}
+
+/* FULLSCREEN LYRICS */
+#fs-lyr{display:none;position:fixed;inset:0;z-index:500;flex-direction:column;overflow:hidden;transition:background 1.2s ease;}
+#fs-lyr.open{display:flex;}
+#fs-bg{position:absolute;inset:0;background:inherit;filter:blur(0px);transition:background 1.2s ease;z-index:0;}
+#fs-bg::after{content:'';position:absolute;inset:0;background:rgba(0,0,0,0.35);}
+#fs-nav{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;padding:18px 24px 10px;}
+#fs-back{background:rgba(0,0,0,0.3);border:none;border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;transition:background .2s;}
+#fs-back:hover{background:rgba(0,0,0,0.5)}
+#fs-back svg{width:20px;height:20px}
+#fs-track-info{text-align:center;flex:1}
+#fs-track-name{font-size:.75rem;font-weight:700;color:rgba(255,255,255,0.7);letter-spacing:2px;text-transform:uppercase}
+#fs-artist-name{font-size:.85rem;font-weight:600;color:#fff;margin-top:2px}
+#fs-lyr-scroll{flex:1;overflow-y:auto;padding:20px 10% 120px;position:relative;z-index:2;scrollbar-width:none;}
+#fs-lyr-scroll::-webkit-scrollbar{display:none}
+.fs-ll{font-size:1.9rem;font-weight:800;line-height:1.3;padding:6px 0;cursor:pointer;transition:all .35s ease;color:rgba(255,255,255,0.28);letter-spacing:-0.5px;}
+.fs-ll.active{color:#fff;font-size:2.1rem;text-shadow:0 2px 20px rgba(0,0,0,0.4);}
+.fs-ll.past{color:rgba(255,255,255,0.18);}
+.fs-ll:hover{color:rgba(255,255,255,0.7);}
+#fs-bar{position:absolute;bottom:0;left:0;right:0;z-index:3;background:linear-gradient(to top,rgba(0,0,0,0.7) 80%,transparent);padding:16px 28px 28px;}
+#fs-prog-wrap{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+#fs-prog-track{flex:1;height:4px;background:rgba(255,255,255,0.25);border-radius:4px;cursor:pointer;position:relative;overflow:hidden;transition:height .15s;}
+#fs-prog-track:hover{height:6px}
+#fs-prog-fill{height:100%;background:#fff;border-radius:4px;width:0%;transition:width .25s linear;}
+.fs-t{font-size:.67rem;color:rgba(255,255,255,0.6);font-family:var(--fm);width:34px}
+.fs-t.r{text-align:right}
+#fs-ctrl{display:flex;align-items:center;justify-content:center;gap:22px}
+.fs-btn{background:none;border:none;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0.7;transition:all .18s;padding:4px;border-radius:50%}
+.fs-btn:hover{opacity:1;transform:scale(1.1)}
+.fs-btn svg{width:20px;height:20px}
+#fs-btn-play{width:52px;height:52px;background:#fff;border:none;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;opacity:1;}
+#fs-btn-play:hover{transform:scale(1.06);box-shadow:0 0 20px rgba(255,255,255,0.4)}
+#fs-btn-play svg{width:22px;height:22px;color:#000}
+.bar-track{cursor:pointer}
+.bar-track:hover .bar-title{color:var(--green)}
+</style>
+</head>
+<body>
+
+<!-- AUTH OVERLAY - ditampilkan dulu sebelum cek Firebase -->
+<div id="auth-overlay">
+  <div class="auth-box">
+    <div style="font-size:2.5rem;margin-bottom:12px">🎵</div>
+    <h2>ALVINVN Music</h2>
+    <p>Memeriksa status login...</p>
+    <div style="margin-top:16px;color:var(--muted);font-size:.75rem">Harap tunggu sebentar</div>
+  </div>
+</div>
+
+<!-- SIDEBAR -->
+<aside id="side">
+  <div class="logo">
+    <div class="logo-mark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+        <circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="10"/>
+      </svg>
+    </div>
+    <span class="logo-name">ALVINVN</span>
+  </div>
+  <nav class="nav">
+    <div class="nav-i on">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+      Beranda
+    </div>
+    <div class="nav-i">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      Cari
+    </div>
+  </nav>
+  <div class="sec-label">Playlist Saya</div>
+  <div id="pl-list">
+    <div class="pl-empty"><span>🎵</span>Cari lagu &amp; tambahkan ke playlist</div>
+  </div>
+  <div class="side-bottom">
+    <div class="cloud-indicator" id="cloud-indicator">
+      <div class="cloud-dot" id="cloud-dot"></div>
+      <span id="cloud-status">Tidak terhubung</span>
+    </div>
+    <button class="side-nav-btn" onclick="window.location.href='reels.html'">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 10l4.553-2.07A1 1 0 0 1 21 8.83v6.34a1 1 0 0 1-1.447.9L15 14M3 8a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8z"/></svg>
+      Kembali ke Reels
+    </button>
+    <button class="side-nav-btn" id="logout-btn" onclick="doLogout()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+      Logout
+    </button>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main id="main">
+  <div class="search-wrap">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <input id="q" type="text" placeholder="Cari artis atau judul lagu..." autocomplete="off" spellcheck="false">
+    <button id="btn-search">Cari</button>
+  </div>
+
+  <div id="np-hero">
+    <div class="hero-card">
+      <div class="hero-ph" id="h-thumb">🎵</div>
+      <div class="hero-info">
+        <div class="hero-label">▶ Sedang Diputar</div>
+        <div class="hero-title" id="h-title">—</div>
+        <div class="hero-artist" id="h-artist">—</div>
+        <div class="hero-btns">
+          <button class="hbtn" id="h-add-pl">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+            Tambah Playlist
+          </button>
+          <button class="hbtn" id="h-add-photo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+            Upload Foto
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="res-section">
+    <div class="s-title" id="res-lbl">Hasil Pencarian</div>
+    <div id="res-grid"></div>
+  </div>
+
+  <div id="welcome" class="empty">
+    <i>🎧</i>
+    <h3>Temukan Musikmu</h3>
+    <p>Ketik nama artis atau judul lagu lalu tekan Cari.<br>Nikmati lirik sinkron real-time.<br><span style="color:var(--green);font-size:.75rem">✓ Playlist tersimpan otomatis ke akun kamu</span></p>
+  </div>
+</main>
+
+<!-- LYRICS -->
+<aside id="lyr">
+  <div class="lyr-head">
+    <div class="lyr-ttl">Lirik <span class="lyr-badge">Live</span></div>
+  </div>
+  <div class="lyr-body">
+    <div class="lyr-fade-t"></div>
+    <div id="lyr-lines"><div class="lyr-empty"><i>🎤</i>Lirik muncul saat lagu diputar</div></div>
+    <div class="lyr-fade-b"></div>
+  </div>
+</aside>
+
+<!-- PLAYER BAR -->
+<div id="bar">
+  <div class="bar-track">
+    <div class="bar-ph" id="bar-thumb">🎵</div>
+    <div class="bar-info">
+      <div class="bar-title" id="bar-title">Tidak Ada Lagu</div>
+      <div class="bar-artist" id="bar-artist">—</div>
+    </div>
+  </div>
+  <div class="bar-ctrl">
+    <div class="ctrl-btns">
+      <button class="c-btn" id="btn-prev">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
+      </button>
+      <button id="btn-play">
+        <svg id="ico-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        <svg id="ico-pause" viewBox="0 0 24 24" fill="currentColor" style="display:none"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+      </button>
+      <button class="c-btn" id="btn-next">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="m6 18 8.5-6L6 6v12zm2-6 8.5 6V6L8 12z"/></svg>
+      </button>
+    </div>
+    <div class="prog-wrap">
+      <span class="t-lbl" id="t-cur">0:00</span>
+      <div id="prog-track"><div id="prog-fill"></div></div>
+      <span class="t-lbl r" id="t-tot">0:00</span>
+    </div>
+  </div>
+  <div class="bar-r">
+    <div class="vol-wrap">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
+      <input type="range" id="vol" min="0" max="100" value="80">
+    </div>
+  </div>
+</div>
+
+<!-- Hidden YT -->
+<div id="yt-wrap" style="position:fixed;bottom:-9999px;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none">
+  <div id="yt-player"></div>
+</div>
+
+<!-- Photo Modal -->
+<div id="ph-modal" class="modal-bg" style="display:none">
+  <div class="modal">
+    <h3>Tambah Foto Cover</h3>
+    <p id="ph-sub">Pilih foto untuk lagu ini</p>
+    <div class="drop-z" id="drop-z">
+      <i>🖼️</i>
+      <div>Klik atau seret foto ke sini</div>
+      <small>JPG · PNG · WebP</small>
+    </div>
+    <input type="file" id="ph-inp" accept="image/*">
+    <div class="mbtns">
+      <button class="btn-s" id="ph-cancel">Batal</button>
+      <button class="btn-p" id="ph-save">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- FULLSCREEN LYRICS -->
+<div id="fs-lyr">
+  <div id="fs-bg"></div>
+  <div id="fs-nav">
+    <button id="fs-back">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+    </button>
+    <div id="fs-track-info">
+      <div id="fs-track-name">SEDANG DIPUTAR</div>
+      <div id="fs-artist-name">—</div>
+    </div>
+    <div style="width:38px"></div>
+  </div>
+  <div id="fs-lyr-scroll">
+    <div class="lyr-empty" style="color:rgba(255,255,255,0.4)"><i>🎤</i>Memuat lirik...</div>
+  </div>
+  <div id="fs-bar">
+    <div id="fs-prog-wrap">
+      <span class="fs-t" id="fs-t-cur">0:00</span>
+      <div id="fs-prog-track"><div id="fs-prog-fill"></div></div>
+      <span class="fs-t r" id="fs-t-tot">0:00</span>
+    </div>
+    <div id="fs-ctrl">
+      <button class="fs-btn" id="fs-btn-prev">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
+      </button>
+      <button id="fs-btn-play">
+        <svg id="fs-ico-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        <svg id="fs-ico-pause" viewBox="0 0 24 24" fill="currentColor" style="display:none"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+      </button>
+      <button class="fs-btn" id="fs-btn-next">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="m6 18 8.5-6L6 6v12zm2-6 8.5 6V6L8 12z"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<script>
+'use strict';
+
+// ─── Firebase Config ───────────────────────────────────────
+const firebaseConfig = {
+  apiKey: "AIzaSyDzDRaHEASBWO0dDKOIlvlku3lN01b89iw",
+  authDomain: "alvin-f573e.firebaseapp.com",
+  projectId: "alvin-f573e",
+  storageBucket: "alvin-f573e.firebasestorage.app",
+  messagingSenderId: "718704784181",
+  appId: "1:718704784181:web:db5fe912a3cb3b0675d27c",
+  measurementId: "G-NHLWBMV307",
+  databaseURL: "https://alvin-f573e-default-rtdb.asia-southeast1.firebasedatabase.app"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db   = firebase.database();
+
+let currentUser = null;
+let isSaving    = false;
+let saveTimeout = null;
+
+// ─── Auth State ────────────────────────────────────────────
+auth.onAuthStateChanged(user => {
+  if (user) {
+    currentUser = user;
+    showApp(user);
+    loadPlaylistFromCloud();
+  } else {
+    showAuthWall();
+  }
+});
+
+function showApp(user) {
+  const overlay = document.getElementById('auth-overlay');
+  overlay.style.opacity = '0';
+  overlay.style.transition = 'opacity .4s';
+  setTimeout(() => overlay.style.display = 'none', 400);
+  setCloudStatus('synced', 'Tersimpan di akun: ' + (user.displayName || user.email.split('@')[0]));
+}
+
+function showAuthWall() {
+  const overlay = document.getElementById('auth-overlay');
+  overlay.innerHTML = `
+    <div class="auth-box">
+      <div style="font-size:2.5rem;margin-bottom:12px">🔒</div>
+      <h2>Login Diperlukan</h2>
+      <p>Kamu harus login dengan akun ALVIN untuk mengakses Music Player dan menyimpan playlist kamu.</p>
+      <div class="auth-btns">
+        <a class="btn-login" href="index.html">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M10 17l5-5-5-5v10z"/></svg>
+          Login / Daftar
+        </a>
+        <a class="btn-back" href="reels.html">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+          Kembali
+        </a>
+      </div>
+    </div>
+  `;
+  overlay.style.display = 'flex';
+  overlay.style.opacity = '1';
+}
+
+function setCloudStatus(state, text) {
+  const dot  = document.getElementById('cloud-dot');
+  const span = document.getElementById('cloud-status');
+  if (!dot || !span) return;
+  dot.className = 'cloud-dot' + (state === 'synced' ? ' synced' : state === 'saving' ? ' saving' : '');
+  span.textContent = text;
+}
+
+function doLogout() {
+  if (confirm('Apakah kamu yakin ingin logout?')) {
+    auth.signOut().then(() => { window.location.href = 'index.html'; });
+  }
+}
+
+// ─── Cloud Playlist Sync ───────────────────────────────────
+function getPlaylistRef() {
+  if (!currentUser) return null;
+  return db.ref('music_playlists/' + currentUser.uid);
+}
+
+function savePlaylistToCloud() {
+  if (!currentUser) return;
+  clearTimeout(saveTimeout);
+  setCloudStatus('saving', 'Menyimpan...');
+  saveTimeout = setTimeout(async () => {
+    try {
+      // Simpan tanpa foto (base64 bisa terlalu besar), hanya metadata
+      const toSave = playlist.map(t => ({
+        title:  t.title,
+        artist: t.artist,
+        thumb:  t.thumb || '',
+        _query: t._query
+        // photo (base64 upload) tidak disimpan ke cloud karena terlalu besar
+      }));
+      await getPlaylistRef().set(toSave);
+      setCloudStatus('synced', 'Tersimpan · ' + playlist.length + ' lagu');
+    } catch(e) {
+      setCloudStatus('', 'Gagal simpan: ' + e.message);
+    }
+  }, 1200);
+}
+
+async function loadPlaylistFromCloud() {
+  if (!currentUser) return;
+  try {
+    setCloudStatus('saving', 'Memuat playlist...');
+    const snap = await getPlaylistRef().get();
+    if (snap.exists()) {
+      const data = snap.val();
+      if (Array.isArray(data) && data.length > 0) {
+        // Gabung dengan playlist lokal (local bisa punya foto)
+        const localMap = {};
+        playlist.forEach(t => { localMap[t._query] = t; });
+        playlist = data.map(t => localMap[t._query] ? { ...t, photo: localMap[t._query].photo } : t);
+        savePL(); // update localStorage juga
+        renderPL();
+        toast('☁️ Playlist dimuat dari akun (' + playlist.length + ' lagu)');
+      }
+    }
+    setCloudStatus('synced', 'Tersimpan · ' + playlist.length + ' lagu');
+  } catch(e) {
+    setCloudStatus('', 'Gagal memuat: ' + e.message);
+  }
+}
+
+const WORKER = 'https://fancy-band-d65b.alpinofficial26.workers.dev';
+
+// ─── State ────────────────────────────────────────────────
+let YTP = null;
+let playing = false, cur = 0, tot = 0, raf = null;
+let lyrCache = {}, lyrs = [], curTrack = null;
+let playlist = [];
+try { playlist = JSON.parse(localStorage.getItem('melo3_pl') || '[]'); } catch(e){}
+let photoIdx = null, photoPending = null;
+
+// ─── YouTube IFrame API ───────────────────────────────────
+(function loadYTApi() {
+  if (document.getElementById('yt-api-script')) return;
+  const tag = document.createElement('script');
+  tag.id  = 'yt-api-script';
+  tag.src = 'https://www.youtube.com/iframe_api';
+  document.head.appendChild(tag);
+})();
+
+window.onYouTubeIframeAPIReady = function() {
+  window._ytApiReady = true;
+  if (window._pendingVideoId) {
+    _createPlayer(window._pendingVideoId);
+    window._pendingVideoId = null;
+  }
+};
+
+function _createPlayer(videoId) {
+  if (YTP) { try { YTP.destroy(); } catch(e){} YTP = null; }
+  $('yt-player').innerHTML = '';
+  YTP = new YT.Player('yt-player', {
+    width:'1', height:'1', videoId,
+    playerVars:{ autoplay:1, controls:0, playsinline:1, rel:0, modestbranding:1 },
+    events:{
+      onReady(e){ e.target.setVolume(parseInt($('vol').value)); e.target.playVideo(); },
+      onStateChange(e){
+        if(e.data===YT.PlayerState.PLAYING){ playing=true; setPB(true); tot=YTP.getDuration(); tick(); }
+        else if(e.data===YT.PlayerState.PAUSED){ playing=false; setPB(false); cancelAnimationFrame(raf); }
+        else if(e.data===YT.PlayerState.ENDED){ playing=false; setPB(false); cancelAnimationFrame(raf); playNext(); }
+      },
+      onError(e){ if(e.data===101||e.data===150) toast('⚠️ Video diblokir, coba lagu lain'); }
+    }
+  });
+}
+
+function initPlayer(videoId) {
+  playing=false; cur=0; tot=0; cancelAnimationFrame(raf);
+  if(!videoId) return Promise.resolve();
+  return new Promise(resolve=>{
+    if(window._ytApiReady&&window.YT&&window.YT.Player){ _createPlayer(videoId); resolve(); }
+    else{
+      window._pendingVideoId=videoId;
+      const check=setInterval(()=>{ if(window._ytApiReady){ clearInterval(check); resolve(); } },100);
+    }
+  });
+}
+
+function setPB(p){ $('ico-play').style.display=p?'none':'block'; $('ico-pause').style.display=p?'block':'none'; updateFSPB(p); }
+
+function tick(){
+  cancelAnimationFrame(raf);
+  (function loop(){
+    if(!playing||!YTP)return;
+    try{ cur=YTP.getCurrentTime()||cur; tot=YTP.getDuration()||tot; }catch(e){}
+    updProg(); syncLyr(cur);
+    raf=requestAnimationFrame(loop);
+  })();
+}
+
+function ft(s){ if(!s||isNaN(s))return'0:00'; return Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0'); }
+function updProg(){
+  $('t-cur').textContent=ft(cur); $('t-tot').textContent=ft(tot);
+  $('prog-fill').style.width=(tot?(cur/tot)*100:0)+'%';
+  if($('fs-lyr').classList.contains('open')){ updateFSProg(); }
+}
+
+// ─── SEARCH via iTunes ─────────────────────────────────────
+async function doSearch(){
+  const q=$('q').value.trim(); if(!q)return;
+  $('welcome').style.display='none'; $('res-section').style.display='block';
+  $('res-lbl').textContent=`Hasil untuk "${q}"`; $('btn-search').disabled=true;
+  const grid=$('res-grid');
+  grid.innerHTML=Array(8).fill('<div class="sk-card"><div class="sk sk-img"></div><div class="sk sk-l" style="margin-top:8px"></div><div class="sk sk-l s"></div></div>').join('');
+  try{
+    const url=`https://itunes.apple.com/search?term=${encodeURIComponent(q)}&media=music&entity=song&limit=24&country=ID`;
+    const res=await fetch(url); if(!res.ok)throw new Error('iTunes tidak merespons ('+res.status+')');
+    const data=await res.json(); const items=data.results||[];
+    grid.innerHTML='';
+    if(!items.length){ grid.innerHTML='<div class="err-box">Tidak ada hasil ditemukan. Coba kata kunci lain.</div>'; return; }
+    items.forEach(it=>{
+      const thumb=(it.artworkUrl100||'').replace('100x100bb','600x600bb');
+      const title=it.trackName||'Unknown'; const artist=it.artistName||'Unknown';
+      const track={title,artist,thumb,preview:it.previewUrl||null,videoId:null,photo:null,_query:`${artist}|||${title}|||${it.trackId||Math.random()}`};
+      const card=document.createElement('div'); card.className='r-card';
+      card.innerHTML=`
+        <img class="r-img" src="${esc(thumb)}" loading="lazy"
+          onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22%3E%3Crect fill=%22%231A2035%22 width=%22100%25%22 height=%22100%25%22/%3E%3Ctext y=%2262%22 x=%2250%25%22 text-anchor=%22middle%22 font-size=%2240%22%3E%F0%9F%8E%B5%3C/text%3E%3C/svg%3E'">
+        <div class="r-play-ov"><svg viewBox="0 0 24 24" fill="black"><path d="M8 5v14l11-7z"/></svg></div>
+        <div class="r-name">${esc(title)}</div>
+        <div class="r-art">${esc(artist)}</div>
+        <button class="r-add" title="Tambah ke playlist">+</button>
+      `;
+      const play=()=>loadPlay(track);
+      card.querySelector('.r-play-ov').addEventListener('click',play);
+      card.querySelector('.r-img').addEventListener('click',play);
+      card.querySelector('.r-name').addEventListener('click',play);
+      card.querySelector('.r-add').addEventListener('click',e=>{e.stopPropagation();addPL(track);});
+      grid.appendChild(card);
+    });
+  }catch(err){
+    grid.innerHTML=`<div class="err-box">❌ ${esc(err.message)}<br><br>Pastikan koneksi internet aktif.</div>`;
+  }finally{ $('btn-search').disabled=false; }
+}
+
+async function resolveVid(query){
+  try{
+    const url=`${WORKER}/search?q=${encodeURIComponent(query)}`;
+    const res=await fetch(url,{signal:AbortSignal.timeout(10000)});
+    if(!res.ok)return null;
+    const data=await res.json(); return data.videoId||null;
+  }catch(e){ return null; }
+}
+
+async function loadPlay(track){
+  cancelAnimationFrame(raf); playing=false; cur=0; tot=0; curTrack=track; lyrs=[];
+  $('h-title').textContent=track.title; $('h-artist').textContent=track.artist;
+  $('np-hero').style.display='block'; setHeroImg(track); setBarImg(track);
+  $('bar-title').textContent=track.title; $('bar-artist').textContent=track.artist;
+  $('lyr-lines').innerHTML='<div class="lyr-empty"><i>⏳</i>Mencari & memuat lagu...</div>';
+  setPB(false); updProg(); renderPL(); pickFSColor();
+  $('fs-artist-name').textContent=track.title;
+  $('fs-lyr-scroll').innerHTML='<div class="lyr-empty" style="color:rgba(255,255,255,0.4);padding-top:80px"><i>⏳</i>Memuat lirik...</div>';
+  openFS();
+  const searchQ=track._query+' official audio'; toast('🔍 Mencari video...');
+  const cl=cleanT(track.title);
+  const [videoId,lines]=await Promise.all([resolveVid(searchQ),fetchLyr(cl,track.artist)]);
+  if(videoId){
+    toast('▶️ Memutar lagu...');
+    await initPlayer(videoId).catch(e=>{console.error('initPlayer error:',e);toast('⚠️ Gagal memuat video, coba lagu lain');});
+  }else{
+    toast('⚠️ Mencoba fallback...');
+    const fallbackId=await resolveVid(track._query);
+    if(fallbackId){ await initPlayer(fallbackId).catch(()=>toast('⚠️ Gagal memuat video')); }
+    else{ toast('❌ Video tidak ditemukan. Coba lagu lain.'); }
+  }
+  lyrs=lines||[];
+  $('lyr-lines').innerHTML=lyrs.length?'':'<div class="lyr-empty"><i>😔</i>Lirik tidak tersedia</div>';
+  if(lyrs.length)syncLyr(0);
+  updateFSLyr();
+}
+
+function cleanT(t){
+  return t.replace(/\(official.*?\)/gi,'').replace(/\[official.*?\]/gi,'')
+    .replace(/official (music |lyric |audio )?/gi,'').replace(/\(lyrics?\)/gi,'')
+    .replace(/\(audio\)/gi,'').replace(/ft\.?.+/gi,'').replace(/feat\.?.+/gi,'')
+    .replace(/\s+/g,' ').trim();
+}
+
+async function fetchLyr(title,artist){
+  const k=title+'|'+artist; if(lyrCache[k]!==undefined)return lyrCache[k];
+  try{
+    const res=await fetch(`${WORKER}/?artist=${encodeURIComponent(artist)}&title=${encodeURIComponent(title)}`);
+    if(!res.ok){lyrCache[k]=[];return [];}
+    const data=await res.json(); if(!data||!data.length){lyrCache[k]=[];return [];}
+    const ch=data.find(r=>r.syncedLyrics)||data.find(r=>r.plainLyrics)||data[0];
+    let p=[];
+    if(ch.syncedLyrics)p=pSynced(ch.syncedLyrics);
+    else if(ch.plainLyrics)p=pPlain(ch.plainLyrics);
+    lyrCache[k]=p; return p;
+  }catch(e){lyrCache[k]=[];return [];}
+}
+
+function pSynced(raw){
+  return raw.split('\n').map(l=>{const m=l.match(/\[(\d+):(\d+\.?\d*)\](.*)/);return m?{time:parseInt(m[1])*60+parseFloat(m[2]),text:m[3].trim()}:null;}).filter(Boolean).filter(l=>l.text);
+}
+function pPlain(raw){
+  let t=0;
+  return raw.split('\n').filter(l=>l.trim()).map(text=>{const e={time:t,text:text.trim()};t+=Math.min(5,Math.max(2,text.length/12));return e;});
+}
+function syncLyr(ct){
+  const el=$('lyr-lines'); if(!el||!lyrs.length)return;
+  let idx=0;
+  for(let i=0;i<lyrs.length;i++){if(ct>=lyrs[i].time)idx=i;else break;}
+  el.innerHTML='';
+  lyrs.forEach((l,i)=>{
+    const d=document.createElement('div');
+    d.className='ll '+(i===idx?'active':i<idx?'past':'upcoming');
+    d.textContent=l.text; d.addEventListener('click',()=>{if(YTP)YTP.seekTo(l.time);}); el.appendChild(d);
+  });
+  const act=el.querySelectorAll('.ll')[idx];
+  if(act)el.scrollTo({top:act.offsetTop-el.offsetHeight/2+act.offsetHeight/2,behavior:'smooth'});
+  if($('fs-lyr').classList.contains('open'))updateFSLyr();
+}
+
+// ─── Playlist (localStorage + Cloud) ─────────────────────
+function savePL(){ try{ localStorage.setItem('melo3_pl',JSON.stringify(playlist)); }catch(e){} }
+
+function addPL(track){
+  const dup=playlist.find(t=>{const ta=t._query.split('|||');const na=track._query.split('|||');return ta[0]===na[0]&&ta[1]===na[1];});
+  if(dup){toast('⚠️ Sudah ada di playlist');return;}
+  playlist.push({...track}); savePL(); renderPL();
+  savePlaylistToCloud(); // sync ke Firebase
+  toast('✅ '+track.title+' ditambahkan!');
+}
+
+function renderPL(){
+  const c=$('pl-list');
+  if(!playlist.length){c.innerHTML='<div class="pl-empty"><span>🎵</span>Cari lagu &amp; tambahkan ke playlist</div>';return;}
+  c.innerHTML='';
+  playlist.forEach((t,i)=>{
+    const tParts=t._query.split('|||');const cParts=curTrack?curTrack._query.split('|||'):[];
+    const active=curTrack&&cParts[0]===tParts[0]&&cParts[1]===tParts[1];
+    const d=document.createElement('div'); d.className='pl-item'+(active?' now':'');
+    const src=t.photo||t.thumb;
+    d.innerHTML=`
+      ${src?`<img class="pl-thumb" src="${esc(src)}" onerror="this.style.display='none'" alt="">`:'<div class="pl-ph">🎵</div>'}
+      <div class="pl-info"><div class="pl-name">${esc(t.title)}</div><div class="pl-art">${esc(t.artist)}</div></div>
+      <div class="bars"><b></b><b></b><b></b></div>
+      <div class="pl-acts">
+        <button class="ic-btn" title="Ubah foto">🖼️</button>
+        <button class="ic-btn del" title="Hapus">✕</button>
+      </div>
+    `;
+    d.addEventListener('click',e=>{if(e.target.closest('.pl-acts'))return;loadPlay(playlist[i]);});
+    d.querySelectorAll('.ic-btn')[0].addEventListener('click',e=>{e.stopPropagation();openPhoto(i);});
+    d.querySelectorAll('.ic-btn')[1].addEventListener('click',e=>{
+      e.stopPropagation(); playlist.splice(i,1); savePL(); renderPL();
+      savePlaylistToCloud(); toast('🗑️ Dihapus');
+    });
+    c.appendChild(d);
+  });
+}
+
+function _plIdx(){
+  if(!curTrack)return -1;
+  const cp=curTrack._query.split('|||');
+  return playlist.findIndex(t=>{const tp=t._query.split('|||');return tp[0]===cp[0]&&tp[1]===cp[1];});
+}
+function playNext(){ if(!playlist.length)return; const i=_plIdx(); loadPlay(playlist[i===-1?0:(i+1)%playlist.length]); }
+function playPrev(){ if(!playlist.length)return; const i=_plIdx(); loadPlay(playlist[i===-1?0:(i-1+playlist.length)%playlist.length]); }
+
+function setHeroImg(t){
+  const src=t.photo||t.thumb; const el=$('h-thumb');
+  if(src){el.outerHTML=`<img class="hero-img" id="h-thumb" src="${esc(src)}" alt="">`;}
+  else if(el.tagName==='IMG'){el.outerHTML=`<div class="hero-ph" id="h-thumb">🎵</div>`;}
+}
+function setBarImg(t){
+  const src=t.photo||t.thumb; const el=$('bar-thumb');
+  if(src){el.outerHTML=`<img class="bar-thumb" id="bar-thumb" src="${esc(src)}" alt="">`;}
+  else if(el.tagName==='IMG'){el.outerHTML=`<div class="bar-ph" id="bar-thumb">🎵</div>`;}
+}
+
+function openPhoto(i){
+  photoIdx=i;photoPending=null;
+  $('ph-sub').textContent='Foto untuk: '+playlist[i].title;
+  $('drop-z').innerHTML='<i>🖼️</i><div>Klik atau seret foto ke sini</div><small>JPG · PNG · WebP</small>';
+  $('ph-modal').style.display='flex';
+}
+
+$('drop-z').addEventListener('click',()=>$('ph-inp').click());
+$('drop-z').addEventListener('dragover',e=>{e.preventDefault();$('drop-z').style.borderColor='var(--green)';});
+$('drop-z').addEventListener('dragleave',()=>{$('drop-z').style.borderColor='';});
+$('drop-z').addEventListener('drop',e=>{e.preventDefault();if(e.dataTransfer.files[0])handlePh(e.dataTransfer.files[0]);});
+$('ph-inp').addEventListener('change',e=>{if(e.target.files[0])handlePh(e.target.files[0]);});
+
+function handlePh(file){
+  const r=new FileReader();
+  r.onload=e=>{photoPending=e.target.result;$('drop-z').innerHTML=`<img src="${photoPending}" style="width:100%;height:100px;object-fit:cover;border-radius:8px"><p style="margin-top:6px;font-size:.72rem;color:var(--green)">✅ Foto dipilih</p>`;};
+  r.readAsDataURL(file);
+}
+$('ph-cancel').addEventListener('click',()=>$('ph-modal').style.display='none');
+$('ph-modal').addEventListener('click',e=>{if(e.target===$('ph-modal'))$('ph-modal').style.display='none';});
+$('ph-save').addEventListener('click',()=>{
+  if(photoIdx===null||!photoPending){toast('⚠️ Pilih foto dulu');return;}
+  playlist[photoIdx].photo=photoPending; savePL(); renderPL();
+  const _pp=playlist[photoIdx]._query.split('|||');const _cp=curTrack?curTrack._query.split('|||'):[];
+  if(curTrack&&_cp[0]===_pp[0]&&_cp[1]===_pp[1]){curTrack.photo=photoPending;setHeroImg(curTrack);setBarImg(curTrack);}
+  $('ph-modal').style.display='none'; toast('📸 Foto disimpan');
+});
+
+// ─── Controls ─────────────────────────────────────────────
+$('btn-search').addEventListener('click',doSearch);
+$('q').addEventListener('keydown',e=>{if(e.key==='Enter')doSearch();});
+$('btn-play').addEventListener('click',()=>{if(!curTrack||!YTP)return;try{playing?YTP.pauseVideo():YTP.playVideo();}catch(e){}});
+$('btn-next').addEventListener('click',playNext);
+$('btn-prev').addEventListener('click',playPrev);
+$('prog-track').addEventListener('click',e=>{if(!YTP||!tot)return;const r=e.currentTarget.getBoundingClientRect();if(YTP)YTP.seekTo(((e.clientX-r.left)/r.width)*tot);});
+$('vol').addEventListener('input',e=>{if(YTP)YTP.setVolume(parseInt(e.target.value));});
+$('h-add-pl').addEventListener('click',()=>{if(curTrack)addPL(curTrack);});
+$('h-add-photo').addEventListener('click',()=>{if(!curTrack)return;const i=_plIdx();if(i===-1){toast('Tambahkan ke playlist dulu');return;}openPhoto(i);});
+
+// ─── Helpers ──────────────────────────────────────────────
+function $(id){return document.getElementById(id);}
+function esc(s){if(!s)return'';const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+function toast(msg,d=2700){const el=$('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),d);}
+
+// ─── Fullscreen Lyrics ─────────────────────────────────────
+const FS_COLORS=['#0d2f6b','#0d1f4a','#1a2a6b','#0d3a5c','#0a1f52','#162b6b','#0d3052','#1a1a6b'];
+let _trackColorIdx=0;
+function pickFSColor(){_trackColorIdx++;const c=FS_COLORS[_trackColorIdx%FS_COLORS.length];$('fs-lyr').style.background=c;$('fs-bg').style.background=c;}
+function openFS(){if(!curTrack)return;$('fs-lyr').classList.add('open');$('fs-artist-name').textContent=curTrack.title;updateFSLyr();updateFSProg();updateFSPB(playing);}
+function closeFS(){$('fs-lyr').classList.remove('open');}
+function updateFSLyr(){
+  const el=$('fs-lyr-scroll');
+  if(!lyrs.length){el.innerHTML='<div class="lyr-empty" style="color:rgba(255,255,255,0.4);padding-top:80px"><i>😔</i>Lirik tidak tersedia</div>';return;}
+  let idx=0;
+  for(let i=0;i<lyrs.length;i++){if(cur>=lyrs[i].time)idx=i;else break;}
+  el.innerHTML='';
+  lyrs.forEach((l,i)=>{const d=document.createElement('div');d.className='fs-ll '+(i===idx?'active':i<idx?'past':'');d.textContent=l.text;d.addEventListener('click',()=>{if(YTP)YTP.seekTo(l.time);});el.appendChild(d);});
+  const act=el.querySelectorAll('.fs-ll')[idx];
+  if(act)el.scrollTo({top:act.offsetTop-el.offsetHeight/2+act.offsetHeight/2,behavior:'smooth'});
+}
+function updateFSProg(){$('fs-t-cur').textContent=ft(cur);$('fs-t-tot').textContent=ft(tot);$('fs-prog-fill').style.width=(tot?(cur/tot)*100:0)+'%';}
+function updateFSPB(p){$('fs-ico-play').style.display=p?'none':'block';$('fs-ico-pause').style.display=p?'block':'none';}
+
+$('fs-back').addEventListener('click',closeFS);
+$('fs-btn-play').addEventListener('click',()=>{if(!curTrack||!YTP)return;try{playing?YTP.pauseVideo():YTP.playVideo();}catch(e){}});
+$('fs-btn-next').addEventListener('click',playNext);
+$('fs-btn-prev').addEventListener('click',playPrev);
+$('fs-prog-track').addEventListener('click',e=>{if(!YTP||!tot)return;const r=e.currentTarget.getBoundingClientRect();YTP.seekTo(((e.clientX-r.left)/r.width)*tot);});
+$('bar-thumb').addEventListener('click',openFS);
+document.querySelector('.bar-info').addEventListener('click',openFS);
+
+// ─── Init ─────────────────────────────────────────────────
+renderPL();
+</script>
+</body>
+</html>
