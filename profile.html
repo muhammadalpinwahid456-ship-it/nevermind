@@ -1,0 +1,2294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Profile — Vibexa</title>
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#156dee">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="NVM">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #000000;
+  --panel: #0A0A0A;
+  --card: #181818;
+  --hover: #282828;
+  --border: rgba(255,255,255,0.1);
+  --blue: #2E7DFF;
+  --blue-dim: rgba(46,125,255,0.12);
+  --blue-glow: 0 0 30px rgba(46,125,255,0.25);
+  --teal: #4FA8FF;
+  --text: #FFFFFF;
+  --sub: #B3B3B3;
+  --muted: #6A6A6A;
+  --r: 14px;
+  --rs: 9px;
+  --f: 'Outfit', sans-serif;
+  --fm: 'DM Mono', monospace;
+  --danger: #ff5e5e;
+  --success: #3dda6e;
+}
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  font-family: var(--f);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  background:
+    radial-gradient(ellipse 500px 350px at 15% 85%, rgba(46,125,255,0.07) 0%, transparent 65%),
+    radial-gradient(ellipse 350px 500px at 85% 15%, rgba(61,157,214,0.04) 0%, transparent 65%);
+  pointer-events: none; z-index: 0;
+}
+
+/* ── AUTH OVERLAY ── */
+#auth-overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(8,11,18,0.97);
+  display: flex; align-items: center; justify-content: center;
+}
+.auth-box {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 20px; padding: 40px 36px; text-align: center;
+  max-width: 380px; width: 90%;
+}
+.auth-box h2 { font-size: 1.3rem; font-weight: 800; margin-bottom: 8px; }
+.auth-box p { font-size: .83rem; color: var(--sub); margin-bottom: 22px; line-height: 1.6; }
+.auth-btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.btn-login {
+  background: var(--blue); border: none; border-radius: 50px;
+  padding: 10px 26px; color: #fff; font-family: var(--f);
+  font-weight: 700; font-size: .85rem; cursor: pointer;
+  text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+}
+
+/* ── TOP NAV ── */
+#top-nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(8,11,18,0.92);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 20px; height: 56px;
+}
+.nav-logo { display: flex; align-items: center; gap: 9px; text-decoration: none; }
+.nav-logo-mark {
+  width: 30px; height: 30px;
+  border-radius: 8px; display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+.nav-logo-mark img { width: 100%; height: 100%; object-fit: cover; }
+.nav-logo-name {
+  font-size: 1.1rem; font-weight: 800;
+  background: linear-gradient(130deg, #fff 30%, #B3B3B3);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+
+/* ── MAIN CONTAINER ── */
+#app {
+  max-width: 700px; margin: 0 auto;
+  padding: 0 16px 100px; position: relative; z-index: 1;
+}
+
+/* ── PROFILE HEADER (mengikuti tampilan yang dilihat user lain) ── */
+.avatar-wrap { position: relative; display: inline-block; flex-shrink: 0; }
+.avatar-ring {
+  width: 200px; height: 200px; border-radius: 34px;
+  background: linear-gradient(135deg, var(--blue), var(--teal));
+  padding: 4px; cursor: pointer;
+  transition: box-shadow .25s;
+}
+.avatar-ring:hover { box-shadow: 0 0 0 4px var(--blue-dim), var(--blue-glow); }
+.avatar-inner {
+  width: 100%; height: 100%; border-radius: 30px;
+  background: var(--card); overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 3.6rem;
+}
+.avatar-inner img { width: 100%; height: 100%; object-fit: cover; }
+.avatar-edit-btn {
+  position: absolute; bottom: 6px; right: 6px;
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--blue); border: 3px solid var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all .2s; z-index: 2;
+}
+.avatar-edit-btn:hover { transform: scale(1.1); }
+.avatar-edit-btn svg { width: 15px; height: 15px; color: #fff; }
+.avatar-edit-btn { color: #fff; font-family: var(--f); font-weight: 800; font-size: 1.15rem; line-height: 1; }
+
+/* ── EDIT PROFILE SECTION ── */
+.section-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 20px; margin-bottom: 16px;
+}
+.section-title {
+  font-size: .7rem; font-weight: 700; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--muted); margin-bottom: 16px;
+}
+.form-group { margin-bottom: 14px; }
+.form-label { font-size: .75rem; font-weight: 600; color: var(--sub); margin-bottom: 6px; display: block; }
+.form-input {
+  width: 100%; background: var(--panel);
+  border: 1px solid var(--border); border-radius: 10px;
+  padding: 11px 14px; color: var(--text);
+  font-family: var(--f); font-size: .88rem; outline: none;
+  transition: border-color .2s, box-shadow .2s;
+}
+.form-input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-dim); }
+.form-input::placeholder { color: var(--muted); }
+textarea.form-input { resize: none; line-height: 1.6; }
+.char-count { font-size: .68rem; color: var(--muted); text-align: right; margin-top: 3px; }
+.btn-save {
+  width: 100%; padding: 12px; border-radius: 50px;
+  background: var(--blue); border: none; color: #fff;
+  font-family: var(--f); font-weight: 700; font-size: .88rem;
+  cursor: pointer; transition: all .2s; margin-top: 4px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn-save:hover { box-shadow: var(--blue-glow); transform: translateY(-1px); }
+.btn-save:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+.btn-save svg { width: 16px; height: 16px; }
+
+/* ── PUBLIC PLAYLISTS ── */
+.playlists-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px;
+}
+.section-h2 { font-size: 1rem; font-weight: 700; }
+
+/* Playlist publish toggle row. */
+.pl-pub-row {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--rs); padding: 12px 14px;
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 10px; transition: background .18s;
+}
+.pl-pub-row:hover { background: var(--hover); }
+.pl-pub-cover {
+  width: 44px; height: 44px; border-radius: 8px;
+  background: var(--hover); display: flex; align-items: center;
+  justify-content: center; font-size: 1.1rem; overflow: hidden; flex-shrink: 0;
+}
+.pl-pub-cover img { width: 100%; height: 100%; object-fit: cover; }
+.pl-pub-info { flex: 1; min-width: 0; }
+.pl-pub-name { font-size: .83rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pl-pub-meta { font-size: .7rem; color: var(--sub); margin-top: 2px; }
+.pub-badge {
+  font-size: .6rem; font-weight: 700; letter-spacing: .5px;
+  padding: 2px 7px; border-radius: 50px; margin-left: 6px;
+}
+.pub-badge.public { background: rgba(61,218,110,0.15); color: var(--success); }
+.pub-badge.private { background: var(--hover); color: var(--muted); }
+
+/* Toggle switch */
+.toggle-wrap { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.toggle-lbl { font-size: .68rem; color: var(--muted); font-weight: 600; }
+.toggle { position: relative; width: 40px; height: 22px; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-slider {
+  position: absolute; inset: 0; cursor: pointer;
+  background: var(--hover); border-radius: 50px;
+  transition: background .25s;
+  border: 1px solid var(--border);
+}
+.toggle-slider::before {
+  content: ''; position: absolute;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--sub); bottom: 2px; left: 2px;
+  transition: all .25s;
+}
+.toggle input:checked + .toggle-slider { background: rgba(46,125,255,0.3); border-color: var(--blue); }
+.toggle input:checked + .toggle-slider::before { transform: translateX(18px); background: var(--blue); box-shadow: 0 0 10px rgba(46,125,255,0.5); }
+
+/* ── TOAST ── */
+#toast {
+  position: fixed; bottom: 24px; left: 50%;
+  transform: translateX(-50%) translateY(10px);
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 50px; padding: 10px 20px;
+  font-size: .8rem; color: var(--text); z-index: 9999;
+  opacity: 0; transition: all .28s; pointer-events: none;
+  white-space: nowrap;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── MOBILE BOTTOM NAV ── */
+#mob-nav {
+  display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
+  background: rgba(14,18,32,0.97); backdrop-filter: blur(20px);
+  border-top: 1px solid var(--border);
+  justify-content: space-around; align-items: center;
+  height: 56px; padding: 0 4px;
+}
+.mob-nav-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  background: none; border: none; color: var(--muted);
+  font-family: var(--f); font-size: .56rem; font-weight: 700;
+  cursor: pointer; padding: 5px 10px; border-radius: 12px;
+  transition: all .18s; letter-spacing: .3px;
+  text-transform: uppercase; flex: 1;
+}
+.mob-nav-btn svg { width: 20px; height: 20px; transition: all .18s; }
+.mob-nav-btn.on { color: var(--blue); }
+.mob-nav-btn.on svg { filter: drop-shadow(0 0 6px rgba(46,125,255,.5)); }
+
+/* ── SKELETON ── */
+.sk { background: linear-gradient(90deg, var(--card) 25%, var(--hover) 50%, var(--card) 75%); background-size: 200% 100%; animation: sk 1.4s infinite; border-radius: 8px; }
+@keyframes sk { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* ── PHOTO MODAL ── */
+.modal-bg {
+  position: fixed; inset: 0; z-index: 500;
+  background: rgba(0,0,0,0.7); backdrop-filter: blur(6px);
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.modal-sheet {
+  background: var(--panel); border-radius: 20px 20px 0 0;
+  border-top: 1px solid var(--border); padding: 24px 20px 36px;
+  width: 100%; max-width: 480px;
+  animation: sheetUp .25s ease forwards;
+}
+@keyframes sheetUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.sheet-title { font-size: 1rem; font-weight: 700; margin-bottom: 4px; }
+.sheet-sub { font-size: .78rem; color: var(--sub); margin-bottom: 18px; }
+.drop-z {
+  border: 2px dashed var(--border); border-radius: var(--r);
+  padding: 28px 16px; text-align: center;
+  cursor: pointer; transition: all .2s; margin-bottom: 14px;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+}
+.drop-z:hover { border-color: var(--blue); background: var(--blue-dim); }
+.drop-z svg { width: 28px; height: 28px; color: var(--sub); }
+.drop-z span { font-size: .82rem; color: var(--sub); }
+.drop-z small { font-size: .7rem; color: var(--muted); }
+.preview-img {
+  width: 100%; max-height: 180px; object-fit: cover;
+  border-radius: var(--rs); margin-bottom: 14px; display: none;
+}
+.sheet-btns { display: flex; gap: 10px; }
+.modal-sheet-scroll { max-height: 86vh; overflow-y: auto; }
+/* ── Tombol "+" untuk mengedit tampilan profil sendiri ── */
+.self-box { position: relative; }
+.self-plus-btn {
+  position: absolute; top: 10px; right: 10px; z-index: 3;
+  width: 30px; height: 30px; border-radius: 50%;
+  background: var(--blue); border: 2px solid var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all .2s; box-shadow: var(--blue-glow);
+  color: #fff; font-family: var(--f); font-weight: 800; font-size: 1.05rem; line-height: 1;
+}
+.self-plus-btn:hover { transform: scale(1.1); }
+.self-plus-btn.inline {
+  position: static; flex-shrink: 0; margin-left: auto;
+  width: 26px; height: 26px; font-size: .95rem; border: none; box-shadow: none;
+}
+.self-name-row { display: flex; align-items: center; gap: 8px; }
+.btn-s {
+  flex: 1; padding: 11px; border-radius: 50px;
+  background: var(--card); border: 1px solid var(--border);
+  color: var(--sub); font-family: var(--f); font-size: .83rem;
+  font-weight: 600; cursor: pointer; transition: all .2s;
+}
+.btn-s:hover { color: var(--text); border-color: var(--blue); }
+.btn-p {
+  flex: 1; padding: 11px; border-radius: 50px;
+  background: var(--blue); border: none; color: #fff;
+  font-family: var(--f); font-size: .83rem; font-weight: 700;
+  cursor: pointer; transition: all .2s;
+}
+.btn-p:hover { box-shadow: var(--blue-glow); }
+.btn-p:disabled { opacity: .5; cursor: not-allowed; }
+
+@keyframes fadeInQ { from { opacity: 0; } to { opacity: 1; } }
+
+/* Public playlist card in user profile */
+.upv-pl-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 14px; margin-bottom: 10px;
+  display: flex; align-items: center; gap: 13px;
+  cursor: pointer; transition: all .18s;
+}
+.upv-pl-card:hover { border-color: rgba(46,125,255,.4); background: var(--hover); }
+.upv-pl-cover {
+  width: 54px; height: 54px; border-radius: 10px;
+  background: var(--hover); display: flex; align-items: center;
+  justify-content: center; font-size: 1.5rem; overflow: hidden; flex-shrink: 0;
+}
+.upv-pl-cover img { width: 100%; height: 100%; object-fit: cover; }
+.upv-pl-info { flex: 1; min-width: 0; }
+.upv-pl-name { font-size: .9rem; font-weight: 700; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.upv-pl-meta { font-size: .72rem; color: var(--sub); }
+.upv-pl-play {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--blue); border: none;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all .2s; flex-shrink: 0;
+  box-shadow: var(--blue-glow);
+}
+.upv-pl-play:hover { transform: scale(1.1); }
+.upv-pl-play svg { width: 15px; height: 15px; color: #fff; }
+
+/* ── UPV: Banner + Square Avatar (facebook-style header) ── */
+.upv-banner-wrap { position: relative; width: 100%; margin-bottom: 112px; }
+.upv-banner {
+  width: 100%; height: 240px; border-radius: var(--r);
+  overflow: hidden; background: linear-gradient(135deg, var(--card), var(--panel));
+  border: 1px solid var(--border);
+}
+.upv-banner img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.upv-banner-empty { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 1.8rem; }
+.upv-header-row {
+  position: absolute; left: 16px; bottom: -96px;
+  display: flex; align-items: center; gap: 18px;
+  right: 16px;
+}
+.upv-avatar-square {
+  width: 200px; height: 200px; border-radius: 34px; flex-shrink: 0;
+  background: var(--card); border: 4px solid var(--bg);
+  overflow: hidden; display: flex; align-items: center; justify-content: center;
+  font-size: 3.6rem; box-shadow: 0 4px 14px rgba(0,0,0,.35);
+}
+.upv-avatar-square img { width: 100%; height: 100%; object-fit: cover; }
+.upv-header-stats { display: flex; gap: 34px; }
+.upv-header-stat-item { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.upv-header-stat-num { font-size: 1.7rem; font-weight: 900; color: var(--text); line-height: 1; }
+.upv-header-stat-lbl { font-size: .65rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+.upv-name-wrap { padding: 0 2px; margin-bottom: 4px; }
+.upv-name-wrap .upv-h-name { font-size: 1.35rem; font-weight: 800; letter-spacing: -.3px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── FOLLOW & CHAT BUTTONS (tampilan profil user lain) ── */
+.upv-follow-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 2px 18px; position: relative; z-index: 2; }
+.upv-follow-btn, .upv-chat-btn {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  flex: 0 0 auto; padding: 10px 22px; border-radius: 50px; border: none;
+  font-family: var(--f); font-size: .84rem; font-weight: 700;
+  white-space: nowrap; cursor: pointer; transition: all .2s;
+}
+.upv-follow-btn { background: var(--blue); color: #fff; box-shadow: var(--blue-glow); }
+.upv-follow-btn:hover:not(:disabled) { transform: translateY(-1px); }
+.upv-follow-btn:disabled { opacity: .6; cursor: not-allowed; transform: none; }
+.upv-follow-btn.following { background: var(--card); color: var(--text); border: 1px solid var(--border); box-shadow: none; }
+.upv-follow-btn.following:hover:not(:disabled) { border-color: var(--danger); color: var(--danger); }
+.upv-follow-btn.requested { background: transparent; color: var(--muted); border: 1px solid var(--border); box-shadow: none; }
+.upv-follow-btn.requested:hover:not(:disabled) { border-color: var(--danger); color: var(--danger); }
+.upv-follow-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+.upv-chat-btn { background: var(--card); border: 1px solid var(--border); color: var(--text); }
+.upv-chat-btn:hover { border-color: var(--blue); color: var(--blue); background: var(--hover); }
+.upv-chat-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+/* ── Teks Berjalan (running/marquee text, menggantikan Liked Songs) ── */
+.marquee-wrap {
+  position: relative;
+  margin: 6px 2px 18px; height: 42px;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 50px; overflow: hidden;
+}
+.marquee-track {
+  position: absolute; left: 0; top: 0; bottom: 0;
+  display: flex; align-items: center; white-space: nowrap; will-change: transform;
+}
+.marquee-track:hover { animation-play-state: paused; }
+.marquee-item {
+  font-size: .82rem; font-weight: 700; color: var(--text);
+  letter-spacing: .2px; white-space: pre; display: inline-flex; align-items: center;
+}
+@keyframes marquee-enter {
+  from { transform: translateX(var(--mq-enter-start, 100%)); }
+  to   { transform: translateX(0); }
+}
+@keyframes marquee-loop {
+  from { transform: translateX(0); }
+  to   { transform: translateX(var(--mq-loop-end, -50%)); }
+}
+
+/* ── Full-photo square song tile (dipakai utk Liked Songs & Lagu Favorit) ── */
+.photo-tile {
+  position: relative; width: 100%; aspect-ratio: 1/1; border-radius: 12px;
+  overflow: hidden; cursor: pointer; background: var(--panel);
+  border: 1px solid var(--border); transition: transform .2s, border-color .2s;
+}
+.photo-tile:hover { transform: translateY(-2px); border-color: rgba(46,125,255,.4); }
+.photo-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.photo-tile-ph { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; color: var(--muted); }
+.photo-tile-play-ov {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  opacity: 0; background: rgba(0,0,0,0); transition: all .2s;
+}
+.photo-tile:hover .photo-tile-play-ov { opacity: 1; background: rgba(0,0,0,.3); }
+.photo-tile-play-ov svg { width: 30px; height: 30px; color: #fff; filter: drop-shadow(0 2px 6px rgba(0,0,0,.6)); }
+.photo-tile-del {
+  position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; border-radius: 50%;
+  background: rgba(8,11,18,.75); border: 1px solid rgba(255,255,255,.15);
+  color: #fff; display: flex; align-items: center; justify-content: center; font-size: .8rem;
+  cursor: pointer; z-index: 2; transition: all .18s;
+}
+.photo-tile-del:hover { background: var(--danger); border-color: var(--danger); }
+
+/* ── Judul & artis dipisah, DI BAWAH foto (tidak menyatu dengan gambar) ── */
+.song-tile { display: flex; flex-direction: column; gap: 4px; min-width: 0; cursor: pointer; }
+.song-tile-title { font-size: .78rem; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.song-tile-artist { font-size: .68rem; color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── Speech-bubble catatan di atas photo tile (rounded rectangle, solid, warna bisa dipilih) ── */
+.fav-bubble-wrap { display: flex; flex-direction: column; }
+.fav-note-bubble {
+  position: relative;
+  background: var(--bubble-color, var(--teal));
+  border-radius: 14px; margin: 0 8px 6px;
+  box-shadow: 0 6px 14px rgba(0,0,0,.3);
+  text-align: left;
+}
+.fav-note-text {
+  padding: 8px 12px 6px;
+  font-size: .64rem; font-weight: 600; line-height: 1.35; color: #fff;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; word-break: break-word; border-radius: inherit;
+}
+.fav-note-author {
+  display: flex; align-items: center; gap: 5px;
+  padding: 0 12px 7px;
+  font-size: .56rem; font-weight: 600; color: rgba(255,255,255,.8);
+}
+.fav-note-avatar {
+  width: 15px; height: 15px; border-radius: 50%; overflow: hidden; flex-shrink: 0;
+  background: rgba(255,255,255,.28);
+  display: flex; align-items: center; justify-content: center; font-size: .55rem;
+}
+.fav-note-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.fav-note-bubble::after {
+  content: ''; position: absolute; right: 20px; bottom: -5px;
+  width: 12px; height: 12px;
+  background: var(--bubble-color, var(--teal));
+  border-radius: 65% 0 0 0;
+  transform: rotate(45deg);
+}
+.fav-note-edit-btn {
+  position: absolute; top: 4px; right: 4px; width: 18px; height: 18px; border-radius: 50%;
+  background: rgba(0,0,0,.28); border: 1px solid rgba(255,255,255,.35);
+  color: #fff; display: flex; align-items: center; justify-content: center; font-size: .58rem;
+  cursor: pointer; z-index: 2; transition: all .18s;
+}
+.fav-note-edit-btn:hover { background: rgba(0,0,0,.5); }
+
+/* ── Emoji di pojok kiri atas bubble catatan (mirip Instagram) ──────────
+   Diperbesar & tanpa lingkaran background supaya emoji-nya tampil penuh/utuh
+   (full emoji), bukan dikurung dalam badge bulat kecil seperti sebelumnya. */
+.fav-note-emoji-badge {
+  position: absolute; top: -14px; left: -10px; width: auto; height: auto; border-radius: 0;
+  background: none; border: none; box-shadow: none;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.55rem; line-height: 1; filter: drop-shadow(0 2px 4px rgba(0,0,0,.45)); z-index: 3;
+}
+/* ── Picker emoji cepat di modal tambah/edit bubble catatan ── */
+.fav-emoji-quickpick { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.fav-emoji-quickpick button {
+  width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--panel); font-size: .95rem; cursor: pointer; display: flex;
+  align-items: center; justify-content: center; transition: all .15s; padding: 0;
+}
+.fav-emoji-quickpick button:hover { border-color: var(--blue); }
+.fav-emoji-quickpick button.active { border-color: var(--blue); background: var(--blue-dim); }
+.fav-emoji-input-row { display: flex; align-items: center; gap: 8px; }
+.fav-emoji-input-row .form-input { width: 70px; text-align: center; font-size: 1.05rem; }
+.fav-emoji-clear-btn {
+  font-size: .72rem; color: var(--muted); cursor: pointer; background: none; border: none;
+  padding: 4px 6px;
+}
+.fav-emoji-clear-btn:hover { color: var(--danger); text-decoration: underline; }
+.fav-note-add-btn {
+  display: flex; align-items: center; gap: 4px; font-size: .66rem; font-weight: 700;
+  color: var(--blue); cursor: pointer; margin: 0 8px 8px; padding: 4px 2px; width: fit-content;
+}
+.fav-note-add-btn:hover { text-decoration: underline; }
+
+/* ── Dropdown hasil pencarian lagu (Lagu Favorit) ── */
+.fav-picker-wrap { position: relative; }
+.fav-picker-dropdown {
+  display: none; position: absolute; left: 0; right: 0; top: calc(100% + 4px);
+  background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+  max-height: 280px; overflow-y: auto; z-index: 40;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.4);
+}
+.fav-picker-dropdown::-webkit-scrollbar { width: 6px; }
+.fav-picker-dropdown::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 10px; }
+.fav-picker-loading { padding: 14px; text-align: center; font-size: .78rem; color: var(--muted); }
+.fav-picker-row {
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+  cursor: pointer; transition: background .15s;
+}
+.fav-picker-row:hover { background: var(--hover); }
+.fav-picker-thumb { width: 34px; height: 34px; border-radius: 7px; overflow: hidden; flex-shrink: 0; background: var(--card); display: flex; align-items: center; justify-content: center; font-size: .9rem; }
+.fav-picker-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.fav-picker-info { flex: 1; min-width: 0; }
+.fav-picker-title { font-size: .78rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fav-picker-artist { font-size: .68rem; color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fav-picker-play-btn {
+  flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%;
+  background: var(--blue-dim); border: 1px solid rgba(46,125,255,.3);
+  color: var(--blue); display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all .18s;
+}
+.fav-picker-play-btn:hover { background: var(--blue); color: #fff; }
+.fav-picker-play-btn svg { width: 12px; height: 12px; }
+
+/* ── UPV: two-column About / Favorite Songs ── */
+.upv-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: stretch; }
+.upv-columns .section-card { min-width: 0; height: 300px; display: flex; flex-direction: column; overflow: hidden; }
+.upv-about-text { font-size: .84rem; line-height: 1.7; color: var(--sub); white-space: pre-wrap; word-break: break-word; overflow-y: auto; flex: 1; padding-right: 2px; }
+.upv-fav-list {
+  display: flex; flex-direction: row; gap: 4px 12px; overflow-x: auto; overflow-y: auto;
+  padding: 18px 2px 10px; align-items: flex-start; min-width: 0; flex: 1;
+  scrollbar-width: thin; scrollbar-color: var(--muted) transparent;
+}
+.upv-fav-list::-webkit-scrollbar { height: 6px; }
+.upv-fav-list::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 10px; }
+.upv-fav-list .fav-bubble-wrap { flex: 0 0 auto; width: 110px; min-width: 0; }
+.upv-empty-mini { text-align: center; padding: 20px 8px; color: var(--muted); font-size: .74rem; }
+
+/* Track row in detail view */
+.pld-track-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: var(--rs);
+  cursor: pointer; transition: background .15s;
+}
+.pld-track-row:hover { background: var(--card); }
+.pld-track-row.playing { background: var(--blue-dim); }
+.pld-tr-num { font-size: .68rem; color: var(--muted); font-family: var(--fm); width: 20px; text-align: center; flex-shrink: 0; }
+.pld-tr-thumb {
+  width: 40px; height: 40px; border-radius: 8px;
+  background: var(--hover); overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .85rem; flex-shrink: 0;
+}
+.pld-tr-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.pld-tr-info { flex: 1; min-width: 0; }
+.pld-tr-title { font-size: .83rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pld-tr-artist { font-size: .72rem; color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pld-tr-play {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: var(--blue-dim); border: 1px solid rgba(46,125,255,.3);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all .18s; flex-shrink: 0; color: var(--blue);
+}
+.pld-tr-play:hover { background: var(--blue); color: #fff; }
+.pld-tr-play svg { width: 12px; height: 12px; }
+@media (max-width: 600px) {
+  #mob-nav { display: flex; }
+  #app { padding-bottom: 80px; }
+  .upv-header-stat-num { font-size: 1.3rem; }
+  /* Di mobile, jumlah Playlist/Public/Total Likes disembunyikan karena
+     ruang terlalu sempit dan menyebabkan teks Followers/Following
+     terpotong. Followers & Following tetap ditampilkan penuh. */
+  .stat-hide-mobile { display: none; }
+  .upv-header-stats { gap: 28px; }
+  .upv-header-stat-lbl { white-space: nowrap; }
+  .upv-follow-actions { gap: 8px; margin: 8px 2px 16px; }
+  .upv-follow-btn, .upv-chat-btn { padding: 8px 16px; font-size: .78rem; }
+  .upv-avatar-square, .avatar-ring { width: 130px; height: 130px; border-radius: 24px; }
+  .avatar-inner { border-radius: 20px; font-size: 2.4rem; }
+  .upv-avatar-square { font-size: 2.6rem; }
+  .upv-header-row { bottom: -64px; gap: 12px; }
+  .upv-banner { height: 180px; }
+  .upv-banner-wrap { margin-bottom: 84px; }
+  .cpc-header { padding: 12px 12px 8px; }
+  .cpc-body { padding: 0 12px 10px; }
+  .cpc-actions { padding: 4px 6px; }
+  .cpc-act-btn { padding: 7px 8px; font-size: .7rem; gap: 4px; }
+  .mob-nav-btn { font-size: .5rem; padding: 4px 5px; }
+  .mob-nav-btn svg { width: 18px; height: 18px; }
+}
+</style>
+</head>
+<body>
+
+<!-- AUTH OVERLAY -->
+<div id="auth-overlay">
+  <div style="display:flex;flex-direction:column;align-items:center;gap:14px;">
+    <img src="bird.gif" alt="Loading" style="width:160px;height:122px;object-fit:contain;filter:drop-shadow(0 0 18px rgba(46,125,255,0.5));animation:birdFloat 2.4s ease-in-out infinite;">
+    <span style="font-size:.78rem;color:#6A6A6A;letter-spacing:1.5px;text-transform:uppercase;font-weight:600;animation:birdPulse 1.6s ease-in-out infinite;">Loading...</span>
+  </div>
+</div>
+<style>
+@keyframes birdFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+@keyframes birdPulse{0%,100%{opacity:.4}50%{opacity:1}}
+</style>
+
+<!-- TOP NAV -->
+<nav id="top-nav">
+  <a class="nav-logo" href="vibexa.html">
+    <div class="nav-logo-mark">
+      <img src="logo-icon.png" alt="Vibexa">
+    </div>
+    <span class="nav-logo-name">Vibexa</span>
+  </a>
+</nav>
+
+<!-- MAIN APP -->
+<div id="app">
+
+  <!-- COVER / AVATAR / STATS (sama persis seperti tampilan yang dilihat user lain) -->
+  <div class="upv-banner-wrap" style="margin-top:14px;">
+    <div class="upv-banner" id="cover-photo-box">
+      <div id="cover-preview-wrap" class="upv-banner-empty">🖼️</div>
+    </div>
+    <div class="self-plus-btn" onclick="openCoverModal()" title="Change Cover" style="top:10px;right:10px;">+</div>
+    <div class="upv-header-row">
+      <div class="avatar-wrap" onclick="openPhotoModal()">
+        <div class="avatar-ring">
+          <div class="avatar-inner" id="avatar-inner">🎵</div>
+        </div>
+        <div class="avatar-edit-btn">+</div>
+      </div>
+      <div class="upv-header-stats">
+        <div class="upv-header-stat-item stat-hide-mobile">
+          <div class="upv-header-stat-num" id="stat-playlists">0</div>
+          <div class="upv-header-stat-lbl">Playlist</div>
+        </div>
+        <div class="upv-header-stat-item stat-hide-mobile">
+          <div class="upv-header-stat-num" id="stat-public">0</div>
+          <div class="upv-header-stat-lbl">Public</div>
+        </div>
+        <div class="upv-header-stat-item stat-hide-mobile">
+          <div class="upv-header-stat-num" id="stat-likes">0</div>
+          <div class="upv-header-stat-lbl">Total Likes</div>
+        </div>
+        <div class="upv-header-stat-item">
+          <div class="upv-header-stat-num" id="stat-followers">0</div>
+          <div class="upv-header-stat-lbl">Followers</div>
+        </div>
+        <div class="upv-header-stat-item">
+          <div class="upv-header-stat-num" id="stat-following">0</div>
+          <div class="upv-header-stat-lbl">Following</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Nama, Bio & Teks Berjalan (sama persis seperti tampilan publik + tombol edit) -->
+  <div class="self-box" style="padding-right:38px;">
+    <div class="self-plus-btn" onclick="openEditProfileModal()" title="Edit Name, Bio & Marquee Text">+</div>
+    <div class="upv-name-wrap">
+      <div class="upv-h-name" id="display-name">—</div>
+    </div>
+    <div id="user-bio" style="font-size:.85rem;color:var(--sub);line-height:1.65;margin:0 2px 6px;"></div>
+
+    <!-- Teks Berjalan -->
+    <div class="marquee-wrap" id="my-marquee-wrap" style="display:none;">
+      <div class="marquee-track" id="my-marquee-track">
+        <span class="marquee-item"></span>
+        <span class="marquee-item"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- About + Favorite Songs (dua kolom, sama persis seperti tampilan publik) -->
+  <div class="upv-columns" style="margin-bottom:20px;">
+    <div class="section-card self-box" style="margin-bottom:0;">
+      <div class="playlists-header" style="margin-bottom:12px;">
+        <div class="section-title" style="margin-bottom:0;">Tentang</div>
+        <div class="self-plus-btn inline" onclick="openEditAboutModal()" title="Edit About">+</div>
+      </div>
+      <div class="upv-about-text" id="my-about">No description yet</div>
+    </div>
+    <div class="section-card self-box" style="margin-bottom:0;">
+      <div class="playlists-header" style="margin-bottom:12px;">
+        <div class="section-title" style="margin-bottom:0;">Favorite Songs</div>
+        <div class="self-plus-btn inline" onclick="openAddFavModal()" title="Add Favorite Song">+</div>
+      </div>
+      <div class="upv-fav-list" id="my-favorites-list">
+        <div class="upv-empty-mini">No favorite songs yet</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PLAYLIST PUBLISH -->
+  <div>
+    <div class="playlists-header">
+      <div class="section-h2">My Playlists</div>
+    </div>
+    <div id="pl-publish-list">
+      <div style="text-align:center;padding:30px 0;color:var(--muted);font-size:.82rem">
+        <div style="font-size:2rem;margin-bottom:8px">🎵</div>
+        No playlists yet
+      </div>
+    </div>
+  </div>
+
+</div><!-- /#app -->
+
+<!-- ═══ MODAL: EDIT PROFIL (Nama, Bio, Teks Berjalan, Warna Latar) ═══ -->
+<div id="modal-edit-profile" class="modal-bg" style="display:none" onclick="if(event.target===this) closeEditProfileModal()">
+  <div class="modal-sheet modal-sheet-scroll">
+    <div class="sheet-title">Edit Profile</div>
+    <div class="sheet-sub">Change the name, bio, and marquee text on your profile</div>
+    <div class="form-group">
+      <label class="form-label">Display Name</label>
+      <input type="text" class="form-input" id="inp-name" placeholder="Your name..." maxlength="32">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Description / Bio</label>
+      <textarea class="form-input" id="inp-bio" rows="3" placeholder="Tell us a little about yourself or your favorite music..." maxlength="120"></textarea>
+      <div class="char-count"><span id="bio-count">0</span>/120</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Teks Berjalan</label>
+      <input type="text" class="form-input" id="inp-marquee" placeholder="Write the text that will scroll sideways..." maxlength="100">
+      <div class="char-count"><span id="marquee-count">0</span>/100</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Profile Background Color</label>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <input type="color" id="inp-bg-color" value="#000000" oninput="previewBgColor(this.value)" style="width:44px;height:36px;border-radius:8px;border:1px solid var(--border);background:var(--panel);cursor:pointer;padding:2px;">
+        <span style="font-size:.75rem;color:var(--sub);">Choose the background color for your profile</span>
+        <button type="button" onclick="resetBgColor()" style="margin-left:auto;background:var(--card);border:1px solid var(--border);color:var(--sub);font-size:.7rem;font-weight:600;border-radius:8px;padding:7px 12px;cursor:pointer;">Reset</button>
+      </div>
+    </div>
+    <div class="sheet-btns">
+      <button class="btn-s" onclick="closeEditProfileModal()">Cancel</button>
+      <button class="btn-p" id="btn-save-profile" onclick="saveProfile()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: EDIT TENTANG ═══ -->
+<div id="modal-edit-about" class="modal-bg" style="display:none" onclick="if(event.target===this) closeEditAboutModal()">
+  <div class="modal-sheet modal-sheet-scroll">
+    <div class="sheet-title">Edit About</div>
+    <div class="sheet-sub">Ceritakan lebih banyak tentang dirimu</div>
+    <div class="form-group">
+      <textarea class="form-input" id="inp-about" rows="6" placeholder="Ceritakan lebih banyak tentang dirimu..." maxlength="500"></textarea>
+      <div class="char-count"><span id="about-count">0</span>/500</div>
+    </div>
+    <div class="sheet-btns">
+      <button class="btn-s" onclick="closeEditAboutModal()">Cancel</button>
+      <button class="btn-p" id="btn-save-about" onclick="saveProfile()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: TAMBAH LAGU FAVORIT ═══ -->
+<div id="modal-add-fav" class="modal-bg" style="display:none" onclick="if(event.target===this) closeAddFavModal()">
+  <div class="modal-sheet modal-sheet-scroll">
+    <div class="sheet-title">Add Favorite Song <span style="color:var(--muted);font-weight:500;">(max. 10)</span></div>
+    <div class="sheet-sub">Choose a song and write a note bubble to display above it</div>
+    <div class="form-group fav-picker-wrap">
+      <label class="form-label">Search Song</label>
+      <input type="text" class="form-input" id="inp-fav-picker" placeholder="Type song title..." oninput="onFavPickerInput(this.value)" autocomplete="off">
+      <div class="fav-picker-dropdown" id="fav-picker-results"></div>
+    </div>
+    <div id="fav-picker-preview" style="display:none;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:8px 10px;margin-bottom:14px;"></div>
+    <div class="form-group">
+      <label class="form-label">Note Bubble (above song)</label>
+      <textarea class="form-input" id="inp-fav-note" rows="2" placeholder="Why is this song special to you?" maxlength="150"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Warna Bubble Catatan</label>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <input type="color" id="inp-fav-note-color" value="#4FA8FF" style="width:44px;height:36px;border-radius:8px;border:1px solid var(--border);background:var(--panel);cursor:pointer;padding:2px;">
+        <span style="font-size:.75rem;color:var(--sub);">Choose a note bubble color for this song</span>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Emoji Bubble <span style="color:var(--muted);font-weight:500;">(opsional, muncul di pojok kiri atas bubble)</span></label>
+      <div class="fav-emoji-quickpick" id="fav-emoji-quickpick"></div>
+      <div class="fav-emoji-input-row">
+        <input type="text" class="form-input" id="inp-fav-emoji" placeholder="😊" maxlength="24" oninput="onFavEmojiTyped('fav')">
+        <button type="button" class="fav-emoji-clear-btn" onclick="clearFavEmoji('fav')">Remove emoji</button>
+      </div>
+    </div>
+    <div class="sheet-btns">
+      <button class="btn-s" onclick="closeAddFavModal()">Cancel</button>
+      <button class="btn-p" id="btn-add-fav" onclick="addFavoriteSong()">+ Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: EDIT BUBBLE CATATAN LAGU FAVORIT ═══ -->
+<div id="modal-edit-fav-note" class="modal-bg" style="display:none" onclick="if(event.target===this) closeEditFavNoteModal()">
+  <div class="modal-sheet">
+    <div class="sheet-title">Edit Note Bubble</div>
+    <div class="sheet-sub">This note bubble shows on your own favorite song. To suggest a song to everyone, use the "+ Suggest Song" button in the "From Your Friends" section on the Home page.</div>
+    <div class="form-group">
+      <label class="form-label">Bubble Catatan</label>
+      <textarea class="form-input" id="inp-edit-fav-note" rows="2" placeholder="Why is this song special to you?" maxlength="150"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Warna Bubble Catatan</label>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <input type="color" id="inp-edit-fav-note-color" value="#4FA8FF" style="width:44px;height:36px;border-radius:8px;border:1px solid var(--border);background:var(--panel);cursor:pointer;padding:2px;">
+        <span style="font-size:.75rem;color:var(--sub);">Choose a note bubble color for this song</span>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Emoji Bubble <span style="color:var(--muted);font-weight:500;">(opsional, muncul di pojok kiri atas bubble)</span></label>
+      <div class="fav-emoji-quickpick" id="fav-edit-emoji-quickpick"></div>
+      <div class="fav-emoji-input-row">
+        <input type="text" class="form-input" id="inp-edit-fav-emoji" placeholder="😊" maxlength="24" oninput="onFavEmojiTyped('edit-fav')">
+        <button type="button" class="fav-emoji-clear-btn" onclick="clearFavEmoji('edit-fav')">Remove emoji</button>
+      </div>
+    </div>
+    <div class="sheet-btns">
+      <button class="btn-s" onclick="closeEditFavNoteModal()">Cancel</button>
+      <button class="btn-p" id="btn-save-edit-fav-note" onclick="saveEditFavNote()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- PHOTO MODAL -->
+<div id="photo-modal" class="modal-bg" style="display:none" onclick="closePhotoModalBg(event)">
+  <div class="modal-sheet">
+    <div class="sheet-title">Profile Photo</div>
+    <div class="sheet-sub">Upload your new profile photo</div>
+    <img class="preview-img" id="photo-preview" src="" alt="">
+    <div class="drop-z" id="drop-zone" onclick="document.getElementById('photo-inp').click()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+      <span>Click or drag photo here</span>
+      <small>JPG · PNG · WebP · Max 2MB</small>
+    </div>
+    <input type="file" id="photo-inp" accept="image/*" style="display:none">
+    <div class="sheet-btns">
+      <button class="btn-s" onclick="closePhotoModal()">Cancel</button>
+      <button class="btn-p" id="btn-save-photo" onclick="savePhoto()" disabled>Save Photo</button>
+    </div>
+  </div>
+</div>
+
+<!-- COVER PHOTO MODAL -->
+<div id="cover-modal" class="modal-bg" style="display:none" onclick="closeCoverModalBg(event)">
+  <div class="modal-sheet">
+    <div class="sheet-title">Cover Photo</div>
+    <div class="sheet-sub">Upload your profile background photo</div>
+    <img class="preview-img" id="cover-preview" src="" alt="" style="aspect-ratio:16/6;object-fit:cover;">
+    <div class="drop-z" id="cover-drop-zone" onclick="document.getElementById('cover-inp').click()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+      <span>Click or drag a photo here</span>
+      <small>JPG · PNG · WebP · Max 3MB</small>
+    </div>
+    <input type="file" id="cover-inp" accept="image/*" style="display:none">
+    <div class="sheet-btns">
+      <button class="btn-s" onclick="closeCoverModal()">Cancel</button>
+      <button class="btn-p" id="btn-save-cover" onclick="saveCover()" disabled>Save Cover</button>
+    </div>
+  </div>
+</div>
+
+<!-- BOTTOM NAV (mobile) -->
+<div id="mob-nav">
+  <button class="mob-nav-btn" onclick="window.location.href='vibexa.html'">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+    Musik
+  </button>
+  <button class="mob-nav-btn on">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-3.3 0-10 1.7-10 5v2h20v-2c0-3.3-6.7-5-10-5z"/></svg>
+    Profile
+  </button>
+</div>
+
+<!-- ═══ USER PUBLIC PROFILE VIEW ═══ -->
+<div id="user-profile-view" style="display:none;position:fixed;inset:0;z-index:400;background:var(--bg);overflow-y:auto;animation:slideUp .28s ease forwards;">
+  <!-- Nav -->
+  <div style="position:sticky;top:0;z-index:10;background:rgba(8,11,18,0.95);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;padding:0 16px;height:56px;">
+    <button onclick="closeUserProfile()" style="width:36px;height:36px;border-radius:50%;background:var(--card);border:1px solid var(--border);color:var(--sub);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:all .2s;" onmouseover="this.style.borderColor='var(--blue)'" onmouseout="this.style.borderColor='var(--border)'">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+    </button>
+    <div id="upv-nav-name" style="font-size:1rem;font-weight:700;flex:1;">User Profile</div>
+  </div>
+  <!-- Content -->
+  <div id="upv-content" style="max-width:700px;margin:0 auto;padding:14px 16px 100px;">
+
+    <!-- Banner + Square Avatar (diperbesar) + Stats (kanan atas avatar) -->
+    <div class="upv-banner-wrap">
+      <div class="upv-banner" id="upv-banner">
+        <div class="upv-banner-empty">🖼️</div>
+      </div>
+      <div class="upv-header-row">
+        <div class="upv-avatar-square" id="upv-avatar"></div>
+        <div class="upv-header-stats">
+          <div class="upv-header-stat-item stat-hide-mobile">
+            <div id="upv-stat-pl" class="upv-header-stat-num">0</div>
+            <div class="upv-header-stat-lbl">Playlist</div>
+          </div>
+          <div class="upv-header-stat-item stat-hide-mobile">
+            <div id="upv-stat-likes" class="upv-header-stat-num">0</div>
+            <div class="upv-header-stat-lbl">Total Likes</div>
+          </div>
+          <div class="upv-header-stat-item">
+            <div id="upv-stat-followers" class="upv-header-stat-num">0</div>
+            <div class="upv-header-stat-lbl">Followers</div>
+          </div>
+          <div class="upv-header-stat-item">
+            <div id="upv-stat-following" class="upv-header-stat-num">0</div>
+            <div class="upv-header-stat-lbl">Following</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tombol Follow & Chat (hanya tampil saat melihat profil user lain) -->
+    <!-- Diletakkan di sini (di luar upv-banner-wrap) supaya tidak tertutup/tertindih oleh avatar & stats yang posisinya absolute di atasnya -->
+    <div class="upv-follow-actions" id="upv-follow-actions" style="display:none;">
+      <button class="upv-follow-btn" id="upv-follow-btn" onclick="toggleFollowUser()">
+        <svg class="upv-follow-icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        <svg class="upv-follow-icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><path d="M20 6 9 17l-5-5"/></svg>
+        <span id="upv-follow-btn-label">Follow</span>
+      </button>
+      <button class="upv-chat-btn" onclick="goToChatWithUser()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+        Chat
+      </button>
+    </div>
+
+    <!-- Nama User (dibawah foto profil) -->
+    <div class="upv-name-wrap">
+      <div class="upv-h-name" id="upv-name">—</div>
+    </div>
+
+    <!-- Bio / Description -->
+    <div id="upv-bio" style="font-size:.85rem;color:var(--sub);line-height:1.65;margin-bottom:6px;"></div>
+
+    <!-- Teks Berjalan (menggantikan Liked Songs) -->
+    <div class="marquee-wrap" id="upv-marquee-wrap" style="display:none;">
+      <div class="marquee-track" id="upv-marquee-track">
+        <span class="marquee-item"></span>
+        <span class="marquee-item"></span>
+      </div>
+    </div>
+
+    <!-- About + Favorite Songs (two columns) -->
+    <div class="upv-columns" style="margin-bottom:20px;">
+      <div class="section-card" style="margin-bottom:0;">
+        <div class="section-title">Tentang</div>
+        <div class="upv-about-text" id="upv-about">Loading...</div>
+      </div>
+      <div class="section-card" style="margin-bottom:0;">
+        <div class="section-title">Favorite Songs</div>
+        <div class="upv-fav-list" id="upv-favorites">
+          <div class="upv-empty-mini">Loading...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Public Playlists -->
+    <div>
+      <div style="font-size:.68rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px;">Public Playlists</div>
+      <div id="upv-playlists">
+        <div style="text-align:center;padding:40px 0;color:var(--muted);font-size:.83rem;">Loading...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PLAYLIST DETAIL PLAYER VIEW (for other user's playlist) ═══ -->
+<div id="pl-detail-view" style="display:none;position:fixed;inset:0;z-index:500;background:var(--bg);overflow-y:auto;animation:slideUp .28s ease forwards;">
+  <div style="position:sticky;top:0;z-index:10;background:rgba(8,11,18,0.95);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;padding:0 16px;height:56px;">
+    <button onclick="closePlDetail()" style="width:36px;height:36px;border-radius:50%;background:var(--card);border:1px solid var(--border);color:var(--sub);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;" onmouseover="this.style.borderColor='var(--blue)'" onmouseout="this.style.borderColor='var(--border)'">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+    </button>
+    <div id="pld-nav-name" style="font-size:1rem;font-weight:700;flex:1;">Playlist</div>
+  </div>
+  <div style="max-width:700px;margin:0 auto;padding:20px 16px 100px;">
+    <!-- Cover + Info -->
+    <div style="display:flex;gap:16px;align-items:center;margin-bottom:20px;">
+      <div id="pld-cover" style="width:88px;height:88px;border-radius:14px;background:var(--card);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:2.5rem;flex-shrink:0;"></div>
+      <div style="flex:1;min-width:0;">
+        <div id="pld-name" style="font-size:1.2rem;font-weight:800;margin-bottom:4px;"></div>
+        <div id="pld-owner" style="font-size:.78rem;color:var(--sub);margin-bottom:8px;"></div>
+        <button id="pld-play-all-btn" onclick="playAllFromDetail()" style="display:flex;align-items:center;gap:8px;background:var(--blue);border:none;border-radius:50px;padding:9px 20px;color:#fff;font-family:var(--f);font-size:.82rem;font-weight:700;cursor:pointer;transition:all .2s;box-shadow:var(--blue-glow);">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15"><path d="M8 5v14l11-7z"/></svg>
+          Play All
+        </button>
+      </div>
+    </div>
+    <!-- Track list -->
+    <div id="pld-tracks" style="display:flex;flex-direction:column;gap:4px;"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════════════════════════════
+// ── FITUR FOLLOW (Instagram-style) — struktur data Firebase ────────────
+//   follows/{uid}/followers/{otherUid} = true   → daftar yang mengikuti {uid}
+//   follows/{uid}/following/{otherUid} = true   → daftar yang diikuti {uid}
+//
+// CATATAN PENTING (Firebase Security Rules):
+// Tambahkan rules berikut di Firebase Console → Realtime Database → Rules
+// (gabungkan dengan rules yang sudah ada, jangan menimpa seluruhnya):
+//
+// {
+//   "rules": {
+//     "follows": {
+//       "$uid": {
+//         ".read": "auth != null",
+//         "followers": {
+//           "$otherUid": { ".write": "auth != null && auth.uid === $otherUid" }
+//         },
+//         "following": {
+//           "$otherUid": { ".write": "auth != null && auth.uid === $uid" }
+//         }
+//       }
+//     }
+//   }
+// }
+// ═══════════════════════════════════════════════════════════════════════
+
+// ── Firebase ─────────────────────────────────────────────
+const firebaseConfig = {
+  apiKey: "AIzaSyCeMRU4JgIOlS_M9hgZfDKrkIHyAFncVjE",
+  authDomain: "nevermind-c246a.firebaseapp.com",
+  databaseURL: "https://nevermind-c246a-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "nevermind-c246a",
+  storageBucket: "nevermind-c246a.firebasestorage.app",
+  messagingSenderId: "703998258491",
+  appId: "1:703998258491:web:ea9cceaa10af71db61db1e"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db   = firebase.database();
+
+let currentUser = null;
+let myDisplayName = '';
+let myPhotoURL = '';
+let pendingPhotoData = null;
+let myPlaylists = {};
+
+// ── Auth ─────────────────────────────────────────────────
+auth.onAuthStateChanged(async user => {
+  if (user && !user.isAnonymous) {
+    currentUser = user;
+    const overlay = document.getElementById('auth-overlay');
+    overlay.style.opacity = '0';
+    overlay.style.transition = 'opacity .4s';
+    setTimeout(() => overlay.style.display = 'none', 400);
+    await loadProfile();
+    await loadMyPlaylists();
+    // Jika ada ?uid= di URL, langsung buka profil user tersebut
+    const params = new URLSearchParams(window.location.search);
+    const viewUid = params.get('uid');
+    if (viewUid && viewUid !== currentUser.uid) {
+      setTimeout(() => openUserProfile(viewUid), 300);
+    }
+  } else {
+    // Belum login (atau cuma sesi anonim) → langsung tendang ke halaman login
+    if (user && user.isAnonymous) {
+      auth.signOut().finally(() => window.location.replace('login.html'));
+    } else {
+      window.location.replace('login.html');
+    }
+  }
+});
+
+// ── Load Profile ──────────────────────────────────────────
+async function loadProfile() {
+  try {
+    const snap = await db.ref('users/' + currentUser.uid + '/profile').get();
+    const data = snap.exists() ? snap.val() : {};
+    const name = data.displayName || currentUser.displayName || currentUser.email.split('@')[0];
+    const bio  = data.bio || '';
+    const about = data.about || '';
+    const cover = data.backgroundURL || '';
+    const photo = data.photoURL || currentUser.photoURL || '';
+    const bgColor = data.bgColor || '';
+    const marqueeText = data.marqueeText || '';
+
+    document.getElementById('display-name').textContent = name;
+    document.getElementById('user-bio').textContent     = bio || 'No description yet';
+    document.getElementById('user-bio').style.fontStyle = bio ? 'normal' : 'italic';
+    document.getElementById('user-bio').style.color     = bio ? 'var(--sub)' : 'var(--muted)';
+    document.getElementById('my-about').textContent = about || 'No description yet';
+
+    document.getElementById('inp-name').value = name;
+    document.getElementById('inp-bio').value  = bio;
+    document.getElementById('bio-count').textContent = bio.length;
+    document.getElementById('inp-about').value = about;
+    document.getElementById('about-count').textContent = about.length;
+    document.getElementById('inp-marquee').value = marqueeText;
+    document.getElementById('marquee-count').textContent = marqueeText.length;
+    document.getElementById('inp-bg-color').value = bgColor || '#000000';
+    applyBgColor(bgColor);
+    myDisplayName = name;
+    myPhotoURL = photo;
+
+    // Kalau di database belum ada foto profil (photoURL kosong) tapi akun ini
+    // punya foto dari akun login (mis. Google), simpan sekali ke database.
+    // Sebelumnya foto ini HANYA dipakai untuk tampilan lokal (di halaman profil
+    // sendiri) dan tidak pernah tersimpan, sehingga tempat lain yang membaca
+    // langsung dari database — seperti bubble "Dari Teman Mu" di halaman chat
+    // teman, atau saat profil ini dilihat orang lain — cuma melihat field
+    // kosong dan menampilkan ikon default alih-alih foto asli user.
+    if (!data.photoURL && currentUser.photoURL) {
+      db.ref('users/' + currentUser.uid + '/profile/photoURL').set(currentUser.photoURL).catch(() => {});
+    }
+
+    setAvatar(photo, name);
+    setCoverPreview(cover);
+    setMarquee('my', marqueeText);
+    loadMyFavorites();
+    loadFollowStats(currentUser.uid, 'stat');
+  } catch(e) {
+    console.error(e);
+  }
+}
+
+// ── FOLLOW SYSTEM (Instagram-style) ──────────────────────────
+// Struktur data di Firebase:
+//   follows/{uid}/followers/{otherUid} = true  → daftar yang mengikuti {uid}
+//   follows/{uid}/following/{otherUid} = true  → daftar yang diikuti {uid}
+async function loadFollowStats(uid, prefix) {
+  try {
+    const [followersSnap, followingSnap] = await Promise.all([
+      db.ref('follows/' + uid + '/followers').get(),
+      db.ref('follows/' + uid + '/following').get()
+    ]);
+    const followersCount = followersSnap.exists() ? Object.keys(followersSnap.val()).length : 0;
+    const followingCount = followingSnap.exists() ? Object.keys(followingSnap.val()).length : 0;
+    const fEl = document.getElementById(prefix + '-followers');
+    const gEl = document.getElementById(prefix + '-following');
+    if (fEl) fEl.textContent = followersCount;
+    if (gEl) gEl.textContent = followingCount;
+    return { followersCount, followingCount };
+  } catch(e) {
+    console.error('Failed to load follow data:', e);
+    return { followersCount: 0, followingCount: 0 };
+  }
+}
+
+// Cek apakah currentUser sudah mengikuti uid tertentu (diterima) atau masih
+// menunggu (pending), lalu update tampilan tombol jadi salah satu dari:
+// Follow (belum kirim permintaan) → Requested (menunggu diterima) → Following (diterima)
+async function refreshFollowButtonState(uid) {
+  const btn = document.getElementById('upv-follow-btn');
+  if (!btn || !currentUser) return;
+  const label = document.getElementById('upv-follow-btn-label');
+  const iconPlus = btn.querySelector('.upv-follow-icon-plus');
+  const iconCheck = btn.querySelector('.upv-follow-icon-check');
+  try {
+    const [followSnap, reqSnap] = await Promise.all([
+      db.ref('follows/' + uid + '/followers/' + currentUser.uid).get(),
+      db.ref('follow_requests/' + uid + '/' + currentUser.uid).get()
+    ]);
+    const isFollowing = followSnap.exists() && followSnap.val() === true;
+    const reqData = reqSnap.exists() ? reqSnap.val() : null;
+    const isPending = !!(reqData && reqData.status === 'pending' && !isFollowing);
+
+    btn.classList.toggle('following', isFollowing);
+    btn.classList.toggle('requested', isPending);
+    btn.dataset.following = isFollowing ? '1' : '0';
+    btn.dataset.pending = isPending ? '1' : '0';
+    if (label) label.textContent = isFollowing ? 'Following' : (isPending ? 'Requested' : 'Follow');
+    if (iconPlus) iconPlus.style.display = (isFollowing || isPending) ? 'none' : '';
+    if (iconCheck) iconCheck.style.display = isFollowing ? '' : 'none';
+  } catch(e) {
+    console.error('Failed to check follow status:', e);
+  }
+}
+
+// ── FOLLOW REQUEST SYSTEM ─────────────────────────────────────
+// Sekarang menekan tombol Follow TIDAK langsung membuat kamu jadi follower.
+// Yang terjadi:
+//   1. Menekan "Follow"     → kirim PERMINTAAN follow (follow_requests) +
+//                              notifikasi ke user tsb (bisa Terima/Tolak).
+//   2. Menekan "Requested"  → batalkan permintaan yang masih menunggu.
+//   3. Menekan "Following"  → berhenti mengikuti (unfollow).
+// Struktur data di Firebase:
+//   follow_requests/{targetUid}/{requesterUid} = { fromUid, fromName, fromPhoto, ts, status }
+//   users/{targetUid}/notifications/followreq_{requesterUid} = { type:'follow_request', ... }
+// Status permintaan: 'pending' → 'accepted' atau 'rejected' (diproses lewat
+// panel notifikasi milik targetUid, lihat acceptFollowRequest/rejectFollowRequest
+// di vibexa.html).
+async function toggleFollowUser() {
+  if (!currentUser) { toast('ℹ️ Please log in first'); return; }
+  if (!currentViewedUid || currentViewedUid === currentUser.uid) return;
+
+  const btn = document.getElementById('upv-follow-btn');
+  const alreadyFollowing = btn && btn.dataset.following === '1';
+  const isPending = btn && btn.dataset.pending === '1';
+  const targetUid = currentViewedUid;
+  const myUid = currentUser.uid;
+
+  if (btn) btn.disabled = true;
+  try {
+    if (alreadyFollowing) {
+      // Unfollow
+      await Promise.all([
+        db.ref('follows/' + targetUid + '/followers/' + myUid).remove(),
+        db.ref('follows/' + myUid + '/following/' + targetUid).remove(),
+        db.ref('follow_requests/' + targetUid + '/' + myUid).remove()
+      ]);
+      toast('Berhenti mengikuti user ini');
+    } else if (isPending) {
+      // Batalkan permintaan follow yang masih menunggu
+      await Promise.all([
+        db.ref('follow_requests/' + targetUid + '/' + myUid).remove(),
+        db.ref('users/' + targetUid + '/notifications/followreq_' + myUid).remove()
+      ]);
+      toast('Permintaan follow dibatalkan');
+    } else {
+      // Kirim permintaan follow baru (belum langsung jadi follower)
+      const now = Date.now();
+      await Promise.all([
+        db.ref('follow_requests/' + targetUid + '/' + myUid).set({
+          fromUid: myUid,
+          fromName: myDisplayName || 'User',
+          fromPhoto: myPhotoURL || '',
+          ts: now,
+          status: 'pending'
+        }),
+        db.ref('users/' + targetUid + '/notifications/followreq_' + myUid).set({
+          type: 'follow_request',
+          fromUid: myUid,
+          fromName: myDisplayName || 'User',
+          fromPhoto: myPhotoURL || '',
+          ts: now,
+          read: false,
+          status: 'pending'
+        })
+      ]);
+      toast('✅ Permintaan follow terkirim, menunggu diterima');
+    }
+    await refreshFollowButtonState(targetUid);
+    await loadFollowStats(targetUid, 'upv-stat');
+  } catch(e) {
+    console.error('Failed to update follow status:', e);
+    toast('❌ Failed to update follow status');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+// Tombol Chat di profil user lain → arahkan ke halaman chat (vibexa.html) langsung
+// terbuka percakapan dengan user yang sedang dilihat/diikuti.
+function goToChatWithUser() {
+  if (!currentUser) { toast('ℹ️ Please log in first'); return; }
+  if (!currentViewedUid || currentViewedUid === currentUser.uid) return;
+  window.location.href = 'vibexa.html?startChatWith=' + encodeURIComponent(currentViewedUid);
+}
+
+// ── Profile Background Color ───────────────────────────────
+function applyBgColor(color) {
+  document.getElementById('app').style.background = color || '';
+}
+function previewBgColor(color) {
+  applyBgColor(color);
+}
+function resetBgColor() {
+  document.getElementById('inp-bg-color').value = '#000000';
+  applyBgColor('');
+}
+
+// ── Teks Berjalan (running / marquee text) ──────────────────
+const MQ_GAP_CHARS = 5; // batas spasi antar salinan teks saat berulang
+
+function getMarqueeSpaceWidth(item) {
+  try {
+    const style = getComputedStyle(item);
+    const font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+    const canvas = getMarqueeSpaceWidth._canvas || (getMarqueeSpaceWidth._canvas = document.createElement('canvas'));
+    const ctx = canvas.getContext('2d');
+    ctx.font = font;
+    const w = ctx.measureText(' ').width;
+    return w && w > 1 ? w : 6;
+  } catch(e) { return 6; }
+}
+
+function setMarquee(prefix, text) {
+  const wrap  = document.getElementById(prefix + '-marquee-wrap');
+  const track = document.getElementById(prefix + '-marquee-track');
+  if (!wrap || !track) return;
+  const t = (text || '').trim();
+  if (!t) { wrap.style.display = 'none'; return; }
+  // Sembunyikan track dulu (opacity 0) selama posisi awal belum dihitung & dipasang,
+  // supaya teks TIDAK pernah kelihatan sekilas di posisi normal sebelum meluncur
+  // masuk dari kanan — ini yang sebelumnya bikin efeknya terasa "langsung muncul".
+  track.style.opacity = '0';
+  wrap.style.display = 'block';
+  const items = track.querySelectorAll('.marquee-item');
+  const gapStr = ' '.repeat(MQ_GAP_CHARS);
+  items.forEach(el => { el.textContent = t + gapStr; });
+
+  const MQ_SPEED = 130; // px per detik (sedikit lebih lambat dari sebelumnya)
+
+  const runMarquee = () => {
+    const containerWidth = wrap.offsetWidth || 300;
+    const itemWidth = items[0].scrollWidth || 100; // lebar teks + jarak 5 spasi
+    const entranceGapPx = MQ_GAP_CHARS * getMarqueeSpaceWidth(items[0]);
+
+    // Fase masuk: mulai persis di luar tepi kanan kotak (+ jarak 5 spasi), lalu meluncur ke posisi 0
+    const enterStartPx = containerWidth + entranceGapPx;
+    track.style.setProperty('--mq-enter-start', enterStartPx + 'px');
+    // Fase loop: bergeser tepat selebar satu salinan (teks + 5 spasi) agar salinan berikutnya
+    // langsung menyambung tanpa menunggu teks sebelumnya hilang total
+    track.style.setProperty('--mq-loop-end', (-itemWidth) + 'px');
+
+    const enterDuration = Math.max(0.6, enterStartPx / MQ_SPEED);
+    const loopDuration = Math.max(2, itemWidth / MQ_SPEED);
+
+    if (track._mqEnterHandler) track.removeEventListener('animationend', track._mqEnterHandler);
+    track.style.animation = 'none';
+    void track.offsetWidth; // force reflow
+    track.style.transform = `translateX(${enterStartPx}px)`;
+    void track.offsetWidth;
+    // Posisi awal (di luar kanan) sudah terpasang → sekarang aman ditampilkan,
+    // lalu langsung mulai meluncur masuk dengan easing halus (melambat saat tiba).
+    track.style.opacity = '1';
+    track.style.animation = `marquee-enter ${enterDuration}s cubic-bezier(0.22,1,0.36,1) forwards`;
+
+    const handler = (e) => {
+      if (e.animationName !== 'marquee-enter') return;
+      track.style.animation = `marquee-loop ${loopDuration}s linear infinite`;
+    };
+    track._mqEnterHandler = handler;
+    track.addEventListener('animationend', handler);
+  };
+
+  // pastikan lebar sudah ter-render (termasuk saat font baru dimuat)
+  requestAnimationFrame(() => requestAnimationFrame(runMarquee));
+  if (!wrap.dataset.mqResizeBound) {
+    wrap.dataset.mqResizeBound = '1';
+    window.addEventListener('resize', () => {
+      if (wrap.style.display !== 'none') runMarquee();
+    });
+  }
+}
+
+function setCoverPreview(coverURL) {
+  const wrap = document.getElementById('cover-preview-wrap');
+  if (coverURL) {
+    wrap.innerHTML = `<img src="${esc(coverURL)}" alt="" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentNode.innerHTML='🖼️'">`;
+  } else {
+    wrap.innerHTML = `🖼️`;
+  }
+}
+
+function setAvatar(photoURL, name) {
+  const el = document.getElementById('avatar-inner');
+  if (photoURL) {
+    el.innerHTML = `<img src="${photoURL}" alt="" onerror="this.parentNode.textContent='${name.charAt(0).toUpperCase()}'">`;
+  } else {
+    el.textContent = name.charAt(0).toUpperCase();
+    el.style.fontSize = '2.2rem';
+  }
+}
+
+// ── Load My Playlists ─────────────────────────────────────
+async function loadMyPlaylists() {
+  if (!currentUser) return;
+  try {
+    const snap = await db.ref('music_playlists_v2/' + currentUser.uid).get();
+    if (snap.exists()) {
+      myPlaylists = snap.val() || {};
+    } else {
+      myPlaylists = {};
+    }
+    renderMyPlaylists();
+    updateStats();
+  } catch(e) {
+    console.error(e);
+  }
+}
+
+function renderMyPlaylists() {
+  const container = document.getElementById('pl-publish-list');
+  const ids = Object.keys(myPlaylists);
+  if (!ids.length) {
+    container.innerHTML = `<div style="text-align:center;padding:30px 0;color:var(--muted);font-size:.82rem"><div style="font-size:2rem;margin-bottom:8px">🎵</div>No playlists yet</div>`;
+    return;
+  }
+  container.innerHTML = ids.map(id => {
+    const pl = myPlaylists[id];
+    const isPublic = !!pl.public;
+    const trackCount = Array.isArray(pl.tracks) ? pl.tracks.length : 0;
+    const coverHTML = pl.coverThumb
+      ? `<img src="${esc(pl.coverThumb)}" alt="">`
+      : (pl.tracks && pl.tracks[0] && pl.tracks[0].thumb ? `<img src="${esc(pl.tracks[0].thumb)}" alt="">` : '🎵');
+    return `
+    <div class="pl-pub-row">
+      <div class="pl-pub-cover">${coverHTML}</div>
+      <div class="pl-pub-info">
+        <div class="pl-pub-name">${esc(pl.name || 'Playlist')} <span class="pub-badge ${isPublic?'public':'private'}">${isPublic?'Public':'Private'}</span></div>
+        <div class="pl-pub-meta">${trackCount} songs${isPublic ? ' · Visible to everyone' : ''}</div>
+      </div>
+      <div class="toggle-wrap">
+        <span class="toggle-lbl">${isPublic?'ON':'OFF'}</span>
+        <label class="toggle">
+          <input type="checkbox" ${isPublic?'checked':''} onchange="togglePublish('${id}', this.checked, this)">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function updateStats() {
+  const ids = Object.keys(myPlaylists);
+  const publicCount = ids.filter(id => myPlaylists[id].public).length;
+  document.getElementById('stat-playlists').textContent = ids.length;
+  document.getElementById('stat-public').textContent    = publicCount;
+
+  // Count total likess across all published playlists
+  let totalLikes = 0;
+  for (const id of ids) {
+    if (myPlaylists[id].public) {
+      try {
+        const snap = await db.ref('public_playlists/' + currentUser.uid + '_' + id + '/likes').get();
+        if (snap.exists()) {
+          const val = snap.val();
+          totalLikes += typeof val === 'object' ? Object.keys(val).length : 0;
+        }
+      } catch(e) {}
+    }
+  }
+  document.getElementById('stat-likes').textContent = totalLikes;
+}
+
+// ── Toggle Publish ────────────────────────────────────────
+async function togglePublish(plId, makePublic, inputEl) {
+  if (!currentUser || !myPlaylists[plId]) return;
+  const pl = myPlaylists[plId];
+  const lbl = inputEl.closest('.toggle-wrap').querySelector('.toggle-lbl');
+  const badge = inputEl.closest('.pl-pub-row').querySelector('.pub-badge');
+
+  try {
+    if (makePublic) {
+      // Write to public_playlists
+      const pubData = {
+        id: plId,
+        ownerUid: currentUser.uid,
+        ownerName: document.getElementById('display-name').textContent,
+        ownerPhoto: (await db.ref('users/' + currentUser.uid + '/profile/photoURL').get()).val() || '',
+        name: pl.name || 'Playlist',
+        coverThumb: pl.coverThumb || '',
+        tracks: (pl.tracks || []).slice(0, 50).map(t => ({
+          title: t.title || '',
+          artist: t.artist || '',
+          thumb: t.thumb || '',
+          _query: t._query || ''
+        })),
+        publishedAt: Date.now(),
+        public: true
+      };
+      await db.ref('public_playlists/' + currentUser.uid + '_' + plId).set(pubData);
+      await db.ref('music_playlists_v2/' + currentUser.uid + '/' + plId + '/public').set(true);
+      myPlaylists[plId].public = true;
+      lbl.textContent = 'ON';
+      badge.textContent = 'Public';
+      badge.className = 'pub-badge public';
+      toast('✅ Playlist published!');
+    } else {
+      await db.ref('public_playlists/' + currentUser.uid + '_' + plId).remove();
+      await db.ref('music_playlists_v2/' + currentUser.uid + '/' + plId + '/public').set(false);
+      myPlaylists[plId].public = false;
+      lbl.textContent = 'OFF';
+      badge.textContent = 'Private';
+      badge.className = 'pub-badge private';
+      toast('🔒 Playlist set to private');
+    }
+    updateStats();
+  } catch(e) {
+    toast('❌ Failed: ' + e.message);
+    inputEl.checked = !makePublic; // revert
+  }
+}
+
+// ── Save Profile ──────────────────────────────────────────
+async function saveProfile() {
+  if (!currentUser) return;
+  const btn  = document.getElementById('modal-edit-about').style.display === 'flex'
+    ? document.getElementById('btn-save-about')
+    : document.getElementById('btn-save-profile');
+  const name = document.getElementById('inp-name').value.trim();
+  const bio  = document.getElementById('inp-bio').value.trim();
+  const about = document.getElementById('inp-about').value.trim();
+  const marqueeText = document.getElementById('inp-marquee').value.trim();
+  const bgColor = document.getElementById('inp-bg-color').value || '';
+  if (!name) { toast('❗ Name cannot be empty'); return; }
+  const originalLabel = btn.innerHTML;
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+  try {
+    await db.ref('users/' + currentUser.uid + '/profile').update({ displayName: name, bio, about, marqueeText, bgColor });
+    await currentUser.updateProfile({ displayName: name });
+    // Sinkronkan juga node "directory" (dipakai fitur Chat di vibexa.html untuk
+    // menampilkan nama secara real-time) supaya nama baru langsung terlihat di
+    // Chat tanpa perlu menunggu vibexa.html dimuat ulang.
+    db.ref('directory/' + currentUser.uid).update({ displayName: name, updatedAt: Date.now() }).catch(() => {});
+    document.getElementById('display-name').textContent = name;
+    document.getElementById('user-bio').textContent = bio || 'No description yet';
+    document.getElementById('user-bio').style.fontStyle = bio ? 'normal' : 'italic';
+    document.getElementById('user-bio').style.color = bio ? 'var(--sub)' : 'var(--muted)';
+    document.getElementById('my-about').textContent = about || 'No description yet';
+    setMarquee('my', marqueeText);
+    applyBgColor(bgColor);
+    // Also update owner name in all public playlists
+    const ids = Object.keys(myPlaylists).filter(id => myPlaylists[id].public);
+    for (const id of ids) {
+      db.ref('public_playlists/' + currentUser.uid + '_' + id + '/ownerName').set(name);
+    }
+    toast('✅ Profile saved!');
+    closeEditProfileModal();
+    closeEditAboutModal();
+  } catch(e) {
+    toast('❌ Failed: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalLabel;
+  }
+}
+
+// ── Modal: Edit Profil (Nama, Bio, Teks Berjalan, Warna Latar) ──
+function openEditProfileModal() { document.getElementById('modal-edit-profile').style.display = 'flex'; }
+function closeEditProfileModal() { document.getElementById('modal-edit-profile').style.display = 'none'; }
+
+// ── Modal: Edit Tentang ──────────────────────────────────────
+function openEditAboutModal() { document.getElementById('modal-edit-about').style.display = 'flex'; }
+function closeEditAboutModal() { document.getElementById('modal-edit-about').style.display = 'none'; }
+
+// ── Modal: Tambah Lagu Favorit ───────────────────────────────
+function openAddFavModal() {
+  document.getElementById('modal-add-fav').style.display = 'flex';
+  document.getElementById('inp-fav-emoji').value = '';
+  renderFavEmojiQuickpick('fav-emoji-quickpick', 'inp-fav-emoji');
+}
+function closeAddFavModal() { document.getElementById('modal-add-fav').style.display = 'none'; }
+
+// ── Emoji Bubble: quick-pick + input custom (dipakai di modal Tambah & Edit) ──
+// Emoji ini disimpan sebagai field `emoji` pada node favoriteSongs/{key} di
+// Firebase, persis di sebelah `note`/`noteColor`. Karena disimpan di node yang
+// sama, otomatis ikut ter-realtime-kan ke halaman chat teman-teman (Home,
+// bagian "Dari Teman Mu") dan ke halaman profil saat dilihat user lain —
+// tanpa perlu perubahan tambahan di listener yang sudah ada.
+const FAV_EMOJI_QUICKPICK = ['❤️','🔥','😍','😂','🥹','⭐','👍','🎧'];
+
+function renderFavEmojiQuickpick(containerId, inputId) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const current = document.getElementById(inputId).value;
+  el.innerHTML = FAV_EMOJI_QUICKPICK.map(e =>
+    `<button type="button" class="${e === current ? 'active' : ''}" onclick="pickFavEmoji('${containerId}','${inputId}','${e}')">${e}</button>`
+  ).join('');
+}
+function pickFavEmoji(containerId, inputId, emoji) {
+  document.getElementById(inputId).value = emoji;
+  renderFavEmojiQuickpick(containerId, inputId);
+}
+function onFavEmojiTyped(prefix) {
+  const containerId = prefix === 'fav' ? 'fav-emoji-quickpick' : 'fav-edit-emoji-quickpick';
+  const inputId = prefix === 'fav' ? 'inp-fav-emoji' : 'inp-edit-fav-emoji';
+  renderFavEmojiQuickpick(containerId, inputId);
+}
+function clearFavEmoji(prefix) {
+  const containerId = prefix === 'fav' ? 'fav-emoji-quickpick' : 'fav-edit-emoji-quickpick';
+  const inputId = prefix === 'fav' ? 'inp-fav-emoji' : 'inp-edit-fav-emoji';
+  document.getElementById(inputId).value = '';
+  renderFavEmojiQuickpick(containerId, inputId);
+}
+
+// ── Photo Upload ──────────────────────────────────────────
+function openPhotoModal() {
+  pendingPhotoData = null;
+  document.getElementById('photo-preview').style.display = 'none';
+  document.getElementById('btn-save-photo').disabled = true;
+  document.getElementById('drop-zone').style.display = 'flex';
+  document.getElementById('photo-modal').style.display = 'flex';
+}
+function closePhotoModal() { document.getElementById('photo-modal').style.display = 'none'; }
+function closePhotoModalBg(e) { if (e.target === document.getElementById('photo-modal')) closePhotoModal(); }
+
+document.getElementById('photo-inp').addEventListener('change', function() {
+  const file = this.files[0];
+  if (!file) return;
+  if (file.size > 2 * 1024 * 1024) { toast('❗ Photo too large (max 2MB)'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    pendingPhotoData = e.target.result;
+    document.getElementById('photo-preview').src = pendingPhotoData;
+    document.getElementById('photo-preview').style.display = 'block';
+    document.getElementById('drop-zone').style.display = 'none';
+    document.getElementById('btn-save-photo').disabled = false;
+  };
+  reader.readAsDataURL(file);
+});
+
+// Drag & drop
+const dz = document.getElementById('drop-zone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.style.borderColor = 'var(--blue)'; });
+dz.addEventListener('dragleave', () => { dz.style.borderColor = ''; });
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.style.borderColor = '';
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) {
+    document.getElementById('photo-inp').files = e.dataTransfer.files;
+    document.getElementById('photo-inp').dispatchEvent(new Event('change'));
+  }
+});
+
+async function savePhoto() {
+  if (!pendingPhotoData || !currentUser) return;
+  const btn = document.getElementById('btn-save-photo');
+  btn.disabled = true; btn.textContent = 'Saving...';
+  try {
+    // Store as base64 in DB (small sized)
+    const compressed = await compressImage(pendingPhotoData, 200, 200, 0.7);
+    await db.ref('users/' + currentUser.uid + '/profile/photoURL').set(compressed);
+    // Sinkronkan juga node "directory" (dipakai fitur Chat di vibexa.html untuk
+    // menampilkan foto secara real-time) supaya foto baru langsung terlihat di
+    // Chat tanpa perlu menunggu vibexa.html dimuat ulang.
+    db.ref('directory/' + currentUser.uid).update({ photoURL: compressed, updatedAt: Date.now() }).catch(() => {});
+    // Update public playlists with new photo
+    const ids = Object.keys(myPlaylists).filter(id => myPlaylists[id].public);
+    for (const id of ids) {
+      db.ref('public_playlists/' + currentUser.uid + '_' + id + '/ownerPhoto').set(compressed);
+    }
+    setAvatar(compressed, document.getElementById('display-name').textContent);
+    closePhotoModal();
+    toast('✅ Profile photo updated!');
+  } catch(e) {
+    toast('❌ Failed: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Save Photo';
+  }
+}
+
+function compressImage(dataURL, maxW, maxH, quality) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let w = img.width, h = img.height;
+      if (w > h) { if (w > maxW) { h = h * maxW / w; w = maxW; } }
+      else { if (h > maxH) { w = w * maxH / h; h = maxH; } }
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.src = dataURL;
+  });
+}
+
+// ── Bio char count ────────────────────────────────────────
+document.getElementById('inp-bio').addEventListener('input', function() {
+  document.getElementById('bio-count').textContent = this.value.length;
+});
+document.getElementById('inp-about').addEventListener('input', function() {
+  document.getElementById('about-count').textContent = this.value.length;
+});
+document.getElementById('inp-marquee').addEventListener('input', function() {
+  document.getElementById('marquee-count').textContent = this.value.length;
+});
+
+// ── Cover Photo Upload ─────────────────────────────────────
+let pendingCoverData = null;
+function openCoverModal() {
+  pendingCoverData = null;
+  document.getElementById('cover-preview').style.display = 'none';
+  document.getElementById('btn-save-cover').disabled = true;
+  document.getElementById('cover-drop-zone').style.display = 'flex';
+  document.getElementById('cover-modal').style.display = 'flex';
+}
+function closeCoverModal() { document.getElementById('cover-modal').style.display = 'none'; }
+function closeCoverModalBg(e) { if (e.target === document.getElementById('cover-modal')) closeCoverModal(); }
+
+document.getElementById('cover-inp').addEventListener('change', function() {
+  const file = this.files[0];
+  if (!file) return;
+  if (file.size > 3 * 1024 * 1024) { toast('❗ Photo is too large (max 3MB)'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    pendingCoverData = e.target.result;
+    document.getElementById('cover-preview').src = pendingCoverData;
+    document.getElementById('cover-preview').style.display = 'block';
+    document.getElementById('cover-drop-zone').style.display = 'none';
+    document.getElementById('btn-save-cover').disabled = false;
+  };
+  reader.readAsDataURL(file);
+});
+
+const coverDz = document.getElementById('cover-drop-zone');
+coverDz.addEventListener('dragover', e => { e.preventDefault(); coverDz.style.borderColor = 'var(--blue)'; });
+coverDz.addEventListener('dragleave', () => { coverDz.style.borderColor = ''; });
+coverDz.addEventListener('drop', e => {
+  e.preventDefault(); coverDz.style.borderColor = '';
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) {
+    document.getElementById('cover-inp').files = e.dataTransfer.files;
+    document.getElementById('cover-inp').dispatchEvent(new Event('change'));
+  }
+});
+
+async function saveCover() {
+  if (!pendingCoverData || !currentUser) return;
+  const btn = document.getElementById('btn-save-cover');
+  btn.disabled = true; btn.textContent = 'Saving...';
+  try {
+    const compressed = await compressImage(pendingCoverData, 900, 340, 0.72);
+    await db.ref('users/' + currentUser.uid + '/profile/backgroundURL').set(compressed);
+    setCoverPreview(compressed);
+    closeCoverModal();
+    toast('✅ Cover photo updated!');
+  } catch(e) {
+    toast('❌ Failed: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Save Cover';
+  }
+}
+
+// ── Lagu Favorit ────────────────────────────────────────────
+let selectedFavTrack = null;
+let favSearchResults = [];
+let favSearchTimer = null;
+let favSearchAudio = null;
+let favSearchSeq = 0;
+let myFavCache = {}; // cache lagu favorit sendiri (key -> data), dipakai openEditFavNoteModal()
+
+function onFavPickerInput(val) {
+  selectedFavTrack = null;
+  document.getElementById('fav-picker-preview').style.display = 'none';
+  clearTimeout(favSearchTimer);
+  const dropdown = document.getElementById('fav-picker-results');
+  const q = (val || '').trim();
+  if (q.length < 2) {
+    dropdown.style.display = 'none';
+    dropdown.innerHTML = '';
+    return;
+  }
+  dropdown.style.display = 'block';
+  dropdown.innerHTML = `<div class="fav-picker-loading">Mencari...</div>`;
+  favSearchTimer = setTimeout(() => doFavSearch(q), 400);
+}
+
+async function doFavSearch(q) {
+  const mySeq = ++favSearchSeq;
+  const dropdown = document.getElementById('fav-picker-results');
+  try {
+    const url = `https://itunes.apple.com/search?term=${encodeURIComponent(q)}&media=music&entity=song&limit=8&country=ID`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) throw new Error('Search failed (' + res.status + ')');
+    const data = await res.json();
+    if (mySeq !== favSearchSeq) return; // hasil pencarian lama, abaikan
+    favSearchResults = (data.results || []).map(it => ({
+      title: it.trackName || 'Unknown',
+      artist: it.artistName || 'Unknown',
+      thumb: (it.artworkUrl100 || '').replace('100x100bb', '600x600bb'),
+      preview: it.previewUrl || null,
+      _query: `${it.artistName || ''}|||${it.trackName || ''}|||${it.trackId || Math.random()}`
+    }));
+    if (!favSearchResults.length) {
+      dropdown.innerHTML = `<div class="fav-picker-loading">No results for "${esc(q)}"</div>`;
+      return;
+    }
+    dropdown.innerHTML = favSearchResults.map((t, i) => `
+      <div class="fav-picker-row" onclick="selectFavSearchResult(${i})">
+        <div class="fav-picker-thumb">${t.thumb ? `<img src="${esc(t.thumb)}" alt="">` : '♪'}</div>
+        <div class="fav-picker-info">
+          <div class="fav-picker-title">${esc(t.title)}</div>
+          <div class="fav-picker-artist">${esc(t.artist)}</div>
+        </div>
+        ${t.preview ? `<button type="button" class="fav-picker-play-btn" onclick="event.stopPropagation();previewFavTrack(${i})" title="Play 30-second preview"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>` : ''}
+      </div>`).join('');
+  } catch(e) {
+    if (mySeq !== favSearchSeq) return;
+    dropdown.innerHTML = `<div class="fav-picker-loading">❌ ${esc(e.message)}</div>`;
+  }
+}
+
+function previewFavTrack(i) {
+  const t = favSearchResults[i];
+  if (!t || !t.preview) { toast('ℹ️ Preview not available for this song'); return; }
+  if (favSearchAudio) { favSearchAudio.pause(); favSearchAudio = null; }
+  favSearchAudio = new Audio(t.preview);
+  favSearchAudio.play().catch(() => toast('❌ Failed to play preview'));
+  toast('▶️ Memutar preview 30 detik: ' + t.title);
+}
+
+function selectFavSearchResult(i) {
+  const t = favSearchResults[i];
+  if (!t) return;
+  selectedFavTrack = t;
+  document.getElementById('inp-fav-picker').value = `${t.title} — ${t.artist}`;
+  const dropdown = document.getElementById('fav-picker-results');
+  dropdown.style.display = 'none';
+  dropdown.innerHTML = '';
+  const preview = document.getElementById('fav-picker-preview');
+  preview.style.display = 'flex';
+  preview.innerHTML = `
+    <div style="width:36px;height:36px;border-radius:7px;overflow:hidden;flex-shrink:0;background:var(--card);display:flex;align-items:center;justify-content:center;font-size:1rem;">${t.thumb ? `<img src="${esc(t.thumb)}" alt="" style="width:100%;height:100%;object-fit:cover;">` : '♪'}</div>
+    <div style="min-width:0;flex:1;">
+      <div style="font-size:.78rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(t.title)}</div>
+      <div style="font-size:.68rem;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(t.artist)}</div>
+    </div>
+    ${t.preview ? `<button type="button" onclick="previewFavTrack(favSearchResults.indexOf(selectedFavTrack))" style="flex-shrink:0;width:30px;height:30px;border-radius:50%;background:var(--blue-dim);border:1px solid rgba(46,125,255,.3);color:var(--blue);display:flex;align-items:center;justify-content:center;cursor:pointer;" title="Play preview"><svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13"><path d="M8 5v14l11-7z"/></svg></button>` : ''}
+  `;
+}
+
+// Tutup dropdown pencarian saat klik di luar area
+document.addEventListener('click', (e) => {
+  const wrap = document.querySelector('.fav-picker-wrap');
+  if (wrap && !wrap.contains(e.target)) {
+    const dropdown = document.getElementById('fav-picker-results');
+    if (dropdown) dropdown.style.display = 'none';
+  }
+});
+
+async function addFavoriteSong() {
+  if (!currentUser) return;
+  const note = document.getElementById('inp-fav-note').value.trim();
+  const noteColor = document.getElementById('inp-fav-note-color').value || '#4FA8FF';
+  const emoji = document.getElementById('inp-fav-emoji').value.trim();
+  if (!selectedFavTrack) { toast('❗ Select a song from the list first'); return; }
+
+  try {
+    const snap = await db.ref('users/' + currentUser.uid + '/favoriteSongs').get();
+    const existing = snap.exists() ? snap.val() : {};
+    if (Object.keys(existing).length >= 10) { toast('❗ Maximum 10 favorite songs'); return; }
+
+    const order = Object.keys(existing).length;
+    await db.ref('users/' + currentUser.uid + '/favoriteSongs').push({
+      title: selectedFavTrack.title || '',
+      artist: selectedFavTrack.artist || '',
+      thumb: selectedFavTrack.thumb || selectedFavTrack.photo || '',
+      _query: selectedFavTrack._query || '',
+      preview: selectedFavTrack.preview || '',
+      note, noteColor, emoji, order, addedAt: Date.now()
+    });
+    document.getElementById('inp-fav-picker').value = '';
+    document.getElementById('inp-fav-note').value = '';
+    document.getElementById('inp-fav-note-color').value = '#4FA8FF';
+    document.getElementById('inp-fav-emoji').value = '';
+    document.getElementById('fav-picker-preview').style.display = 'none';
+    document.getElementById('fav-picker-results').style.display = 'none';
+    selectedFavTrack = null;
+    toast('✅ Added to favorite songs!');
+    loadMyFavorites();
+    closeAddFavModal();
+  } catch(e) {
+    toast('❌ Failed: ' + e.message);
+  }
+}
+
+async function loadMyFavorites() {
+  if (!currentUser) return;
+  const listEl = document.getElementById('my-favorites-list');
+  listEl.className = 'upv-fav-list';
+  try {
+    const snap = await db.ref('users/' + currentUser.uid + '/favoriteSongs').get();
+    if (!snap.exists()) { myFavCache = {}; listEl.innerHTML = `<div class="upv-empty-mini">No favorite songs yet</div>`; return; }
+    const val = snap.val();
+    myFavCache = val; // cache dipakai oleh openEditFavNoteModal() untuk prefill textarea
+    const arr = Object.entries(val).sort((a,b) => (a[1].order??0) - (b[1].order??0));
+    listEl.innerHTML = arr.map(([key, f]) => {
+      const clickAction = f.preview ? `previewOwnFavTrack('${esc(f.preview).replace(/'/g,"\\'")}','${esc(f.title).replace(/'/g,"\\'")}')` : "toast('ℹ️ Preview not available')";
+      const bubbleHTML = f.note
+        ? `<div class="fav-note-bubble" style="--bubble-color:${esc(f.noteColor || '#4FA8FF')}">
+             ${f.emoji ? `<span class="fav-note-emoji-badge">${esc(f.emoji)}</span>` : ''}
+             <button type="button" class="fav-note-edit-btn" onclick="event.stopPropagation();openEditFavNoteModal('${key}')" title="Edit note bubble">✎</button>
+             <div class="fav-note-text">${esc(f.note)}</div>
+             <div class="fav-note-author"><span>– ${esc(myDisplayName || 'me')}</span><span class="fav-note-avatar">${myPhotoURL ? `<img src="${esc(myPhotoURL)}" alt="">` : '👤'}</span></div>
+           </div>`
+        : `<div class="fav-note-add-btn" onclick="event.stopPropagation();openEditFavNoteModal('${key}')">✎ Add note bubble</div>`;
+      return `
+      <div class="fav-bubble-wrap">
+        ${bubbleHTML}
+        <div class="song-tile" onclick="${clickAction}">
+          <div class="photo-tile">
+            <button type="button" class="photo-tile-del" onclick="event.stopPropagation();removeFavoriteSong('${key}')" title="Delete">✕</button>
+            ${f.thumb ? `<img src="${esc(f.thumb)}" alt="">` : `<div class="photo-tile-ph">♪</div>`}
+            <div class="photo-tile-play-ov"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>
+          </div>
+          <div class="song-tile-title">${esc(f.title || '—')}</div>
+          <div class="song-tile-artist">${esc(f.artist || '—')}</div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    listEl.innerHTML = `<div class="upv-empty-mini">No favorite songs yet</div>`;
+  }
+}
+
+// ── Edit Bubble Catatan (lagu favorit sendiri) ────────────────
+// Membuka modal edit dengan teks & warna bubble saat ini terisi otomatis
+// (diambil dari myFavCache yang di-set setiap kali loadMyFavorites() jalan).
+let editingFavKey = null;
+
+function openEditFavNoteModal(key) {
+  const f = myFavCache[key];
+  if (!f) return;
+  editingFavKey = key;
+  document.getElementById('inp-edit-fav-note').value = f.note || '';
+  document.getElementById('inp-edit-fav-note-color').value = f.noteColor || '#4FA8FF';
+  document.getElementById('inp-edit-fav-emoji').value = f.emoji || '';
+  renderFavEmojiQuickpick('fav-edit-emoji-quickpick', 'inp-edit-fav-emoji');
+  document.getElementById('modal-edit-fav-note').style.display = 'flex';
+}
+function closeEditFavNoteModal() {
+  document.getElementById('modal-edit-fav-note').style.display = 'none';
+  editingFavKey = null;
+}
+
+// Menyimpan perubahan langsung ke Firebase (users/{uid}/favoriteSongs/{key}).
+// Karena halaman chat (vibexa.html, bagian "Dari Teman Mu") memasang listener
+// REALTIME (.on('value', ...)) ke node favoriteSongs ini, begitu note/noteColor
+// di-update di sini, teks bubble di halaman chat teman-teman otomatis
+// ikut berubah tanpa perlu refresh apapun di sisi mereka.
+async function saveEditFavNote() {
+  if (!currentUser || !editingFavKey) return;
+  const note = document.getElementById('inp-edit-fav-note').value.trim();
+  const noteColor = document.getElementById('inp-edit-fav-note-color').value || '#4FA8FF';
+  const emoji = document.getElementById('inp-edit-fav-emoji').value.trim();
+  const btn = document.getElementById('btn-save-edit-fav-note');
+  btn.disabled = true; btn.textContent = 'Menyimpan...';
+  try {
+    await db.ref('users/' + currentUser.uid + '/favoriteSongs/' + editingFavKey).update({ note, noteColor, emoji });
+    toast('✅ Bubble catatan diperbarui!');
+    loadMyFavorites();
+    closeEditFavNoteModal();
+  } catch(e) {
+    toast('❌ Failed: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Save';
+  }
+}
+
+function previewOwnFavTrack(previewUrl, title) {
+  if (!previewUrl) { toast('ℹ️ Preview not available'); return; }
+  if (favSearchAudio) { favSearchAudio.pause(); favSearchAudio = null; }
+  favSearchAudio = new Audio(previewUrl);
+  favSearchAudio.play().catch(() => toast('❌ Failed to play preview'));
+  toast('▶️ Memutar preview: ' + title);
+}
+
+async function removeFavoriteSong(key) {
+  if (!currentUser) return;
+  try {
+    await db.ref('users/' + currentUser.uid + '/favoriteSongs/' + key).remove();
+    toast('🗑️ Removed from favorite songs');
+    loadMyFavorites();
+  } catch(e) { toast('❌ Failed: ' + e.message); }
+}
+
+// ── USER PUBLIC PROFILE ────────────────────────────────────
+let currentViewedUid = null;
+let currentViewedPlaylists = {};
+
+const LIKED_PLAYLIST_ID_UPV = 'liked-songs';
+
+async function openUserProfile(uid) {
+  currentViewedUid = uid;
+  currentViewedPlaylists = {};
+
+  document.getElementById('user-profile-view').style.display = 'block';
+  document.getElementById('upv-nav-name').textContent = 'User Profile';
+  document.getElementById('upv-avatar').textContent = '...';
+  document.getElementById('upv-name').textContent = '...';
+  document.getElementById('upv-bio').textContent = '';
+  document.getElementById('upv-stat-pl').textContent = '0';
+  document.getElementById('upv-stat-likes').textContent = '0';
+  document.getElementById('upv-stat-followers').textContent = '0';
+  document.getElementById('upv-stat-following').textContent = '0';
+  document.getElementById('upv-banner').innerHTML = `<div class="upv-banner-empty">🖼️</div>`;
+
+  // Tombol Follow & Chat hanya tampil kalau bukan melihat profil sendiri
+  const followActionsEl = document.getElementById('upv-follow-actions');
+  if (followActionsEl) followActionsEl.style.display = (currentUser && uid !== currentUser.uid) ? 'flex' : 'none';
+  if (currentUser && uid !== currentUser.uid) {
+    loadFollowStats(uid, 'upv-stat');
+    refreshFollowButtonState(uid);
+  }
+  document.getElementById('upv-about').textContent = 'Loading...';
+  document.getElementById('upv-marquee-wrap').style.display = 'none';
+  document.getElementById('upv-favorites').innerHTML = `<div class="upv-empty-mini">Loading...</div>`;
+  document.getElementById('upv-playlists').innerHTML = `<div style="text-align:center;padding:40px 0;color:var(--muted);font-size:.83rem;">Loading...</div>`;
+
+  // ── 1. Ambil semua public_playlists dulu (dapat ownerName & ownerPhoto dari sini) ──
+  let userPls = {};
+  let nameFromPl = '';
+  let photoFromPl = '';
+
+  try {
+    const plSnap = await db.ref('public_playlists').get();
+    if (plSnap.exists()) {
+      const allPls = plSnap.val();
+      for (const key in allPls) {
+        const pl = allPls[key];
+        if (pl && pl.ownerUid === uid) {
+          userPls[key] = pl;
+          // Ambil nama & foto dari entry playlist pertama yang ketemu
+          if (!nameFromPl && pl.ownerName) nameFromPl = pl.ownerName;
+          if (!photoFromPl && pl.ownerPhoto) photoFromPl = pl.ownerPhoto;
+        }
+      }
+    }
+  } catch(e) {
+    console.error('Failed to fetch public_playlists:', e);
+  }
+
+  // ── 2. Coba ambil profil lengkap dari users/{uid}/profile ──
+  let name = nameFromPl || 'User';
+  let photo = photoFromPl || '';
+  let bio = '';
+  let about = '';
+  let background = '';
+  let bgColor = '';
+  let marqueeText = '';
+
+  try {
+    const profSnap = await db.ref('users/' + uid + '/profile').get();
+    if (profSnap.exists()) {
+      const prof = profSnap.val();
+      if (prof.displayName) name = prof.displayName;
+      if (prof.photoURL || prof.photoBase64) photo = prof.photoURL || prof.photoBase64;
+      bio = prof.bio || '';
+      about = prof.about || '';
+      background = prof.backgroundURL || '';
+      bgColor = prof.bgColor || '';
+      marqueeText = prof.marqueeText || '';
+    }
+  } catch(e) {
+    // Tidak apa-apa, sudah ada data dari playlist
+    console.warn('Could not read users profile, using data from playlist:', e.message);
+  }
+
+  document.getElementById('upv-content').style.background = bgColor || '';
+  setMarquee('upv', marqueeText);
+
+  // ── 3. Render header profil (banner + square avatar + name) ──
+  document.getElementById('upv-nav-name').textContent = name;
+  document.getElementById('upv-name').textContent = name;
+  document.getElementById('upv-bio').textContent = bio || 'No description yet';
+  document.getElementById('upv-bio').style.fontStyle = bio ? 'normal' : 'italic';
+
+  const bannerEl = document.getElementById('upv-banner');
+  bannerEl.innerHTML = background
+    ? `<img src="${esc(background)}" alt="" onerror="this.parentNode.innerHTML='<div class=&quot;upv-banner-empty&quot;>🖼️</div>'">`
+    : `<div class="upv-banner-empty">🖼️</div>`;
+
+  const avEl = document.getElementById('upv-avatar');
+  if (photo) {
+    avEl.innerHTML = `<img src="${esc(photo)}" alt="${esc(name)}" onerror="this.parentNode.textContent='${name.charAt(0).toUpperCase()}'">`;
+  } else {
+    avEl.textContent = name.charAt(0).toUpperCase();
+  }
+
+  document.getElementById('upv-about').textContent = about || 'No description about this user yet.';
+  document.getElementById('upv-about').style.fontStyle = about ? 'normal' : 'italic';
+
+  // ── 5. Ambil Lagu Favorit (max 10, tiap lagu ada catatan, bisa diputar) ──
+  try {
+    const favSnap = await db.ref('users/' + uid + '/favoriteSongs').get();
+    const favEl = document.getElementById('upv-favorites');
+    if (favSnap.exists()) {
+      const favVal = favSnap.val();
+      const favArr = Object.values(favVal)
+        .sort((a,b) => (a.order ?? 0) - (b.order ?? 0))
+        .slice(0, 10);
+      favEl.innerHTML = favArr.map(f => {
+        const q = f._query ? esc(f._query).replace(/'/g,"\\'") : '';
+        const prev = f.preview ? esc(f.preview).replace(/'/g,"\\'") : '';
+        const titleEsc = esc(f.title || '').replace(/'/g,"\\'");
+        const clickAction = prev
+          ? `previewUpvTrack('${prev}','${titleEsc}')`
+          : (q ? `playQueryUpv('${q}')` : "toast('ℹ️ Song info not available')");
+        return `
+        <div class="fav-bubble-wrap">
+          ${f.note ? `<div class="fav-note-bubble" style="--bubble-color:${esc(f.noteColor || '#4FA8FF')}">${f.emoji ? `<span class="fav-note-emoji-badge">${esc(f.emoji)}</span>` : ''}<div class="fav-note-text">${esc(f.note)}</div><div class="fav-note-author"><span>– ${esc(name)}</span><span class="fav-note-avatar">${photo ? `<img src="${esc(photo)}" alt="">` : '👤'}</span></div></div>` : ''}
+          <div class="song-tile" onclick="${clickAction}">
+            <div class="photo-tile">
+              ${f.thumb ? `<img src="${esc(f.thumb)}" alt="">` : `<div class="photo-tile-ph">♪</div>`}
+              <div class="photo-tile-play-ov"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>
+            </div>
+            <div class="song-tile-title">${esc(f.title || '—')}</div>
+            <div class="song-tile-artist">${esc(f.artist || '—')}</div>
+          </div>
+        </div>`;
+      }).join('');
+    } else {
+      favEl.innerHTML = `<div class="upv-empty-mini">No favorite songs yet</div>`;
+    }
+  } catch(e) {
+    document.getElementById('upv-favorites').innerHTML = `<div class="upv-empty-mini">No favorite songs yet</div>`;
+  }
+
+  // ── 6. Kunci playlist "Liked Songs" (dikecualikan dari grid Public Playlists) ──
+  const likedKey = uid + '_' + LIKED_PLAYLIST_ID_UPV;
+
+  // ── 7. Render Public Playlists (kecuali playlist "Liked Songs") ──
+  const keys = Object.keys(userPls).filter(k => k !== likedKey);
+  currentViewedPlaylists = userPls;
+
+  let totalLikes = 0;
+  Object.keys(userPls).forEach(k => {
+    totalLikes += userPls[k].likes ? Object.keys(userPls[k].likes).length : 0;
+  });
+  document.getElementById('upv-stat-pl').textContent = Object.keys(userPls).length;
+  document.getElementById('upv-stat-likes').textContent = totalLikes;
+
+  if (!keys.length) {
+    document.getElementById('upv-playlists').innerHTML = `<div style="text-align:center;padding:40px 0;color:var(--muted);"><div style="font-size:2rem;margin-bottom:8px">🎵</div><div style="font-size:.83rem;">No playlists yet publik</div></div>`;
+    return;
+  }
+
+  keys.sort((a,b) => (userPls[b].publishedAt||0) - (userPls[a].publishedAt||0));
+
+  document.getElementById('upv-playlists').innerHTML = keys.map(key => {
+    const pl = userPls[key];
+    const tracks = pl.tracks || [];
+    const coverHTML = pl.coverThumb
+      ? `<img src="${esc(pl.coverThumb)}" alt="">`
+      : (tracks[0]?.thumb ? `<img src="${esc(tracks[0].thumb)}" alt="">` : '🎵');
+    const likes = pl.likes ? Object.keys(pl.likes).length : 0;
+    return `
+    <div class="upv-pl-card" onclick="openPlDetail('${key}')">
+      <div class="upv-pl-cover">${coverHTML}</div>
+      <div class="upv-pl-info">
+        <div class="upv-pl-name">${esc(pl.name || 'Playlist')}</div>
+        <div class="upv-pl-meta">${tracks.length} songs · ${likes} likes</div>
+      </div>
+      <button class="upv-pl-play" onclick="event.stopPropagation();openPlDetail('${key}')">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+      </button>
+    </div>`;
+  }).join('');
+}
+
+let upvPreviewAudio = null;
+function previewUpvTrack(previewUrl, title) {
+  if (!previewUrl) { toast('ℹ️ Preview not available'); return; }
+  if (upvPreviewAudio) { upvPreviewAudio.pause(); upvPreviewAudio = null; }
+  upvPreviewAudio = new Audio(previewUrl);
+  upvPreviewAudio.play().catch(() => toast('❌ Failed to play preview'));
+  toast('▶️ Memutar preview: ' + title);
+}
+
+function playQueryUpv(query) {
+  if (!query) { toast('ℹ️ Song info not available'); return; }
+  window.open('vibexa.html?play=' + encodeURIComponent(query), '_blank');
+}
+
+function closeUserProfile() {
+  document.getElementById('user-profile-view').style.display = 'none';
+  document.getElementById('upv-content').style.background = '';
+  currentViewedUid = null;
+}
+
+// ── PLAYLIST DETAIL VIEW ───────────────────────────────────
+let currentDetailKey = null;
+let currentDetailTracks = [];
+let currentPlayingIdx = -1;
+
+function openPlDetail(key) {
+  currentDetailKey = key;
+  const pl = currentViewedPlaylists[key];
+  if (!pl) return;
+
+  currentDetailTracks = pl.tracks || [];
+  currentPlayingIdx = -1;
+
+  document.getElementById('pl-detail-view').style.display = 'block';
+  document.getElementById('pld-nav-name').textContent = pl.name || 'Playlist';
+  document.getElementById('pld-name').textContent = pl.name || 'Playlist';
+  document.getElementById('pld-owner').textContent = 'by ' + (pl.ownerName || 'User');
+
+  const coverEl = document.getElementById('pld-cover');
+  const coverHTML = pl.coverThumb
+    ? `<img src="${esc(pl.coverThumb)}" alt="" style="width:100%;height:100%;object-fit:cover;">`
+    : (currentDetailTracks[0]?.thumb ? `<img src="${esc(currentDetailTracks[0].thumb)}" alt="" style="width:100%;height:100%;object-fit:cover;">` : '🎵');
+  coverEl.innerHTML = coverHTML;
+
+  renderDetailTracks();
+}
+
+function closePlDetail() {
+  document.getElementById('pl-detail-view').style.display = 'none';
+  currentDetailKey = null;
+  currentDetailTracks = [];
+  currentPlayingIdx = -1;
+}
+
+function renderDetailTracks() {
+  const container = document.getElementById('pld-tracks');
+  if (!currentDetailTracks.length) {
+    container.innerHTML = `<div style="text-align:center;padding:30px;color:var(--muted);font-size:.83rem;">No songs</div>`;
+    return;
+  }
+  container.innerHTML = currentDetailTracks.map((t, i) => `
+    <div class="pld-track-row${i === currentPlayingIdx ? ' playing' : ''}" id="pld-tr-${i}" onclick="playDetailTrack(${i})">
+      <div class="pld-tr-num">${i === currentPlayingIdx ? '<svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12" style="color:var(--blue)"><path d="M8 5v14l11-7z"/></svg>' : (i+1)}</div>
+      <div class="pld-tr-thumb">${t.thumb ? `<img src="${esc(t.thumb)}" alt="">` : '♪'}</div>
+      <div class="pld-tr-info">
+        <div class="pld-tr-title">${esc(t.title || '—')}</div>
+        <div class="pld-tr-artist">${esc(t.artist || '—')}</div>
+      </div>
+      <div class="pld-tr-play" onclick="event.stopPropagation();playDetailTrack(${i})">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+      </div>
+    </div>`).join('');
+}
+
+function playDetailTrack(idx) {
+  const t = currentDetailTracks[idx];
+  if (!t || !t._query) { toast('ℹ️ Song info not available'); return; }
+  currentPlayingIdx = idx;
+  renderDetailTracks();
+  // Open music player with track
+  window.open('vibexa.html?play=' + encodeURIComponent(t._query), '_blank');
+}
+
+function playAllFromDetail() {
+  if (!currentDetailTracks.length) { toast('Playlist is empty'); return; }
+  const first = currentDetailTracks[0];
+  if (!first || !first._query) { toast('ℹ️ Song info not available'); return; }
+  currentPlayingIdx = 0;
+  renderDetailTracks();
+  window.open('vibexa.html?play=' + encodeURIComponent(first._query), '_blank');
+}
+
+// ── Helpers ───────────────────────────────────────────────
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function timeSince(ts) {
+  if (!ts) return '';
+  const sec = Math.floor((Date.now() - ts) / 1000);
+  if (sec < 60) return 'just now';
+  if (sec < 3600) return Math.floor(sec / 60) + ' minutes ago';
+  if (sec < 86400) return Math.floor(sec / 3600) + ' hours ago';
+  return Math.floor(sec / 86400) + ' days ago';
+}
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(console.error);
+}
+</script>
+<script src="i18n.js"></script>
+</body>
+</html>
