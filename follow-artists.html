@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Ikuti Artis Favorit — Vibexa</title>
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0A0A0A">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="NVM">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #000000;
+  --panel: #0A0A0A;
+  --card: #181818;
+  --hover: #282828;
+  --border: rgba(255,255,255,0.1);
+  --green: #2E7DFF;
+  --green-dim: rgba(46,125,255,0.12);
+  --green-glow: 0 0 30px rgba(46,125,255,0.25);
+  --teal: #4FA8FF;
+  --text: #FFFFFF;
+  --sub: #B3B3B3;
+  --muted: #6A6A6A;
+  --r: 14px;
+  --rs: 9px;
+  --f: 'Outfit', sans-serif;
+  --fm: 'DM Mono', monospace;
+  --danger: #ff5e5e;
+  --success: #3dda6e;
+}
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  font-family: var(--f);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  background:
+    radial-gradient(ellipse 500px 350px at 15% 85%, rgba(46,125,255,0.07) 0%, transparent 65%),
+    radial-gradient(ellipse 350px 500px at 85% 15%, rgba(79,168,255,0.04) 0%, transparent 65%);
+  pointer-events: none; z-index: 0;
+}
+
+/* ── AUTH OVERLAY ── */
+#auth-overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(0,0,0,0.9);
+  display: flex; align-items: center; justify-content: center;
+}
+.auth-box {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 20px; padding: 40px 36px; text-align: center;
+  max-width: 380px; width: 90%;
+}
+.auth-box h2 { font-size: 1.3rem; font-weight: 800; margin-bottom: 8px; }
+.auth-box p { font-size: .83rem; color: var(--sub); margin-bottom: 22px; line-height: 1.6; }
+.auth-btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.btn-login {
+  background: var(--green); border: none; border-radius: 50px;
+  padding: 10px 26px; color: #fff; font-family: var(--f);
+  font-weight: 700; font-size: .85rem; cursor: pointer;
+  text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+}
+
+/* ── TOP NAV — logo disamakan persis dengan Home (vibexa.html) ── */
+#top-nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(0,0,0,0.85);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 20px; height: 56px;
+}
+.logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+.logo-mark {
+  width: 34px; height: 34px;
+  border-radius: 10px; overflow: hidden; flex-shrink: 0;
+  box-shadow: 0 0 18px rgba(46,125,255,0.5);
+}
+.logo-mark img { width: 100%; height: 100%; object-fit: cover; }
+.logo-name {
+  font-size: 1.15rem; font-weight: 800; letter-spacing: -.5px;
+  background: linear-gradient(130deg, #fff 30%, #B3B3B3);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+#nav-counter {
+  font-family: var(--fm); font-size: .78rem; font-weight: 500;
+  color: var(--sub); background: var(--card); border: 1px solid var(--border);
+  border-radius: 50px; padding: 6px 14px; display: flex; align-items: center; gap: 6px;
+}
+#nav-counter b { color: var(--text); }
+#nav-counter.done { color: var(--success); border-color: rgba(61,218,110,.3); background: rgba(61,218,110,.08); }
+#nav-counter.done b { color: var(--success); }
+
+#nav-right { display: flex; align-items: center; gap: 8px; }
+
+/* ── MAIN CONTAINER ── */
+#app {
+  max-width: 900px; margin: 0 auto;
+  padding: 0 16px 130px; position: relative; z-index: 1;
+}
+
+.intro { padding: 28px 0 18px; text-align: center; }
+.intro h1 { font-size: 1.5rem; font-weight: 800; letter-spacing: -.4px; margin-bottom: 8px; }
+.intro p { font-size: .85rem; color: var(--sub); line-height: 1.65; max-width: 480px; margin: 0 auto; }
+.intro .goal { color: var(--green); font-weight: 700; }
+
+/* ── SEARCH ── */
+.search-wrap { position: relative; margin-bottom: 22px; }
+.search-input {
+  width: 100%; background: var(--card); border: 1px solid var(--border);
+  border-radius: 50px; padding: 14px 20px 14px 46px; color: var(--text);
+  font-family: var(--f); font-size: .92rem; outline: none;
+  transition: border-color .2s, box-shadow .2s;
+}
+.search-input:focus { border-color: var(--green); box-shadow: 0 0 0 3px var(--green-dim); }
+.search-input::placeholder { color: var(--muted); }
+.search-icon {
+  position: absolute; left: 18px; top: 50%; transform: translateY(-50%);
+  width: 18px; height: 18px; color: var(--muted); pointer-events: none;
+}
+
+.section-title {
+  font-size: .7rem; font-weight: 700; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--muted); margin-bottom: 14px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.section-title span.hint { text-transform: none; letter-spacing: 0; font-size: .72rem; color: var(--muted); font-weight: 500; }
+
+/* ── ARTIST GRID (foto bulat + nama di bawah, ala Spotify onboarding) ── */
+#res-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 18px 10px;
+}
+.artist-card {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  cursor: pointer; text-align: center; user-select: none;
+}
+.artist-photo-wrap { position: relative; width: 100%; aspect-ratio: 1/1; max-width: 110px; }
+.artist-photo {
+  width: 100%; height: 100%; border-radius: 50%; overflow: hidden;
+  background: var(--card); border: 2.5px solid transparent;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.4rem; font-weight: 700; color: var(--sub);
+  transition: border-color .2s, transform .15s;
+}
+.artist-photo img { width: 100%; height: 100%; object-fit: cover; }
+.artist-card:hover .artist-photo { transform: scale(1.04); }
+.artist-card.following .artist-photo { border-color: var(--green); box-shadow: 0 0 0 3px var(--green-dim); }
+.check-badge {
+  position: absolute; bottom: 2px; right: 2px;
+  width: 24px; height: 24px; border-radius: 50%;
+  background: var(--green); border: 2.5px solid var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transform: scale(0.5); transition: all .18s;
+}
+.artist-card.following .check-badge { opacity: 1; transform: scale(1); }
+.check-badge svg { width: 11px; height: 11px; color: #fff; }
+.artist-name {
+  font-size: .78rem; font-weight: 600; line-height: 1.3;
+  max-width: 108px; overflow: hidden; text-overflow: ellipsis;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+.artist-card.following .artist-name { color: var(--green); }
+
+.following-tag {
+  display: none;
+  align-items: center; gap: 4px;
+  font-size: .62rem; font-weight: 700; letter-spacing: .3px;
+  color: var(--green); background: var(--green-dim);
+  border: 1px solid rgba(46,125,255,.35);
+  border-radius: 50px; padding: 2px 9px; margin-top: 1px;
+  white-space: nowrap;
+}
+.following-tag svg { width: 9px; height: 9px; }
+.artist-card.following .following-tag { display: inline-flex; }
+
+/* skeleton loading state for grid cards */
+.artist-card.sk .artist-photo { background: linear-gradient(90deg, var(--hover) 25%, rgba(255,255,255,.06) 37%, var(--hover) 63%); background-size: 400% 100%; animation: sk 1.4s ease infinite; }
+.artist-card.sk .artist-name-sk { width: 70px; height: 10px; border-radius: 6px; background: linear-gradient(90deg, var(--hover) 25%, rgba(255,255,255,.06) 37%, var(--hover) 63%); background-size: 400% 100%; animation: sk 1.4s ease infinite; }
+@keyframes sk { 0%{background-position:100% 50%} 100%{background-position:0 50%} }
+
+.state-box { grid-column: 1 / -1; text-align: center; padding: 40px 0; color: var(--muted); font-size: .85rem; }
+.state-box .emoji { font-size: 2rem; margin-bottom: 10px; }
+
+/* ── STICKY BOTTOM BAR ── */
+#bottom-bar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 200;
+  background: rgba(0,0,0,0.9); backdrop-filter: blur(20px);
+  border-top: 1px solid var(--border);
+  padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+}
+.progress-track { width: 100%; max-width: 900px; height: 6px; background: var(--card); border-radius: 50px; overflow: hidden; }
+.progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--green), var(--teal)); border-radius: 50px; transition: width .3s ease; }
+.progress-label { font-size: .72rem; color: var(--sub); }
+.progress-label b { color: var(--text); }
+.btn-continue {
+  width: 100%; max-width: 900px; padding: 13px; border-radius: 50px;
+  background: var(--green); border: none; color: #fff;
+  font-family: var(--f); font-weight: 700; font-size: .9rem;
+  cursor: pointer; transition: all .2s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn-continue:hover:not(:disabled) { box-shadow: var(--green-glow); transform: translateY(-1px); }
+.btn-continue:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+.btn-continue svg { width: 16px; height: 16px; }
+
+/* ── TOAST ── */
+#toast {
+  position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%) translateY(20px);
+  background: var(--card); border: 1px solid var(--border); color: var(--text);
+  padding: 11px 20px; border-radius: 50px; font-size: .82rem; font-weight: 600;
+  z-index: 500; opacity: 0; pointer-events: none; transition: all .3s;
+  box-shadow: 0 8px 30px rgba(0,0,0,.4);
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+@media (max-width: 480px) {
+  .intro h1 { font-size: 1.25rem; }
+  .intro p { font-size: .8rem; }
+  #res-grid { grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 16px 8px; }
+  .artist-photo-wrap { max-width: 88px; }
+  .artist-name { max-width: 88px; font-size: .72rem; }
+}
+</style>
+</head>
+<body>
+
+<div id="auth-overlay">
+  <div class="auth-box">
+    <div style="font-size:2rem;margin-bottom:10px">🔒</div>
+    <h2>Login Diperlukan</h2>
+    <p>Kamu harus login untuk memilih artis favorit.</p>
+    <div class="auth-btns">
+      <a class="btn-login" href="login.html">Login</a>
+    </div>
+  </div>
+</div>
+
+<nav id="top-nav">
+  <div class="logo">
+    <div class="logo-mark">
+      <img src="logo-icon.png" alt="Vibexa">
+    </div>
+    <span class="logo-name">Vibexa</span>
+  </div>
+  <div id="nav-right">
+    <div id="nav-counter"><b id="nav-count-num">0</b>/7 diikuti</div>
+  </div>
+</nav>
+
+<div id="app">
+  <div class="intro">
+    <h1>Ikuti Artis Favoritmu</h1>
+    <p>Pilih dan ikuti minimal <span class="goal">7 artis favorit</span> dari rekomendasi di bawah supaya rekomendasi musik kamu lebih personal. Wajib diikuti dulu sebelum bisa masuk ke Home.</p>
+  </div>
+
+  <div class="search-wrap">
+    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <input class="search-input" id="artist-search" type="text" placeholder="Cari artis lain... (mis. The Weeknd, Tulus)" autocomplete="off" spellcheck="false">
+  </div>
+
+  <div class="section-title"><span id="res-title">Rekomendasi Artis</span><span class="hint" id="res-hint">Tap foto untuk mengikuti</span></div>
+  <div id="res-grid"></div>
+</div>
+
+<div id="bottom-bar">
+  <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+  <div class="progress-label"><b id="progress-num">0</b>/7 artis diikuti — <span id="progress-msg">ikuti 7 lagi untuk lanjut</span></div>
+  <button class="btn-continue" id="btn-continue" disabled onclick="goToHome()">
+    <span>Lanjutkan ke Home</span>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+  </button>
+</div>
+
+<div id="toast"></div>
+
+<!-- Firebase (compat, sama seperti profile.html & vibexa.html) -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<script>
+'use strict';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCeMRU4JgIOlS_M9hgZfDKrkIHyAFncVjE",
+  authDomain: "nevermind-c246a.firebaseapp.com",
+  databaseURL: "https://nevermind-c246a-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "nevermind-c246a",
+  storageBucket: "nevermind-c246a.firebasestorage.app",
+  messagingSenderId: "703998258491",
+  appId: "1:703998258491:web:ea9cceaa10af71db61db1e"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db   = firebase.database();
+
+const REQUIRED_FOLLOWS = 7;
+let currentUser = null;
+let followedArtists = {};   // { 'nama artis lowercase': {name, photo, artistId, followedAt} } — key SAMA dengan skema Home (vibexa.html)
+
+// Status follow dicek berdasarkan key nama (name.toLowerCase()), PERSIS seperti
+// skema yang dipakai vibexa.html (Home), supaya artis yang diikuti di sini
+// otomatis terbaca sebagai "Mengikuti" saat pindah ke Home.
+function isArtistFollowed(id, name) {
+  return !!followedArtists[nameKey(name)];
+}
+function nameKey(name) {
+  return String(name || '').toLowerCase();
+}
+let searchDebounce = null;
+let searchToken = 0;
+let mode = 'recommended';   // 'recommended' | 'search'
+
+// ── 150 nama artis rekomendasi (campuran internasional, K-pop, & Indonesia) ──
+const RECOMMENDED_ARTISTS = [
+"The Weeknd","Taylor Swift","Ariana Grande","Billie Eilish","Dua Lipa","Ed Sheeran","Bruno Mars","Rihanna",
+"Beyoncé","Drake","Post Malone","Justin Bieber","Olivia Rodrigo","Doja Cat","SZA","Adele",
+"Coldplay","Imagine Dragons","Maroon 5","OneRepublic","Sam Smith","Charlie Puth","Shawn Mendes","Selena Gomez",
+"Camila Cabello","Halsey","Lady Gaga","Katy Perry","Miley Cyrus","Harry Styles","Lizzo","Chris Brown",
+"Kendrick Lamar","Travis Scott","Kanye West","Eminem","J. Cole","21 Savage","Future","Lil Baby",
+"Cardi B","Nicki Minaj","Megan Thee Stallion","Ice Spice","Tyler, The Creator","Frank Ocean","The Chainsmokers","Calvin Harris",
+"Marshmello","Zedd","David Guetta","Martin Garrix","Avicii","Alan Walker","Kygo","Diplo",
+"BTS","BLACKPINK","Stray Kids","TWICE","NewJeans","SEVENTEEN","TXT","ATEEZ",
+"IVE","aespa","EXO","NCT 127","Red Velvet","(G)I-DLE","ITZY","ENHYPEN",
+"Tulus","Raisa","Isyana Sarasvati","Rizky Febian","Mahalini","Nadin Amizah","Sal Priadi","Yura Yunita",
+"Ardhito Pramono","Hindia","Ghea Indrawari","Fiersa Besari","Kunto Aji","Rendy Pandugo","Danilla","NIKI",
+"Rich Brian","Weird Genius","JKT48","Sheila On 7","Noah","Dewa 19","Padi Reborn","Nidji",
+"Armada","Naif","Efek Rumah Kaca","Barasuara",".Feast","The Panturas","Reality Club","Pamungkas",
+"Vidi Aldiano","Afgan","Ilo Ilo Band","Iwan Fals","GAC","Endah N Rhesa","Payung Teduh","Float",
+"Adele","Sia","Lorde","Lana Del Rey","Florence and the Machine","Alicia Keys","John Legend","Ellie Goulding",
+"Anne-Marie","James Arthur","James Bay","Hozier","George Ezra","Sam Fender","Tom Odell","Passenger",
+"Linkin Park","Green Day","Fall Out Boy","Panic! At the Disco","Twenty One Pilots","Paramore","My Chemical Romance","Arctic Monkeys",
+"Foo Fighters","Red Hot Chili Peppers","Nirvana","Metallica","Queen","The Beatles","Fleetwood Mac","Guns N' Roses",
+"Bad Bunny","J Balvin","Karol G","Shakira","Ozuna","Maluma","Rosalía","Peso Pluma",
+"Jung Kook","IU","Zico","Agust D","BIBI","Jay Park","DPR IAN","Crush",
+"Yiruma","Joji","Keshi","H.E.R.", "Daniel Caesar","Tems","Burna Boy","Wizkid"
+];
+
+// ── Auth ─────────────────────────────────────────────────
+auth.onAuthStateChanged(async user => {
+  if (user && !user.isAnonymous) {
+    currentUser = user;
+    const overlay = document.getElementById('auth-overlay');
+    overlay.style.opacity = '0';
+    overlay.style.transition = 'opacity .4s';
+    setTimeout(() => overlay.style.display = 'none', 400);
+
+    await loadFollowedArtists();
+
+    // Kalau user sudah follow >= 7 artis, langsung lempar ke Home.
+    if (Object.keys(followedArtists).length >= REQUIRED_FOLLOWS) {
+      window.location.href = 'vibexa.html';
+      return;
+    }
+    updateProgress();
+    loadRecommended();
+  } else {
+    // Belum login (atau cuma sesi anonim) → langsung tendang ke halaman login
+    if (user && user.isAnonymous) {
+      auth.signOut().finally(() => window.location.replace('login.html'));
+    } else {
+      window.location.replace('login.html');
+    }
+  }
+});
+
+// ── Load favorite artists dari Firebase ────────────────────
+async function loadFollowedArtists() {
+  try {
+    const snap = await db.ref('users/' + currentUser.uid + '/favoriteArtists').get();
+    followedArtists = snap.exists() ? (snap.val() || {}) : {};
+  } catch (e) {
+    console.error('Gagal memuat artis favorit:', e);
+    followedArtists = {};
+  }
+}
+
+// ── Update progress bar & tombol lanjut ───────────────────
+function updateProgress() {
+  const count = Object.keys(followedArtists).length;
+  const pct = Math.min(100, (count / REQUIRED_FOLLOWS) * 100);
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-num').textContent = count;
+  document.getElementById('nav-count-num').textContent = count;
+
+  const navCounter = document.getElementById('nav-counter');
+  const btn = document.getElementById('btn-continue');
+  const msg = document.getElementById('progress-msg');
+  const followDone = count >= REQUIRED_FOLLOWS;
+
+  if (followDone) {
+    navCounter.classList.add('done');
+    btn.disabled = false;
+    msg.textContent = 'siap lanjut! 🎉';
+  } else {
+    navCounter.classList.remove('done');
+    btn.disabled = true;
+    msg.textContent = `ikuti ${REQUIRED_FOLLOWS - count} lagi untuk lanjut`;
+  }
+}
+
+function goToHome() {
+  if (Object.keys(followedArtists).length < REQUIRED_FOLLOWS) return;
+  window.location.href = 'vibexa.html';
+}
+
+// ── Ambil foto asli artis (bukan cover album) via Deezer API ──
+// Deezer punya endpoint publik yang mengembalikan foto profil artis
+// (picture_medium/picture_big), berbeda dari iTunes yang cuma punya artwork album.
+//
+// PENTING: Deezer TIDAK mengirim header Access-Control-Allow-Origin, jadi
+// fetch() biasa akan selalu diblokir CORS oleh browser. Deezer menyediakan
+// mode output=jsonp khusus untuk dipanggil langsung dari browser lewat tag
+// <script> (JSONP), yang tidak tunduk pada aturan CORS. Semua request Deezer
+// di halaman ini memakai jalur JSONP ini.
+let _jsonpSeq = 0;
+function deezerJSONP(url) {
+  return new Promise((resolve, reject) => {
+    const cbName = '_dzCb' + (_jsonpSeq++) + '_' + Date.now();
+    const script = document.createElement('script');
+    const timer = setTimeout(() => { cleanup(); reject(new Error('Deezer JSONP timeout')); }, 9000);
+    function cleanup() {
+      clearTimeout(timer);
+      delete window[cbName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+    }
+    window[cbName] = (data) => { cleanup(); resolve(data); };
+    const sep = url.includes('?') ? '&' : '?';
+    script.src = url + sep + 'output=jsonp&callback=' + cbName;
+    script.onerror = () => { cleanup(); reject(new Error('Deezer JSONP gagal dimuat')); };
+    document.body.appendChild(script);
+  });
+}
+
+async function fetchDeezerArtist(name) {
+  const url = `https://api.deezer.com/search/artist?q=${encodeURIComponent(name)}&limit=1`;
+  const data = await deezerJSONP(url);
+  const a = (data && data.data || [])[0];
+  if (!a) return null;
+  return {
+    id: 'dz_' + a.id,
+    name: a.name,
+    photo: a.picture_big || a.picture_medium || a.picture || ''
+  };
+}
+
+async function fetchDeezerArtistSearch(q, limit) {
+  const url = `https://api.deezer.com/search/artist?q=${encodeURIComponent(q)}&limit=${limit || 20}`;
+  const data = await deezerJSONP(url);
+  return ((data && data.data) || []).map(a => ({
+    id: 'dz_' + a.id,
+    name: a.name,
+    photo: a.picture_big || a.picture_medium || a.picture || ''
+  }));
+}
+
+// ── Render satu kartu artis (foto bulat + nama di bawah) ───
+function cardHTML(id, name, photo, isSkeleton) {
+  if (isSkeleton) {
+    return `
+    <div class="artist-card sk" id="card-${id}">
+      <div class="artist-photo-wrap"><div class="artist-photo"></div></div>
+      <div class="artist-name-sk"></div>
+    </div>`;
+  }
+  const isFollowing = isArtistFollowed(id, name);
+  const initial = (name || '?').charAt(0).toUpperCase();
+  const photoHTML = photo
+    ? `<img src="${esc(photo)}" alt="" onerror="this.parentNode.textContent='${initial}'">`
+    : initial;
+  return `
+  <div class="artist-card${isFollowing ? ' following' : ''}" id="card-${id}" onclick="toggleFollow('${id}','${esc(name).replace(/'/g,"\\'")}','${photo || ''}')">
+    <div class="artist-photo-wrap">
+      <div class="artist-photo">${photoHTML}</div>
+      <div class="check-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg></div>
+    </div>
+    <div class="artist-name">${esc(name)}</div>
+    <div class="following-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><path d="M20 6 9 17l-5-5"/></svg>Mengikuti</div>
+  </div>`;
+}
+
+function replaceCard(slotId, finalId, name, photo) {
+  const el = document.getElementById('card-' + slotId);
+  if (!el) return;
+  el.outerHTML = cardHTML(finalId, name, photo, false);
+}
+
+// ── Muat 150 rekomendasi artis otomatis saat halaman dibuka ──
+async function loadRecommended() {
+  mode = 'recommended';
+  document.getElementById('res-title').textContent = 'Rekomendasi Artis';
+  document.getElementById('res-hint').textContent = 'Tap foto untuk mengikuti';
+  const grid = document.getElementById('res-grid');
+
+  // Tampilkan 150 skeleton dulu supaya grid langsung terlihat penuh & tidak "loncat-loncat"
+  const slotIds = RECOMMENDED_ARTISTS.map((_, i) => 'r' + i);
+  grid.innerHTML = slotIds.map(id => cardHTML(id, '', '', true)).join('');
+
+  const myToken = ++searchToken;
+  const CONCURRENCY = 8;
+  let idx = 0;
+
+  async function worker() {
+    while (idx < RECOMMENDED_ARTISTS.length) {
+      const my = idx++;
+      const name = RECOMMENDED_ARTISTS[my];
+      const slot = 'r' + my;
+      try {
+        const a = await fetchDeezerArtist(name);
+        if (myToken !== searchToken) return;
+        if (a) {
+          replaceCard(slot, a.id, a.name, a.photo);
+        } else {
+          const fallbackEl = document.getElementById('card-' + slot);
+          if (fallbackEl) fallbackEl.remove();
+        }
+      } catch (e) {
+        const fallbackEl = document.getElementById('card-' + slot);
+        if (fallbackEl) fallbackEl.remove();
+      }
+    }
+  }
+
+  const workers = Array.from({ length: CONCURRENCY }, () => worker());
+  await Promise.all(workers);
+}
+
+// ── Search box: cari artis lain di luar rekomendasi ────────
+document.getElementById('artist-search').addEventListener('input', e => {
+  const q = e.target.value.trim();
+  clearTimeout(searchDebounce);
+  if (!q) {
+    loadRecommended();
+    return;
+  }
+  mode = 'search';
+  document.getElementById('res-title').textContent = `Hasil untuk "${q}"`;
+  document.getElementById('res-hint').textContent = 'Tap foto untuk mengikuti';
+  const grid = document.getElementById('res-grid');
+  const skIds = Array.from({ length: 12 }, (_, i) => 'sq' + i);
+  grid.innerHTML = skIds.map(id => cardHTML(id, '', '', true)).join('');
+  searchDebounce = setTimeout(() => runSearch(q), 400);
+});
+
+async function runSearch(q) {
+  const myToken = ++searchToken;
+  const grid = document.getElementById('res-grid');
+  try {
+    const items = await fetchDeezerArtistSearch(q, 24);
+    if (myToken !== searchToken) return;
+    if (!items.length) {
+      grid.innerHTML = `<div class="state-box"><div class="emoji">🔍</div>Artis "${esc(q)}" tidak ditemukan. Coba kata kunci lain.</div>`;
+      return;
+    }
+    grid.innerHTML = items.map(a => cardHTML(a.id, a.name, a.photo, false)).join('');
+  } catch (e) {
+    if (myToken !== searchToken) return;
+    grid.innerHTML = `<div class="state-box"><div class="emoji">⚠️</div>Gagal memuat hasil pencarian. Coba lagi.</div>`;
+  }
+}
+
+// ── Toggle follow / unfollow ──────────────────────────────
+// Menulis HANYA ke leaf users/{uid}/favoriteArtists/{id}, jadi tidak akan
+// pernah menimpa/menghapus data lain di bawah users/{uid} (profile, notifications, dll).
+async function toggleFollow(id, name, photo) {
+  if (!currentUser) return;
+  const key = nameKey(name);
+  const isFollowing = !!followedArtists[key];
+  const card = document.getElementById('card-' + id);
+
+  try {
+    const ref = db.ref('users/' + currentUser.uid + '/favoriteArtists/' + key);
+    if (isFollowing) {
+      await ref.remove();
+      delete followedArtists[key];
+      if (card) card.classList.remove('following');
+      toast(`Berhenti mengikuti ${name}`);
+    } else {
+      // Field 'name' & 'photo' SENGAJA disamakan persis dengan skema
+      // users/{uid}/favoriteArtists di vibexa.html (Home), supaya begitu
+      // Firebase menyimpan data ini, Home langsung mengenalinya sebagai
+      // artis yang diikuti — tanpa perlu migrasi/konversi apa pun.
+      const data = { name, photo: photo || '', artistId: id, followedAt: Date.now() };
+      await ref.set(data);
+      followedArtists[key] = data;
+      if (card) card.classList.add('following');
+      toast(`✓ Mengikuti ${name}`);
+    }
+  } catch (e) {
+    console.error(e);
+    toast('⚠️ Gagal menyimpan, coba lagi.');
+    return;
+  }
+
+  updateProgress();
+  if (Object.keys(followedArtists).length >= REQUIRED_FOLLOWS) {
+    toast('🎉 7 artis diikuti! Kamu bisa lanjut ke Home.');
+  }
+}
+
+// ── Helpers ───────────────────────────────────────────────
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+window.toggleFollow = toggleFollow;
+window.goToHome = goToHome;
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(console.error);
+}
+</script>
+</body>
+</html>
