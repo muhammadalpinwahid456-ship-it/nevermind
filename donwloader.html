@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>YT2MP3 - YouTube to MP3 Converter</title>
+    <link rel="icon" href="data:,">
     <style>
         * {
             margin: 0;
@@ -134,7 +135,6 @@
             transform: none;
         }
 
-        /* Video Info Card */
         .video-info {
             display: none;
             background: rgba(255, 255, 255, 0.05);
@@ -189,7 +189,6 @@
             gap: 5px;
         }
 
-        /* Progress */
         .progress-container {
             display: none;
             margin-bottom: 20px;
@@ -231,7 +230,6 @@
             margin-top: 8px;
         }
 
-        /* Download Button */
         .download-area {
             display: none;
             animation: fadeIn 0.4s ease;
@@ -272,7 +270,6 @@
             margin-top: 10px;
         }
 
-        /* Error */
         .error-box {
             display: none;
             background: rgba(255, 65, 108, 0.1);
@@ -283,7 +280,6 @@
             font-size: 14px;
             margin-bottom: 20px;
             animation: fadeIn 0.3s ease;
-            display: none;
             align-items: center;
             gap: 10px;
         }
@@ -292,7 +288,6 @@
             display: flex;
         }
 
-        /* Features */
         .features {
             display: flex;
             justify-content: center;
@@ -315,7 +310,6 @@
             font-size: 22px;
         }
 
-        /* API Notice */
         .api-notice {
             background: rgba(255, 193, 7, 0.1);
             border: 1px solid rgba(255, 193, 7, 0.3);
@@ -324,7 +318,7 @@
             color: #ffc107;
             font-size: 13px;
             margin-bottom: 20px;
-            line-height: 1.5;
+            line-height: 1.6;
         }
 
         .api-notice strong {
@@ -332,47 +326,52 @@
             margin-bottom: 4px;
         }
 
+        .api-notice a {
+            color: #ffd54f;
+        }
+
+        .api-notice code {
+            background: rgba(255,255,255,0.1);
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
         @media (max-width: 480px) {
-            .container {
-                padding: 30px 20px;
-            }
-            .input-group {
-                flex-direction: column;
-            }
-            .features {
-                gap: 15px;
-            }
+            .container { padding: 30px 20px; }
+            .input-group { flex-direction: column; }
+            .features { gap: 15px; }
         }
     </style>
 </head>
 <body>
 
 <div class="container">
+
     <div class="logo">
         <span class="icon">🎵</span>
         <h1>YT2MP3</h1>
-        <p>Konversi YouTube ke MP3 gratis & cepat</p>
+        <p>Konversi YouTube ke MP3 gratis dan cepat</p>
     </div>
 
     <div class="api-notice">
-        <strong>⚙️ Cara Kerja:</strong>
-        Web ini menggunakan <strong>RapidAPI (YouTube MP3 Converter)</strong>. 
-        Daftar gratis di <a href="https://rapidapi.com" target="_blank" style="color:#ffd54f">rapidapi.com</a> 
-        dan masukkan API Key kamu di kode JS (<code>44a6176a94msh92d99842860f494p1ff229jsndf24d7c1ac22
-rapidapi.com</code>).
+        <strong>Setup API Key:</strong>
+        Daftar gratis di <a href="https://rapidapi.com" target="_blank">rapidapi.com</a>,
+        cari <code>youtube-mp36</code>, lalu ganti <code>44a6176a94msh92d99842860f494p1ff229jsndf24d7c1ac22</code>
+        di bagian bawah script dengan API Key milikmu.
     </div>
 
     <div class="input-group">
         <div class="input-wrapper">
             <span class="yt-icon">▶️</span>
-            <input 
-                type="text" 
-                id="ytUrl" 
+            <input
+                type="text"
+                id="ytUrl"
                 placeholder="Paste link YouTube di sini..."
                 autocomplete="off"
             />
         </div>
-        <button class="btn-convert" id="btnConvert" onclick="startConvert()">
+        <button class="btn-convert" id="btnConvert">
             Konversi
         </button>
     </div>
@@ -405,60 +404,46 @@ rapidapi.com</code>).
     </div>
 
     <div class="download-area" id="downloadArea">
-        <a class="btn-download" id="downloadBtn" href="#" download>
+        <a class="btn-download" id="downloadBtn" href="#" target="_blank" rel="noopener noreferrer">
             ⬇️ Download MP3
         </a>
-        <div class="download-info">File MP3 siap diunduh • Kualitas 128kbps</div>
+        <div class="download-info">File MP3 siap diunduh</div>
     </div>
 
     <div class="features">
-        <div class="feature-item">
-            <span>⚡</span>
-            <span>Cepat</span>
-        </div>
-        <div class="feature-item">
-            <span>🆓</span>
-            <span>Gratis</span>
-        </div>
-        <div class="feature-item">
-            <span>🔒</span>
-            <span>Aman</span>
-        </div>
-        <div class="feature-item">
-            <span>📱</span>
-            <span>Mobile Friendly</span>
-        </div>
+        <div class="feature-item"><span>⚡</span><span>Cepat</span></div>
+        <div class="feature-item"><span>🆓</span><span>Gratis</span></div>
+        <div class="feature-item"><span>🔒</span><span>Aman</span></div>
+        <div class="feature-item"><span>📱</span><span>Mobile</span></div>
     </div>
+
 </div>
 
 <script>
     // ============================================================
-    // KONFIGURASI - Ganti dengan API Key kamu dari RapidAPI
+    // GANTI INI DENGAN API KEY DARI RAPIDAPI
+    // https://rapidapi.com/ytjar/api/youtube-mp36
     // ============================================================
-    const RAPIDAPI_KEY = "44a6176a94msh92d99842860f494p1ff229jsndf24d7c1ac22
-rapidapi.com"; 
-    // Daftar gratis di: https://rapidapi.com/ytjar/api/youtube-mp36
+    var RAPIDAPI_KEY = " 44a6176a94msh92d99842860f494p1ff229jsndf24d7c1ac22 ";
+    var API_HOST = "youtube-mp36.p.rapidapi.com";
     // ============================================================
-
-    const API_HOST = "youtube-mp36.p.rapidapi.com";
 
     function extractVideoId(url) {
-        const patterns = [
+        var patterns = [
             /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/)([^&\n?#]+)/,
             /youtube\.com\/shorts\/([^&\n?#]+)/
         ];
-        for (const pattern of patterns) {
-            const match = url.match(pattern);
+        for (var i = 0; i < patterns.length; i++) {
+            var match = url.match(patterns[i]);
             if (match) return match[1];
         }
         return null;
     }
 
     function showError(msg) {
-        const box = document.getElementById("errorBox");
+        var box = document.getElementById("errorBox");
         document.getElementById("errorText").textContent = msg;
         box.classList.add("show");
-        setTimeout(() => box.classList.remove("show"), 5000);
     }
 
     function hideError() {
@@ -469,12 +454,35 @@ rapidapi.com";
         document.getElementById("progressBar").style.width = percent + "%";
         document.getElementById("progressPercent").textContent = percent + "%";
         document.getElementById("progressStatus").textContent = status;
-        if (subStatus) document.getElementById("statusText").textContent = subStatus;
+        if (subStatus) {
+            document.getElementById("statusText").textContent = subStatus;
+        }
+    }
+
+    function sleep(ms) {
+        return new Promise(function(resolve) {
+            setTimeout(resolve, ms);
+        });
+    }
+
+    function fetchConvert(videoId) {
+        return fetch("https://" + API_HOST + "/dl?id=" + videoId, {
+            method: "GET",
+            headers: {
+                "x-rapidapi-key": RAPIDAPI_KEY,
+                "x-rapidapi-host": API_HOST
+            }
+        }).then(function(res) {
+            if (!res.ok) {
+                throw new Error("HTTP Error: " + res.status);
+            }
+            return res.json();
+        });
     }
 
     async function startConvert() {
-        const url = document.getElementById("ytUrl").value.trim();
-        const btn = document.getElementById("btnConvert");
+        var url = document.getElementById("ytUrl").value.trim();
+        var btn = document.getElementById("btnConvert");
 
         hideError();
         document.getElementById("videoInfo").classList.remove("show");
@@ -486,95 +494,61 @@ rapidapi.com";
             return;
         }
 
-        const videoId = extractVideoId(url);
+        var videoId = extractVideoId(url);
         if (!videoId) {
             showError("Link YouTube tidak valid! Contoh: https://youtube.com/watch?v=xxxxx");
             return;
         }
 
-        if (RAPIDAPI_KEY === "44a6176a94msh92d99842860f494p1ff229jsndf24d7c1ac22
-rapidapi.com") {
-            showError("API Key belum diisi! Baca petunjuk di bagian atas.");
+        if (RAPIDAPI_KEY === " 44a6176a94msh92d99842860f494p1ff229jsndf24d7c1ac22") {
+            showError("API Key belum diisi! Baca petunjuk setup di bagian atas.");
             return;
         }
 
-        // Tampilkan thumbnail & info video
-        const thumbUrl = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
+        var thumbUrl = "https://img.youtube.com/vi/" + videoId + "/mqdefault.jpg";
         document.getElementById("videoThumb").src = thumbUrl;
         document.getElementById("videoTitle").textContent = "Memuat info video...";
         document.getElementById("videoChannel").textContent = "YouTube";
         document.getElementById("videoInfo").classList.add("show");
 
-        // Tampilkan progress
         document.getElementById("progressContainer").classList.add("show");
         btn.disabled = true;
-        btn.textContent = "⏳ Memproses...";
+        btn.textContent = "Memproses...";
 
         setProgress(10, "Menghubungi server...", "Memeriksa video...");
 
         try {
-            // Step 1 - Request konversi
             setProgress(30, "Mengonversi audio...", "Mengekstrak audio dari video...");
 
-            const response = await fetch(
-                `https://${API_HOST}/dl?id=${videoId}`,
-                {
-                    method: "GET",
-                    headers: {
-                        "x-rapidapi-key": RAPIDAPI_KEY,
-                        "x-rapidapi-host": API_HOST
-                    }
-                }
-            );
-
-            if (!response.ok) {
-                throw new Error(`HTTP Error: ${response.status}`);
-            }
-
-            const data = await response.json();
+            var data = await fetchConvert(videoId);
 
             setProgress(60, "Memproses file...", "Menyiapkan unduhan...");
 
-            // Polling jika status masih processing
-            let finalData = data;
-            let attempts = 0;
-            const maxAttempts = 20;
+            var finalData = data;
+            var attempts = 0;
+            var maxAttempts = 20;
 
             while (finalData.status === "processing" && attempts < maxAttempts) {
                 attempts++;
-                const prog = 60 + Math.min(attempts * 2, 35);
-                setProgress(prog, "Mengonversi...", `Sedang diproses... (${attempts})`);
+                var prog = 60 + Math.min(attempts * 2, 35);
+                setProgress(prog, "Mengonversi...", "Sedang diproses... (" + attempts + ")");
                 await sleep(1500);
-
-                const retryRes = await fetch(
-                    `https://${API_HOST}/dl?id=${videoId}`,
-                    {
-                        method: "GET",
-                        headers: {
-                            "x-rapidapi-key": RAPIDAPI_KEY,
-                            "x-rapidapi-host": API_HOST
-                        }
-                    }
-                );
-                finalData = await retryRes.json();
+                finalData = await fetchConvert(videoId);
             }
 
             if (finalData.status !== "ok" || !finalData.link) {
                 throw new Error(finalData.msg || "Konversi gagal, coba lagi.");
             }
 
-            // Sukses!
-            setProgress(100, "Selesai! ✅", "File MP3 siap diunduh");
+            setProgress(100, "Selesai!", "File MP3 siap diunduh");
 
             document.getElementById("videoTitle").textContent = finalData.title || "Audio YouTube";
             document.getElementById("videoChannel").textContent = "Download siap";
 
-            // Set link download
-            const dlBtn = document.getElementById("downloadBtn");
+            var dlBtn = document.getElementById("downloadBtn");
             dlBtn.href = finalData.link;
-            dlBtn.setAttribute("download", (finalData.title || "audio") + ".mp3");
 
-            setTimeout(() => {
+            setTimeout(function() {
                 document.getElementById("progressContainer").classList.remove("show");
                 document.getElementById("downloadArea").classList.add("show");
             }, 800);
@@ -590,24 +564,13 @@ rapidapi.com") {
         }
     }
 
-    function sleep(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
-    }
+    // Event listener dipasang di sini, BUKAN di onclick HTML
+    document.getElementById("btnConvert").addEventListener("click", startConvert);
 
-    // Enter key support
     document.getElementById("ytUrl").addEventListener("keydown", function(e) {
-        if (e.key === "Enter") startConvert();
-    });
-
-    // Auto paste detection
-    document.getElementById("ytUrl").addEventListener("paste", function() {
-        setTimeout(() => {
-            const val = this.value;
-            if (val.includes("youtube.com") || val.includes("youtu.be")) {
-                // Auto-convert opsional:
-                // startConvert();
-            }
-        }, 100);
+        if (e.key === "Enter") {
+            startConvert();
+        }
     });
 </script>
 
